@@ -19,9 +19,6 @@ const Modal = ({
   children, 
   size = 'md' 
 }) => {
-  // Don't render anything if modal is closed
-  if (!isOpen) return null;
-
   // Size classes for different modal widths
   const sizeClasses = {
     sm: 'max-w-md',
@@ -37,23 +34,35 @@ const Modal = ({
     }
   };
 
-  // Close modal when pressing Escape key
+  // Handle scroll and escape key management
   React.useEffect(() => {
+    if (!isOpen) return;
+
+    // Store original overflow style
+    const originalOverflow = document.body.style.overflow;
+    
+    // Prevent body scroll when modal is open
+    document.body.style.overflow = 'hidden';
+
+    // Handle escape key
     const handleEscape = (e) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key === 'Escape') {
+        onClose();
+      }
     };
     
-    if (isOpen) {
-      document.addEventListener('keydown', handleEscape);
-      // Prevent body scroll when modal is open
-      document.body.style.overflow = 'hidden';
-    }
+    document.addEventListener('keydown', handleEscape);
 
+    // Cleanup function
     return () => {
       document.removeEventListener('keydown', handleEscape);
-      document.body.style.overflow = 'unset';
+      // Restore original overflow style
+      document.body.style.overflow = originalOverflow;
     };
   }, [isOpen, onClose]);
+
+  // Don't render anything if modal is closed
+  if (!isOpen) return null;
 
   return (
     // Full-screen backdrop with dark overlay

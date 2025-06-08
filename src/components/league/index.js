@@ -1,13 +1,14 @@
-// src/components/member/index.js
-// Export all member-specific components
+// src/components/league/index.js
+// Export all league-specific components
 
-export { default as MemberForm } from './MemberForm';
+export { default as LeagueForm } from './LeagueForm';
 
-// Future member components can be added here:
-// export { default as MemberCard } from './MemberCard';
-// export { default as MemberProfile } from './MemberProfile';
+// Future league components can be added here:
+// export { default as LeagueCard } from './LeagueCard';
+// export { default as LeagueSchedule } from './LeagueSchedule';
+// export { default as LeagueStandings } from './LeagueStandings';
 
 // Usage Examples:
-// import { MemberForm } from '../member';
+// import { LeagueForm } from '../league';
 // OR
-// import MemberForm from '../member/MemberForm';
+// import LeagueForm from '../league/LeagueForm';
