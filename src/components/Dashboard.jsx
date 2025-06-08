@@ -1,200 +1,378 @@
-// src/components/Dashboard.jsx
+// src/components/Dashboard.jsx (Updated with new UI components)
 import React, { useState } from 'react';
+import { Plus, Calendar, Users, Trophy, DollarSign } from 'lucide-react';
 import { useMembers, useLeagues, useTournaments, useAuth } from '../hooks';
 import { SKILL_LEVELS, TOURNAMENT_STATUS } from '../services/models';
+
+// Import our new UI components
+import { 
+  Button, 
+  Modal, 
+  Card, 
+  CardGrid, 
+  Table, 
+  TableActions, 
+  Alert 
+} from './ui';
+import TournamentForm from './tournament/TournamentForm';
+import MemberSelector from './tournament/MemberSelector';
 
 const Dashboard = () => {
   const { user, signIn, signUp, logout, isAuthenticated } = useAuth();
   const { members, loading: membersLoading, addMember } = useMembers();
   const { leagues, loading: leaguesLoading, addLeague } = useLeagues();
-  const { tournaments, loading: tournamentsLoading, addTournament } = useTournaments();
+  const { tournaments, loading: tournamentsLoading, addTournament, updateTournament } = useTournaments();
 
+  // Modal states
+  const [showTournamentModal, setShowTournamentModal] = useState(false);
+  const [showMemberModal, setShowMemberModal] = useState(false);
+  const [editingTournament, setEditingTournament] = useState(null);
+  
+  // Form states
+  const [selectedMembers, setSelectedMembers] = useState([]);
+  const [formLoading, setFormLoading] = useState(false);
+  const [alert, setAlert] = useState(null);
+
+  // Auth form state
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
-  // Auth form
+  // Show alert message
+  const showAlert = (type, title, message) => {
+    setAlert({ type, title, message });
+    setTimeout(() => setAlert(null), 5000); // Auto-hide after 5 seconds
+  };
+
+  // Auth functions
   const handleAuth = async (isSignUp) => {
     try {
       if (isSignUp) {
         await signUp(email, password);
+        showAlert('success', 'Welcome!', 'Account created successfully');
       } else {
         await signIn(email, password);
+        showAlert('success', 'Welcome back!', 'Signed in successfully');
       }
       setEmail('');
       setPassword('');
     } catch (err) {
-      console.error('Auth error:', err);
+      showAlert('error', 'Authentication failed', err.message);
     }
   };
 
-  // Quick add functions
-  const handleAddMember = async () => {
-    await addMember({
-      firstName: 'New',
-      lastName: 'Member',
-      email: `member${Date.now()}@example.com`,
-      skillLevel: SKILL_LEVELS.BEGINNER
-    });
+  // Tournament functions
+  const handleCreateTournament = async (tournamentData) => {
+    setFormLoading(true);
+    try {
+      const tournamentId = await addTournament(tournamentData);
+      
+      // If members are selected, add them as participants
+      if (selectedMembers.length > 0) {
+        await updateTournament(tournamentId, {
+          participants: selectedMembers
+        });
+      }
+      
+      setShowTournamentModal(false);
+      setSelectedMembers([]);
+      showAlert('success', 'Tournament created!', `${tournamentData.name} has been created successfully`);
+    } catch (err) {
+      showAlert('error', 'Failed to create tournament', err.message);
+    } finally {
+      setFormLoading(false);
+    }
   };
 
-  const handleAddLeague = async () => {
-    await addLeague({
-      name: `League ${Date.now()}`,
-      description: 'A new league',
-      skillLevel: SKILL_LEVELS.INTERMEDIATE,
-      startDate: new Date(),
-      endDate: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000) // 90 days from now
-    });
+  const handleEditTournament = (tournament) => {
+    setEditingTournament(tournament);
+    setSelectedMembers(tournament.participants || []);
+    setShowTournamentModal(true);
   };
 
-  const handleAddTournament = async () => {
-    await addTournament({
-      name: `Tournament ${Date.now()}`,
-      description: 'A new tournament',
-      skillLevel: SKILL_LEVELS.INTERMEDIATE,
-      status: TOURNAMENT_STATUS.DRAFT,
-      eventDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days from now
-      location: 'TBD'
-    });
+  const handleUpdateTournament = async (tournamentData) => {
+    setFormLoading(true);
+    try {
+      await updateTournament(editingTournament.id, {
+        ...tournamentData,
+        participants: selectedMembers
+      });
+      
+      setShowTournamentModal(false);
+      setEditingTournament(null);
+      setSelectedMembers([]);
+      showAlert('success', 'Tournament updated!', `${tournamentData.name} has been updated successfully`);
+    } catch (err) {
+      showAlert('error', 'Failed to update tournament', err.message);
+    } finally {
+      setFormLoading(false);
+    }
   };
 
+  // Quick member creation
+  const handleQuickAddMember = async () => {
+    try {
+      await addMember({
+        firstName: 'New',
+        lastName: `Member ${Date.now()}`,
+        email: `member${Date.now()}@example.com`,
+        skillLevel: SKILL_LEVELS.BEGINNER
+      });
+      showAlert('success', 'Member added!', 'New member has been added successfully');
+    } catch (err) {
+      showAlert('error', 'Failed to add member', err.message);
+    }
+  };
+
+  // Authentication UI
   if (!isAuthenticated) {
     return (
-      <div className="p-6">
-        <h1 className="text-2xl font-bold mb-4">PickleTrack - Please Sign In</h1>
-        <div className="max-w-md">
-          <input
-            type="email"
-            placeholder="Email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="w-full p-2 border rounded mb-2"
-          />
-          <input
-            type="password"
-            placeholder="Password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="w-full p-2 border rounded mb-4"
-          />
-          <div className="space-x-2">
-            <button
-              onClick={() => handleAuth(false)}
-              className="px-4 py-2 bg-blue-500 text-white rounded"
-            >
-              Sign In
-            </button>
-            <button
-              onClick={() => handleAuth(true)}
-              className="px-4 py-2 bg-green-500 text-white rounded"
-            >
-              Sign Up
-            </button>
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <Card title="Welcome to PickleTrack" className="w-full max-w-md">
+          <div className="space-y-4">
+            <input
+              type="email"
+              placeholder="Email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="w-full p-3 border rounded-lg"
+            />
+            <input
+              type="password"
+              placeholder="Password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="w-full p-3 border rounded-lg"
+            />
+            <div className="flex space-x-2">
+              <Button onClick={() => handleAuth(false)} className="flex-1">
+                Sign In
+              </Button>
+              <Button variant="outline" onClick={() => handleAuth(true)} className="flex-1">
+                Sign Up
+              </Button>
+            </div>
           </div>
-        </div>
+        </Card>
       </div>
     );
   }
 
+  // Table columns for tournaments
+  const tournamentColumns = [
+    {
+      key: 'name',
+      label: 'Tournament Name'
+    },
+    {
+      key: 'eventDate',
+      label: 'Date',
+      render: (date) => date ? new Date(date.seconds * 1000).toLocaleDateString() : 'TBD'
+    },
+    {
+      key: 'location',
+      label: 'Location'
+    },
+    {
+      key: 'skillLevel',
+      label: 'Skill Level',
+      render: (level) => <span className="capitalize">{level}</span>
+    },
+    {
+      key: 'status',
+      label: 'Status',
+      render: (status) => (
+        <span className={`
+          px-2 py-1 text-xs rounded-full
+          ${status === TOURNAMENT_STATUS.DRAFT ? 'bg-gray-100 text-gray-800' :
+            status === TOURNAMENT_STATUS.REGISTRATION_OPEN ? 'bg-green-100 text-green-800' :
+            status === TOURNAMENT_STATUS.IN_PROGRESS ? 'bg-blue-100 text-blue-800' :
+            status === TOURNAMENT_STATUS.COMPLETED ? 'bg-purple-100 text-purple-800' :
+            'bg-red-100 text-red-800'
+          }
+        `}>
+          {status.replace('_', ' ')}
+        </span>
+      )
+    },
+    {
+      key: 'participants',
+      label: 'Participants',
+      render: (participants) => participants?.length || 0
+    },
+    {
+      key: 'actions',
+      label: 'Actions',
+      render: (_, tournament) => (
+        <TableActions
+          actions={[
+            {
+              label: 'Edit',
+              onClick: () => handleEditTournament(tournament)
+            }
+          ]}
+        />
+      )
+    }
+  ];
+
   return (
-    <div className="p-6">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">PickleTrack Dashboard</h1>
-        <div className="space-x-2">
-          <span>Welcome, {user.email}</span>
-          <button
-            onClick={logout}
-            className="px-4 py-2 bg-red-500 text-white rounded"
-          >
+    <div className="min-h-screen bg-gray-50">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Alert notification */}
+        {alert && (
+          <div className="mb-6">
+            <Alert
+              type={alert.type}
+              title={alert.title}
+              message={alert.message}
+              onClose={() => setAlert(null)}
+            />
+          </div>
+        )}
+
+        {/* Header */}
+        <div className="flex justify-between items-center mb-8">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">Tournament Dashboard</h1>
+            <p className="text-gray-600">Welcome back, {user.email}</p>
+          </div>
+          <Button variant="outline" onClick={logout}>
             Logout
-          </button>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {/* Members Section */}
-        <div className="border rounded-lg p-4">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-semibold">Members</h2>
-            <button
-              onClick={handleAddMember}
-              className="px-3 py-1 bg-blue-500 text-white rounded text-sm"
-            >
-              Add Member
-            </button>
-          </div>
-          {membersLoading ? (
-            <p>Loading...</p>
-          ) : (
-            <div>
-              <p className="text-gray-600 mb-2">Total: {members.length}</p>
-              <div className="space-y-2 max-h-40 overflow-y-auto">
-                {members.slice(0, 5).map(member => (
-                  <div key={member.id} className="text-sm border-b pb-1">
-                    {member.firstName} {member.lastName}
-                    <span className="text-gray-500 ml-2">({member.skillLevel})</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+          </Button>
         </div>
 
-        {/* Leagues Section */}
-        <div className="border rounded-lg p-4">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-semibold">Leagues</h2>
-            <button
-              onClick={handleAddLeague}
-              className="px-3 py-1 bg-green-500 text-white rounded text-sm"
-            >
-              Add League
-            </button>
-          </div>
-          {leaguesLoading ? (
-            <p>Loading...</p>
-          ) : (
-            <div>
-              <p className="text-gray-600 mb-2">Total: {leagues.length}</p>
-              <div className="space-y-2 max-h-40 overflow-y-auto">
-                {leagues.slice(0, 5).map(league => (
-                  <div key={league.id} className="text-sm border-b pb-1">
-                    {league.name}
-                    <span className="text-gray-500 ml-2">({league.status})</span>
-                  </div>
-                ))}
-              </div>
+        {/* Stats Cards */}
+        <CardGrid className="mb-8">
+          <Card 
+            title="Total Tournaments" 
+            className="text-center"
+          >
+            <div className="flex items-center justify-center">
+              <Trophy className="h-8 w-8 text-green-600 mr-3" />
+              <span className="text-3xl font-bold text-gray-900">
+                {tournaments.length}
+              </span>
             </div>
-          )}
-        </div>
+          </Card>
+
+          <Card 
+            title="Active Members" 
+            className="text-center"
+          >
+            <div className="flex items-center justify-center">
+              <Users className="h-8 w-8 text-blue-600 mr-3" />
+              <span className="text-3xl font-bold text-gray-900">
+                {members.length}
+              </span>
+            </div>
+          </Card>
+
+          <Card 
+            title="Upcoming Events" 
+            className="text-center"
+          >
+            <div className="flex items-center justify-center">
+              <Calendar className="h-8 w-8 text-purple-600 mr-3" />
+              <span className="text-3xl font-bold text-gray-900">
+                {tournaments.filter(t => t.status === TOURNAMENT_STATUS.REGISTRATION_OPEN).length}
+              </span>
+            </div>
+          </Card>
+        </CardGrid>
 
         {/* Tournaments Section */}
-        <div className="border rounded-lg p-4">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-semibold">Tournaments</h2>
-            <button
-              onClick={handleAddTournament}
-              className="px-3 py-1 bg-purple-500 text-white rounded text-sm"
+        <Card 
+          title="Tournaments"
+          subtitle="Manage your pickleball tournaments"
+          actions={[
+            <Button 
+              key="add-tournament"
+              onClick={() => setShowTournamentModal(true)}
             >
-              Add Tournament
-            </button>
+              <Plus className="h-4 w-4 mr-2" />
+              New Tournament
+            </Button>
+          ]}
+          className="mb-8"
+        >
+          <Table
+            columns={tournamentColumns}
+            data={tournaments}
+            loading={tournamentsLoading}
+            emptyMessage="No tournaments yet. Create your first tournament!"
+          />
+        </Card>
+
+        {/* Quick Actions */}
+        <Card title="Quick Actions" className="mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Button 
+              variant="outline" 
+              onClick={handleQuickAddMember}
+              className="h-16"
+            >
+              <Users className="h-5 w-5 mr-2" />
+              Add Member
+            </Button>
+            
+            <Button 
+              variant="outline" 
+              onClick={() => setShowTournamentModal(true)}
+              className="h-16"
+            >
+              <Trophy className="h-5 w-5 mr-2" />
+              Create Tournament
+            </Button>
+            
+            <Button 
+              variant="outline" 
+              className="h-16"
+              disabled
+            >
+              <DollarSign className="h-5 w-5 mr-2" />
+              Payment Tracker
+              <span className="ml-2 text-xs bg-gray-200 px-2 py-1 rounded">Coming Soon</span>
+            </Button>
           </div>
-          {tournamentsLoading ? (
-            <p>Loading...</p>
-          ) : (
-            <div>
-              <p className="text-gray-600 mb-2">Total: {tournaments.length}</p>
-              <div className="space-y-2 max-h-40 overflow-y-auto">
-                {tournaments.slice(0, 5).map(tournament => (
-                  <div key={tournament.id} className="text-sm border-b pb-1">
-                    {tournament.name}
-                    <span className="text-gray-500 ml-2">({tournament.status})</span>
-                  </div>
-                ))}
-              </div>
+        </Card>
+
+        {/* Tournament Modal */}
+        <Modal
+          isOpen={showTournamentModal}
+          onClose={() => {
+            setShowTournamentModal(false);
+            setEditingTournament(null);
+            setSelectedMembers([]);
+          }}
+          title={editingTournament ? 'Edit Tournament' : 'Create New Tournament'}
+          size="lg"
+        >
+          <div className="space-y-6">
+            <TournamentForm
+              tournament={editingTournament}
+              onSubmit={editingTournament ? handleUpdateTournament : handleCreateTournament}
+              onCancel={() => {
+                setShowTournamentModal(false);
+                setEditingTournament(null);
+                setSelectedMembers([]);
+              }}
+              loading={formLoading}
+            />
+            
+            {/* Member Selection */}
+            <div className="border-t pt-6">
+              <h3 className="text-lg font-medium text-gray-900 mb-4">
+                Select Participants
+              </h3>
+              <MemberSelector
+                members={members}
+                selectedMembers={selectedMembers}
+                onSelectionChange={setSelectedMembers}
+                loading={membersLoading}
+              />
             </div>
-          )}
-        </div>
+          </div>
+        </Modal>
       </div>
     </div>
   );
