@@ -8,7 +8,10 @@ import {
   User,
   CreditCard,
   Users,
-  UserCheck
+  UserCheck,
+  Receipt,
+  CheckCircle2,
+  AlertTriangle
 } from 'lucide-react';
 import { Button, Alert, Select } from '../ui';
 import { PAYMENT_MODES } from '../../services/models';
@@ -32,11 +35,19 @@ const PaymentStatus = ({
     tournament.paymentData || {}
   );
   const [selectedGroupPayer, setSelectedGroupPayer] = useState('');
+  const [errors, setErrors] = useState([]);
 
   const paymentMode = tournament.paymentMode || PAYMENT_MODES.INDIVIDUAL;
   const isGroupPayment = paymentMode === PAYMENT_MODES.GROUP;
+  const entryFee = parseFloat(tournament.entryFee) || 0;
 
-  // Get participant details with payment status
+  // Validation helper
+  const validatePaymentAmount = (amount) => {
+    const num = parseFloat(amount);
+    return !isNaN(num) && num >= 0;
+  };
+
+  // Get participant details with simplified payment info
   const getParticipantsWithPaymentInfo = () => {
     if (!tournament.participants || tournament.participants.length === 0) {
       return [];
@@ -46,165 +57,133 @@ const PaymentStatus = ({
       const member = members.find(m => m.id === participantId);
       const payment = paymentData[participantId] || {};
       
+      // Simplified payment status calculation
+      let status = 'unpaid';
+      let amountPaid = 0;
+      
+      if (payment.amount && validatePaymentAmount(payment.amount)) {
+        amountPaid = parseFloat(payment.amount);
+        if (amountPaid >= entryFee) {
+          status = amountPaid > entryFee ? 'overpaid' : 'paid';
+        } else if (amountPaid > 0) {
+          status = 'partial';
+        }
+      }
+      
       return {
         id: participantId,
         member: member || { firstName: 'Unknown', lastName: 'Member', email: '' },
-        paymentStatus: payment.status || 'unpaid',
-        paidAmount: payment.amount || 0,
+        status,
+        amountPaid,
+        amountOwed: Math.max(0, entryFee - amountPaid),
+        overpaidAmount: Math.max(0, amountPaid - entryFee),
         paymentDate: payment.date || null,
-        paymentMethod: payment.method || null,
-        notes: payment.notes || '',
-        paidBy: payment.paidBy || participantId,
-        reimburseAmount: payment.reimburseAmount || 0
+        notes: payment.notes || ''
       };
     });
   };
 
   const participantsWithPayment = getParticipantsWithPaymentInfo();
 
-  // Calculate payment summary based on mode
+  // Simplified payment summary calculation
   const getPaymentSummary = () => {
-    if (isGroupPayment) {
-      return getGroupPaymentSummary();
-    } else {
-      return getIndividualPaymentSummary();
+    const totalParticipants = participantsWithPayment.length;
+    const totalExpected = entryFee * totalParticipants;
+    
+    // Calculate actual totals
+    const totalPaid = participantsWithPayment.reduce((sum, p) => sum + p.amountPaid, 0);
+    const totalOwed = participantsWithPayment.reduce((sum, p) => sum + p.amountOwed, 0);
+    const totalOverpaid = participantsWithPayment.reduce((sum, p) => sum + p.overpaidAmount, 0);
+    
+    // Count participants by status
+    const paidCount = participantsWithPayment.filter(p => p.status === 'paid').length;
+    const partialCount = participantsWithPayment.filter(p => p.status === 'partial').length;
+    const unpaidCount = participantsWithPayment.filter(p => p.status === 'unpaid').length;
+    const overpaidCount = participantsWithPayment.filter(p => p.status === 'overpaid').length;
+
+    // Find group payer (if any)
+    const groupPayer = participantsWithPayment.find(p => 
+      p.amountPaid >= totalExpected && isGroupPayment
+    );
+
+    return {
+      totalParticipants,
+      totalExpected,
+      totalPaid: Math.round(totalPaid * 100) / 100,
+      totalOwed: Math.round(totalOwed * 100) / 100,
+      totalOverpaid: Math.round(totalOverpaid * 100) / 100,
+      paidCount,
+      partialCount,
+      unpaidCount,
+      overpaidCount,
+      groupPayer: groupPayer?.member || null,
+      isFullyPaid: totalOwed === 0,
+      paymentRate: totalParticipants > 0 ? ((paidCount / totalParticipants) * 100).toFixed(1) : 0
+    };
+  };
+
+  const summary = getPaymentSummary();
+
+  // Handle individual payment
+  const handlePayment = (participantId, amount, notes = '') => {
+    if (!validatePaymentAmount(amount)) {
+      setErrors(['Invalid payment amount']);
+      return;
+    }
+
+    const paymentAmount = parseFloat(amount);
+    const newPaymentData = {
+      ...paymentData,
+      [participantId]: {
+        amount: paymentAmount,
+        date: new Date().toISOString(),
+        method: isGroupPayment ? 'group' : 'individual',
+        notes: notes || `Payment of $${paymentAmount}`,
+        recordedBy: currentUserId
+      }
+    };
+    
+    setPaymentData(newPaymentData);
+    setErrors([]);
+    
+    if (onPaymentUpdate) {
+      onPaymentUpdate(tournament.id, { paymentData: newPaymentData });
     }
   };
-
-  const getIndividualPaymentSummary = () => {
-    const totalParticipants = participantsWithPayment.length;
-    const totalPaid = participantsWithPayment.filter(p => p.paymentStatus === 'paid').length;
-    const totalOwed = tournament.entryFee * totalParticipants;
-    const totalCollected = participantsWithPayment.reduce((sum, p) => 
-      p.paymentStatus === 'paid' ? sum + (p.paidAmount || tournament.entryFee) : sum, 0
-    );
-
-    return {
-      totalParticipants,
-      totalPaid,
-      totalOwed,
-      totalCollected,
-      remainingBalance: totalOwed - totalCollected,
-      paymentRate: totalParticipants > 0 ? (totalPaid / totalParticipants * 100).toFixed(1) : 0
-    };
-  };
-
-  const getGroupPaymentSummary = () => {
-    const totalParticipants = participantsWithPayment.length;
-    const totalOwed = tournament.entryFee * totalParticipants;
-    
-    // Find who paid for the group
-    const groupPayer = participantsWithPayment.find(p => 
-      p.paymentStatus === 'paid' && p.paidAmount >= totalOwed
-    );
-    
-    // Count reimbursements
-    const reimbursed = participantsWithPayment.filter(p => 
-      p.id !== groupPayer?.id && p.paymentStatus === 'paid'
-    ).length;
-
-    const totalReimbursed = participantsWithPayment.reduce((sum, p) => 
-      p.id !== groupPayer?.id && p.paymentStatus === 'paid' ? sum + tournament.entryFee : sum, 0
-    );
-
-    return {
-      totalParticipants,
-      totalOwed,
-      groupPayer: groupPayer?.member,
-      groupPayerPaid: groupPayer ? totalOwed : 0,
-      reimbursed,
-      totalReimbursed,
-      remainingReimbursements: groupPayer ? totalOwed - totalReimbursed : 0,
-      fullyPaid: !!groupPayer,
-      fullyReimbursed: groupPayer && reimbursed === totalParticipants - 1
-    };
-  };
-
-  const paymentSummary = getPaymentSummary();
 
   // Handle group payment - one person pays for everyone
-  const handleGroupPayment = async (payerId) => {
-    const totalAmount = tournament.entryFee * participantsWithPayment.length;
-    
+  const handleGroupPayment = (payerId) => {
+    const totalAmount = entryFee * participantsWithPayment.length;
     const newPaymentData = { ...paymentData };
     
-    // Mark the payer as paid for the full amount
-    newPaymentData[payerId] = {
-      status: 'paid',
-      amount: totalAmount,
-      paidBy: payerId,
-      method: 'group_payment',
-      date: new Date().toISOString(),
-      notes: 'Paid for entire group'
-    };
-
-    // Mark other participants as owing reimbursement
-    participantsWithPayment.forEach(participant => {
-      if (participant.id !== payerId) {
-        newPaymentData[participant.id] = {
-          status: 'owes_reimbursement',
-          amount: 0,
-          paidBy: payerId,
-          reimburseAmount: tournament.entryFee,
-          method: 'reimbursement_owed',
-          date: null,
-          notes: `Owes $${tournament.entryFee} to group payer`
-        };
-      }
+    // Clear existing payments
+    participantsWithPayment.forEach(p => {
+      delete newPaymentData[p.id];
     });
-
-    setPaymentData(newPaymentData);
     
-    if (onPaymentUpdate) {
-      onPaymentUpdate(tournament.id, { paymentData: newPaymentData });
-    }
-  };
-
-  // Handle individual reimbursement
-  const handleReimbursement = (participantId) => {
-    const newPaymentData = {
-      ...paymentData,
-      [participantId]: {
-        ...paymentData[participantId],
-        status: 'paid',
-        amount: tournament.entryFee,
-        date: new Date().toISOString(),
-        method: 'reimbursement',
-        notes: 'Reimbursed group payer'
-      }
+    // Set group payer payment
+    newPaymentData[payerId] = {
+      amount: totalAmount,
+      date: new Date().toISOString(),
+      method: 'group_payment',
+      notes: `Paid $${totalAmount} for entire group of ${participantsWithPayment.length}`,
+      recordedBy: currentUserId
     };
-    
+
     setPaymentData(newPaymentData);
+    setSelectedGroupPayer('');
+    setErrors([]);
     
     if (onPaymentUpdate) {
       onPaymentUpdate(tournament.id, { paymentData: newPaymentData });
     }
   };
 
-  // Regular individual payment
-  const markAsPaid = (participantId, amount = tournament.entryFee) => {
-    const newPaymentData = {
-      ...paymentData,
-      [participantId]: {
-        status: 'paid',
-        amount: amount,
-        paidBy: participantId,
-        method: 'individual',
-        date: new Date().toISOString()
-      }
-    };
-    
-    setPaymentData(newPaymentData);
-    
-    if (onPaymentUpdate) {
-      onPaymentUpdate(tournament.id, { paymentData: newPaymentData });
-    }
-  };
-
-  // Mark as unpaid
-  const markAsUnpaid = (participantId) => {
+  // Remove payment
+  const removePayment = (participantId) => {
     const newPaymentData = { ...paymentData };
     delete newPaymentData[participantId];
+    
     setPaymentData(newPaymentData);
     
     if (onPaymentUpdate) {
@@ -212,7 +191,18 @@ const PaymentStatus = ({
     }
   };
 
-  if (!tournament.entryFee || tournament.entryFee === 0) {
+  // Get status badge styling
+  const getStatusBadge = (status) => {
+    const badges = {
+      unpaid: { color: 'bg-red-100 text-red-800', label: 'Unpaid' },
+      partial: { color: 'bg-yellow-100 text-yellow-800', label: 'Partial' },
+      paid: { color: 'bg-green-100 text-green-800', label: 'Paid' },
+      overpaid: { color: 'bg-blue-100 text-blue-800', label: 'Overpaid' }
+    };
+    return badges[status] || badges.unpaid;
+  };
+
+  if (entryFee <= 0) {
     return (
       <Alert 
         type="info" 
@@ -224,152 +214,127 @@ const PaymentStatus = ({
 
   return (
     <div className="space-y-6">
-      {/* Payment Mode Indicator */}
+      {/* Error Messages */}
+      {errors.length > 0 && (
+        <Alert
+          type="error"
+          title="Payment Error"
+          message={errors.join(', ')}
+          onClose={() => setErrors([])}
+        />
+      )}
+
+      {/* Payment Mode Info */}
       <div className="bg-blue-50 p-4 rounded-lg">
         <div className="flex items-center justify-between">
           <div>
             <h4 className="font-medium text-blue-900">
-              Payment Mode: {isGroupPayment ? 'Group Payment' : 'Individual Payments'}
+              {isGroupPayment ? 'Group Payment Mode' : 'Individual Payment Mode'}
             </h4>
             <p className="text-sm text-blue-700">
               {isGroupPayment 
-                ? 'One person pays for the group, others reimburse that person'
-                : 'Each participant pays their own entry fee'
+                ? 'One person pays for everyone' 
+                : 'Each participant pays their own fee'
               }
             </p>
           </div>
           <div className="text-right">
-            <p className="text-lg font-bold text-blue-900">${tournament.entryFee}</p>
+            <p className="text-lg font-bold text-blue-900">${entryFee}</p>
             <p className="text-sm text-blue-700">per person</p>
           </div>
         </div>
       </div>
 
       {/* Payment Summary Cards */}
-      {isGroupPayment ? (
-        // Group Payment Summary
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div className="bg-blue-50 p-4 rounded-lg">
-            <div className="flex items-center">
-              <Users className="h-5 w-5 text-blue-600 mr-2" />
-              <div>
-                <p className="text-sm text-blue-600">Total Participants</p>
-                <p className="text-lg font-semibold text-blue-900">
-                  {paymentSummary.totalParticipants}
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <div className={`p-4 rounded-lg ${paymentSummary.fullyPaid ? 'bg-green-50' : 'bg-gray-50'}`}>
-            <div className="flex items-center">
-              <CreditCard className={`h-5 w-5 mr-2 ${paymentSummary.fullyPaid ? 'text-green-600' : 'text-gray-600'}`} />
-              <div>
-                <p className={`text-sm ${paymentSummary.fullyPaid ? 'text-green-600' : 'text-gray-600'}`}>
-                  Group Payment
-                </p>
-                <p className={`text-lg font-semibold ${paymentSummary.fullyPaid ? 'text-green-900' : 'text-gray-900'}`}>
-                  ${paymentSummary.groupPayerPaid}
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-yellow-50 p-4 rounded-lg">
-            <div className="flex items-center">
-              <UserCheck className="h-5 w-5 text-yellow-600 mr-2" />
-              <div>
-                <p className="text-sm text-yellow-600">Reimbursed</p>
-                <p className="text-lg font-semibold text-yellow-900">
-                  {paymentSummary.reimbursed} / {paymentSummary.totalParticipants - (paymentSummary.groupPayer ? 1 : 0)}
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <div className={`p-4 rounded-lg ${paymentSummary.remainingReimbursements === 0 ? 'bg-green-50' : 'bg-red-50'}`}>
-            <div className="flex items-center">
-              <DollarSign className={`h-5 w-5 mr-2 ${paymentSummary.remainingReimbursements === 0 ? 'text-green-600' : 'text-red-600'}`} />
-              <div>
-                <p className={`text-sm ${paymentSummary.remainingReimbursements === 0 ? 'text-green-600' : 'text-red-600'}`}>
-                  Remaining
-                </p>
-                <p className={`text-lg font-semibold ${paymentSummary.remainingReimbursements === 0 ? 'text-green-900' : 'text-red-900'}`}>
-                  ${paymentSummary.remainingReimbursements}
-                </p>
-              </div>
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="bg-gray-50 p-4 rounded-lg">
+          <div className="flex items-center">
+            <Users className="h-5 w-5 text-gray-600 mr-2" />
+            <div>
+              <p className="text-sm text-gray-600">Participants</p>
+              <p className="text-lg font-semibold text-gray-900">
+                {summary.totalParticipants}
+              </p>
             </div>
           </div>
         </div>
-      ) : (
-        // Individual Payment Summary
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div className="bg-blue-50 p-4 rounded-lg">
-            <div className="flex items-center">
-              <Users className="h-5 w-5 text-blue-600 mr-2" />
-              <div>
-                <p className="text-sm text-blue-600">Participants</p>
-                <p className="text-lg font-semibold text-blue-900">
-                  {paymentSummary.totalParticipants}
-                </p>
-              </div>
-            </div>
-          </div>
 
-          <div className="bg-green-50 p-4 rounded-lg">
-            <div className="flex items-center">
-              <Check className="h-5 w-5 text-green-600 mr-2" />
-              <div>
-                <p className="text-sm text-green-600">Paid</p>
-                <p className="text-lg font-semibold text-green-900">
-                  {paymentSummary.totalPaid} / {paymentSummary.totalParticipants}
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-gray-50 p-4 rounded-lg">
-            <div className="flex items-center">
-              <DollarSign className="h-5 w-5 text-gray-600 mr-2" />
-              <div>
-                <p className="text-sm text-gray-600">Collected</p>
-                <p className="text-lg font-semibold text-gray-900">
-                  ${paymentSummary.totalCollected}
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <div className={`p-4 rounded-lg ${
-            paymentSummary.remainingBalance > 0 ? 'bg-red-50' : 'bg-green-50'
-          }`}>
-            <div className="flex items-center">
-              <AlertCircle className={`h-5 w-5 mr-2 ${
-                paymentSummary.remainingBalance > 0 ? 'text-red-600' : 'text-green-600'
-              }`} />
-              <div>
-                <p className={`text-sm ${
-                  paymentSummary.remainingBalance > 0 ? 'text-red-600' : 'text-green-600'
-                }`}>
-                  {paymentSummary.remainingBalance > 0 ? 'Remaining' : 'Complete'}
-                </p>
-                <p className={`text-lg font-semibold ${
-                  paymentSummary.remainingBalance > 0 ? 'text-red-900' : 'text-green-900'
-                }`}>
-                  ${Math.abs(paymentSummary.remainingBalance)}
-                </p>
-              </div>
+        <div className="bg-blue-50 p-4 rounded-lg">
+          <div className="flex items-center">
+            <Receipt className="h-5 w-5 text-blue-600 mr-2" />
+            <div>
+              <p className="text-sm text-blue-600">Expected</p>
+              <p className="text-lg font-semibold text-blue-900">
+                ${summary.totalExpected}
+              </p>
             </div>
           </div>
         </div>
-      )}
 
-      {/* Group Payment Actions */}
-      {isGroupPayment && !paymentSummary.fullyPaid && (
+        <div className="bg-green-50 p-4 rounded-lg">
+          <div className="flex items-center">
+            <DollarSign className="h-5 w-5 text-green-600 mr-2" />
+            <div>
+              <p className="text-sm text-green-600">Collected</p>
+              <p className="text-lg font-semibold text-green-900">
+                ${summary.totalPaid}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className={`p-4 rounded-lg ${
+          summary.totalOwed === 0 
+            ? summary.totalOverpaid > 0 
+              ? 'bg-yellow-50' 
+              : 'bg-green-50'
+            : 'bg-red-50'
+        }`}>
+          <div className="flex items-center">
+            {summary.totalOwed === 0 ? (
+              summary.totalOverpaid > 0 ? (
+                <AlertTriangle className="h-5 w-5 text-yellow-600 mr-2" />
+              ) : (
+                <CheckCircle2 className="h-5 w-5 text-green-600 mr-2" />
+              )
+            ) : (
+              <AlertCircle className="h-5 w-5 text-red-600 mr-2" />
+            )}
+            <div>
+              <p className={`text-sm ${
+                summary.totalOwed === 0 
+                  ? summary.totalOverpaid > 0 
+                    ? 'text-yellow-600' 
+                    : 'text-green-600'
+                  : 'text-red-600'
+              }`}>
+                {summary.totalOwed === 0 
+                  ? summary.totalOverpaid > 0 
+                    ? 'Overpaid' 
+                    : 'Complete'
+                  : 'Outstanding'
+                }
+              </p>
+              <p className={`text-lg font-semibold ${
+                summary.totalOwed === 0 
+                  ? summary.totalOverpaid > 0 
+                    ? 'text-yellow-900' 
+                    : 'text-green-900'
+                  : 'text-red-900'
+              }`}>
+                ${summary.totalOwed > 0 ? summary.totalOwed : summary.totalOverpaid}
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Group Payment Setup */}
+      {isGroupPayment && summary.totalPaid === 0 && (
         <div className="bg-yellow-50 p-4 rounded-lg">
           <h4 className="font-medium text-yellow-900 mb-3">Set Group Payer</h4>
           <p className="text-sm text-yellow-800 mb-4">
-            Select who will pay the ${paymentSummary.totalOwed} entry fee for the entire group:
+            Select who will pay the ${summary.totalExpected} entry fee for the entire group:
           </p>
           
           <div className="flex items-center space-x-4">
@@ -390,32 +355,34 @@ const PaymentStatus = ({
               onClick={() => {
                 if (selectedGroupPayer) {
                   handleGroupPayment(selectedGroupPayer);
-                  setSelectedGroupPayer('');
                 }
               }}
               disabled={!selectedGroupPayer}
             >
-              Set as Group Payer
+              Process Group Payment
             </Button>
           </div>
         </div>
       )}
 
-      {/* Participant List */}
+      {/* Participant Payment List */}
       <div className="border rounded-lg">
         <div className="p-4 border-b bg-gray-50">
           <h3 className="text-lg font-medium text-gray-900">
-            Payment Status
+            Payment Status by Participant
           </h3>
+          <p className="text-sm text-gray-600">
+            {summary.paidCount} of {summary.totalParticipants} participants have paid in full
+          </p>
         </div>
         
         <div className="divide-y">
           {participantsWithPayment.map((participant) => {
-            const isGroupPayer = isGroupPayment && paymentSummary.groupPayer && 
-              paymentSummary.groupPayer.firstName === participant.member.firstName &&
-              paymentSummary.groupPayer.lastName === participant.member.lastName;
-            const owesReimbursement = participant.paymentStatus === 'owes_reimbursement';
             const isCurrentUser = participant.id === currentUserId;
+            const isGroupPayer = summary.groupPayer && 
+              summary.groupPayer.firstName === participant.member.firstName &&
+              summary.groupPayer.lastName === participant.member.lastName;
+            const statusBadge = getStatusBadge(participant.status);
             
             return (
               <div 
@@ -447,93 +414,82 @@ const PaymentStatus = ({
                       <p className="text-sm text-gray-500">
                         {participant.member.email}
                       </p>
-                      {owesReimbursement && (
-                        <p className="text-xs text-orange-600">
-                          Owes ${tournament.entryFee} reimbursement
-                        </p>
-                      )}
+                      
+                      {/* Payment details */}
+                      <div className="mt-1 text-sm">
+                        {participant.status === 'paid' && (
+                          <p className="text-green-600">
+                            ✓ Paid ${participant.amountPaid} {participant.paymentDate && `on ${new Date(participant.paymentDate).toLocaleDateString()}`}
+                          </p>
+                        )}
+                        {participant.status === 'partial' && (
+                          <p className="text-yellow-600">
+                            ⚠ Partial payment: ${participant.amountPaid} (owes ${participant.amountOwed})
+                          </p>
+                        )}
+                        {participant.status === 'overpaid' && (
+                          <p className="text-blue-600">
+                            ↗ Overpaid: ${participant.amountPaid} (excess: ${participant.overpaidAmount})
+                          </p>
+                        )}
+                        {participant.status === 'unpaid' && (
+                          <p className="text-red-600">
+                            ✗ Unpaid (owes ${entryFee})
+                          </p>
+                        )}
+                      </div>
                     </div>
                   </div>
 
+                  {/* Payment Actions */}
                   <div className="flex items-center space-x-3">
-                    {/* Status and Actions */}
-                    {isGroupPayment ? (
-                      // Group payment actions
-                      <div className="flex items-center space-x-3">
+                    {!isGroupPayment ? (
+                      // Individual payment mode
+                      <>
+                        {participant.status === 'unpaid' && (
+                          <Button
+                            size="sm"
+                            onClick={() => handlePayment(participant.id, entryFee)}
+                          >
+                            Mark Paid (${entryFee})
+                          </Button>
+                        )}
+                        
+                        {participant.status !== 'unpaid' && (
+                          <div className="flex items-center space-x-2">
+                            <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${statusBadge.color}`}>
+                              ${participant.amountPaid}
+                            </span>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => removePayment(participant.id)}
+                            >
+                              Remove
+                            </Button>
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      // Group payment mode
+                      <>
                         {isGroupPayer ? (
                           <div className="text-center">
                             <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
-                              <Check className="h-4 w-4 mr-1" />
-                              Paid ${paymentSummary.totalOwed}
+                              <CreditCard className="h-4 w-4 mr-1" />
+                              Paid ${participant.amountPaid}
                             </span>
                           </div>
-                        ) : owesReimbursement ? (
-                          participant.paymentStatus === 'paid' ? (
-                            <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
-                              <Check className="h-4 w-4 mr-1" />
-                              Reimbursed
-                            </span>
-                          ) : (
-                            <div className="flex items-center space-x-2">
-                              <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-orange-100 text-orange-800">
-                                <Clock className="h-4 w-4 mr-1" />
-                                Owes ${tournament.entryFee}
-                              </span>
-                              <Button
-                                size="sm"
-                                onClick={() => handleReimbursement(participant.id)}
-                              >
-                                Mark Reimbursed
-                              </Button>
-                            </div>
-                          )
+                        ) : participant.amountPaid > 0 ? (
+                          <span className="text-sm text-gray-500">
+                            Covered by group payment
+                          </span>
                         ) : (
-                          <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-800">
-                            <Clock className="h-4 w-4 mr-1" />
-                            Waiting
+                          <span className="text-sm text-gray-500">
+                            Waiting for group payment
                           </span>
                         )}
-                      </div>
-                    ) : (
-                      // Individual payment actions
-                      <div className="flex items-center space-x-3">
-                        <div className="text-center">
-                          <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
-                            participant.paymentStatus === 'paid' 
-                              ? 'bg-green-100 text-green-800' 
-                              : 'bg-red-100 text-red-800'
-                          }`}>
-                            {participant.paymentStatus === 'paid' ? (
-                              <>
-                                <Check className="h-4 w-4 mr-1" />
-                                Paid ${participant.paidAmount}
-                              </>
-                            ) : (
-                              <>
-                                <AlertCircle className="h-4 w-4 mr-1" />
-                                Unpaid
-                              </>
-                            )}
-                          </span>
-                        </div>
-                        
-                        {participant.paymentStatus !== 'paid' ? (
-                          <Button
-                            size="sm"
-                            onClick={() => markAsPaid(participant.id)}
-                          >
-                            Mark Paid
-                          </Button>
-                        ) : (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => markAsUnpaid(participant.id)}
-                          >
-                            Mark Unpaid
-                          </Button>
-                        )}
-                      </div>
+                      </>
                     )}
                   </div>
                 </div>
@@ -543,8 +499,24 @@ const PaymentStatus = ({
         </div>
       </div>
 
+      {/* Payment Complete Summary */}
+      {summary.isFullyPaid && (
+        <div className="bg-green-50 p-4 rounded-lg">
+          <div className="flex items-center">
+            <CheckCircle2 className="h-5 w-5 text-green-600 mr-2" />
+            <div>
+              <h4 className="font-medium text-green-900">Payment Complete</h4>
+              <p className="text-sm text-green-700">
+                All participants have paid their entry fees.
+                {summary.totalOverpaid > 0 && ` Note: $${summary.totalOverpaid} in overpayments may need to be refunded.`}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Group Payment Summary */}
-      {isGroupPayment && paymentSummary.groupPayer && (
+      {isGroupPayment && summary.groupPayer && (
         <div className="bg-green-50 p-4 rounded-lg">
           <h4 className="font-medium text-green-900 mb-3 flex items-center">
             <CreditCard className="h-5 w-5 mr-2" />
@@ -553,15 +525,12 @@ const PaymentStatus = ({
           
           <div className="space-y-2">
             <p className="text-sm text-green-800">
-              <strong>{paymentSummary.groupPayer.firstName} {paymentSummary.groupPayer.lastName}</strong> paid ${paymentSummary.totalOwed} for the entire group
+              <strong>{summary.groupPayer.firstName} {summary.groupPayer.lastName}</strong> paid ${summary.totalExpected} for the entire group of {summary.totalParticipants} participants.
             </p>
             
             <div className="text-sm text-green-700">
-              <p>✓ {paymentSummary.reimbursed} of {paymentSummary.totalParticipants - 1} participants have reimbursed</p>
-              <p>💰 ${paymentSummary.totalReimbursed} collected in reimbursements</p>
-              {paymentSummary.remainingReimbursements > 0 && (
-                <p className="text-orange-600">⏳ ${paymentSummary.remainingReimbursements} still owed in reimbursements</p>
-              )}
+              <p>✓ Tournament entry fees are fully covered</p>
+              <p>💰 Participants can arrange reimbursement directly with the group payer</p>
             </div>
           </div>
         </div>

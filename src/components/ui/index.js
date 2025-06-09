@@ -8,8 +8,9 @@ export { default as Select } from './Select';
 export { default as Table, TableActions } from './Table';
 export { default as Card, CardGrid } from './Card';
 export { default as Alert } from './Alert';
+export { default as ConfirmDialog } from './ConfirmDialog';
 
 // Usage Examples:
-// import { Button, Modal, Input } from '../ui';
+// import { Button, Modal, Input, ConfirmDialog } from '../ui';
 // OR
 // import { Button } from '../ui/Button';

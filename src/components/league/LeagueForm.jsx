@@ -1,6 +1,7 @@
 // src/components/league/LeagueForm.jsx
 import React, { useState } from 'react';
-import { Input, Select, Button } from '../ui';
+import { Trash2 } from 'lucide-react';
+import { Input, Select, Button, ConfirmDialog } from '../ui';
 import { SKILL_LEVELS, LEAGUE_STATUS, PAYMENT_MODES } from '../../services/models';
 
 /**
@@ -10,13 +11,17 @@ import { SKILL_LEVELS, LEAGUE_STATUS, PAYMENT_MODES } from '../../services/model
  * - league: object - Existing league data (for editing)
  * - onSubmit: function - Called when form is submitted
  * - onCancel: function - Called when form is cancelled
+ * - onDelete: function - Called when league is deleted
  * - loading: boolean - Whether form is submitting
+ * - deleteLoading: boolean - Whether delete is in progress
  */
 const LeagueForm = ({ 
   league = null, 
   onSubmit, 
   onCancel, 
-  loading = false 
+  onDelete,
+  loading = false,
+  deleteLoading = false
 }) => {
   // Form state - initialize with existing league data or defaults
   const [formData, setFormData] = useState({
@@ -33,6 +38,7 @@ const LeagueForm = ({
   });
 
   const [errors, setErrors] = useState({});
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   // Handle input changes
   const handleChange = (field) => (e) => {
@@ -122,6 +128,14 @@ const LeagueForm = ({
     };
 
     onSubmit(submissionData);
+  };
+
+  // Handle delete action
+  const handleDelete = () => {
+    if (onDelete) {
+      onDelete(league.id);
+    }
+    setShowDeleteConfirm(false);
   };
 
   // Skill level options for dropdown
@@ -343,24 +357,53 @@ const LeagueForm = ({
       </div>
 
       {/* Form Actions */}
-      <div className="flex justify-end space-x-3 pt-6 border-t">
-        <Button
-          type="button"
-          variant="outline"
-          onClick={onCancel}
-          disabled={loading}
-        >
-          Cancel
-        </Button>
+      <div className="flex justify-between items-center pt-6 border-t">
+        {/* Delete button - only show when editing */}
+        {league && onDelete && (
+          <Button
+            type="button"
+            variant="danger"
+            onClick={() => setShowDeleteConfirm(true)}
+            disabled={loading || deleteLoading}
+          >
+            <Trash2 className="h-4 w-4 mr-2" />
+            Delete League
+          </Button>
+        )}
         
-        <Button
-          type="submit"
-          loading={loading}
-          disabled={loading}
-        >
-          {league ? 'Update League' : 'Create League'}
-        </Button>
+        {/* Main action buttons */}
+        <div className={`flex space-x-3 ${league && onDelete ? '' : 'ml-auto'}`}>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={onCancel}
+            disabled={loading || deleteLoading}
+          >
+            Cancel
+          </Button>
+          
+          <Button
+            type="submit"
+            loading={loading}
+            disabled={loading || deleteLoading}
+          >
+            {league ? 'Update League' : 'Create League'}
+          </Button>
+        </div>
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={showDeleteConfirm}
+        onClose={() => setShowDeleteConfirm(false)}
+        onConfirm={handleDelete}
+        title="Delete League"
+        message={`Are you sure you want to delete "${formData.name}"? This action cannot be undone and will remove all associated data including participant registrations and standings.`}
+        confirmText="Delete League"
+        cancelText="Keep League"
+        type="danger"
+        loading={deleteLoading}
+      />
     </form>
   );
 };

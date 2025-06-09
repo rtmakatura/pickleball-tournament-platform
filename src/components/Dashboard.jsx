@@ -1,4 +1,4 @@
-// src/components/Dashboard.jsx (Updated - Remove Payment Collection Card)
+// src/components/Dashboard.jsx (Updated - With Delete Functionality)
 import React, { useState } from 'react';
 import { Plus, Calendar, Users, Trophy, DollarSign, Activity } from 'lucide-react';
 import { useMembers, useLeagues, useTournaments, useAuth } from '../hooks';
@@ -21,9 +21,9 @@ import { LeagueForm } from './league';
 
 const Dashboard = () => {
   const { user, signIn, signUp, logout, isAuthenticated } = useAuth();
-  const { members, loading: membersLoading, addMember } = useMembers();
-  const { leagues, loading: leaguesLoading, addLeague, updateLeague } = useLeagues();
-  const { tournaments, loading: tournamentsLoading, addTournament, updateTournament } = useTournaments();
+  const { members, loading: membersLoading, addMember, updateMember, deleteMember } = useMembers();
+  const { leagues, loading: leaguesLoading, addLeague, updateLeague, deleteLeague } = useLeagues();
+  const { tournaments, loading: tournamentsLoading, addTournament, updateTournament, deleteTournament } = useTournaments();
 
   // Modal states
   const [showTournamentModal, setShowTournamentModal] = useState(false);
@@ -37,6 +37,7 @@ const Dashboard = () => {
   // Form states
   const [selectedMembers, setSelectedMembers] = useState([]);
   const [formLoading, setFormLoading] = useState(false);
+  const [deleteLoading, setDeleteLoading] = useState(false);
   const [alert, setAlert] = useState(null);
 
   // Auth form state
@@ -113,6 +114,22 @@ const Dashboard = () => {
     }
   };
 
+  // Delete handlers
+  const handleDeleteTournament = async (tournamentId) => {
+    setDeleteLoading(true);
+    try {
+      await deleteTournament(tournamentId);
+      setShowTournamentModal(false);
+      setEditingTournament(null);
+      setSelectedMembers([]);
+      showAlert('success', 'Tournament deleted!', 'Tournament has been successfully deleted');
+    } catch (err) {
+      showAlert('error', 'Failed to delete tournament', err.message);
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
+
   // League functions
   const handleCreateLeague = async (leagueData) => {
     setFormLoading(true);
@@ -146,6 +163,20 @@ const Dashboard = () => {
     }
   };
 
+  const handleDeleteLeague = async (leagueId) => {
+    setDeleteLoading(true);
+    try {
+      await deleteLeague(leagueId);
+      setShowLeagueModal(false);
+      setEditingLeague(null);
+      showAlert('success', 'League deleted!', 'League has been successfully deleted');
+    } catch (err) {
+      showAlert('error', 'Failed to delete league', err.message);
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
+
   // Member functions
   const handleCreateMember = async (memberData) => {
     setFormLoading(true);
@@ -163,6 +194,34 @@ const Dashboard = () => {
   const handleEditMember = (member) => {
     setEditingMember(member);
     setShowMemberModal(true);
+  };
+
+  const handleUpdateMember = async (memberData) => {
+    setFormLoading(true);
+    try {
+      await updateMember(editingMember.id, memberData);
+      setShowMemberModal(false);
+      setEditingMember(null);
+      showAlert('success', 'Member updated!', `${memberData.firstName} ${memberData.lastName} has been updated successfully`);
+    } catch (err) {
+      showAlert('error', 'Failed to update member', err.message);
+    } finally {
+      setFormLoading(false);
+    }
+  };
+
+  const handleDeleteMember = async (memberId) => {
+    setDeleteLoading(true);
+    try {
+      await deleteMember(memberId);
+      setShowMemberModal(false);
+      setEditingMember(null);
+      showAlert('success', 'Member deleted!', 'Member has been successfully deleted');
+    } catch (err) {
+      showAlert('error', 'Failed to delete member', err.message);
+    } finally {
+      setDeleteLoading(false);
+    }
   };
 
   // Quick member creation
@@ -363,6 +422,55 @@ const Dashboard = () => {
     }
   ];
 
+  // Table columns for members
+  const memberColumns = [
+    {
+      key: 'displayName',
+      label: 'Name',
+      render: (_, member) => `${member.firstName} ${member.lastName}`
+    },
+    {
+      key: 'email',
+      label: 'Email'
+    },
+    {
+      key: 'skillLevel',
+      label: 'Skill Level',
+      render: (level) => <span className="capitalize">{level}</span>
+    },
+    {
+      key: 'role',
+      label: 'Role',
+      render: (role) => <span className="capitalize">{role}</span>
+    },
+    {
+      key: 'isActive',
+      label: 'Status',
+      render: (isActive) => (
+        <span className={`
+          px-2 py-1 text-xs rounded-full
+          ${isActive ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}
+        `}>
+          {isActive ? 'Active' : 'Inactive'}
+        </span>
+      )
+    },
+    {
+      key: 'actions',
+      label: 'Actions',
+      render: (_, member) => (
+        <TableActions
+          actions={[
+            {
+              label: 'Edit',
+              onClick: () => handleEditMember(member)
+            }
+          ]}
+        />
+      )
+    }
+  ];
+
   const paymentSummary = getPaymentSummary();
 
   return (
@@ -469,6 +577,29 @@ const Dashboard = () => {
           />
         </Card>
 
+        {/* Members Section */}
+        <Card 
+          title="Members"
+          subtitle="Manage pickleball community members"
+          actions={[
+            <Button 
+              key="add-member"
+              onClick={() => setShowMemberModal(true)}
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              New Member
+            </Button>
+          ]}
+          className="mb-8"
+        >
+          <Table
+            columns={memberColumns}
+            data={members}
+            loading={membersLoading}
+            emptyMessage="No members yet. Add your first member!"
+          />
+        </Card>
+
         {/* Quick Actions */}
         <Card title="Quick Actions" className="mb-8">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -530,7 +661,9 @@ const Dashboard = () => {
                 setEditingTournament(null);
                 setSelectedMembers([]);
               }}
+              onDelete={editingTournament ? handleDeleteTournament : null}
               loading={formLoading}
+              deleteLoading={deleteLoading}
             />
             
             <div className="border-t pt-6">
@@ -564,7 +697,9 @@ const Dashboard = () => {
               setShowLeagueModal(false);
               setEditingLeague(null);
             }}
+            onDelete={editingLeague ? handleDeleteLeague : null}
             loading={formLoading}
+            deleteLoading={deleteLoading}
           />
         </Modal>
 
@@ -580,12 +715,14 @@ const Dashboard = () => {
         >
           <MemberForm
             member={editingMember}
-            onSubmit={handleCreateMember}
+            onSubmit={editingMember ? handleUpdateMember : handleCreateMember}
             onCancel={() => {
               setShowMemberModal(false);
               setEditingMember(null);
             }}
+            onDelete={editingMember ? handleDeleteMember : null}
             loading={formLoading}
+            deleteLoading={deleteLoading}
           />
         </Modal>
 

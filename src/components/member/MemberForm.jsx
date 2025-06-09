@@ -1,6 +1,7 @@
 // src/components/member/MemberForm.jsx
 import React, { useState } from 'react';
-import { Input, Select, Button } from '../ui';
+import { Trash2 } from 'lucide-react';
+import { Input, Select, Button, ConfirmDialog } from '../ui';
 import { SKILL_LEVELS, MEMBER_ROLES } from '../../services/models';
 
 /**
@@ -10,13 +11,17 @@ import { SKILL_LEVELS, MEMBER_ROLES } from '../../services/models';
  * - member: object - Existing member data (for editing)
  * - onSubmit: function - Called when form is submitted
  * - onCancel: function - Called when form is cancelled
+ * - onDelete: function - Called when member is deleted
  * - loading: boolean - Whether form is submitting
+ * - deleteLoading: boolean - Whether delete is in progress
  */
 const MemberForm = ({ 
   member = null, 
   onSubmit, 
   onCancel, 
-  loading = false 
+  onDelete,
+  loading = false,
+  deleteLoading = false
 }) => {
   // Form state - initialize with existing member data or defaults
   const [formData, setFormData] = useState({
@@ -30,6 +35,7 @@ const MemberForm = ({
   });
 
   const [errors, setErrors] = useState({});
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   // Handle input changes
   const handleChange = (field) => (e) => {
@@ -95,6 +101,14 @@ const MemberForm = ({
     };
 
     onSubmit(submissionData);
+  };
+
+  // Handle delete action
+  const handleDelete = () => {
+    if (onDelete) {
+      onDelete(member.id);
+    }
+    setShowDeleteConfirm(false);
   };
 
   // Skill level options for dropdown
@@ -206,24 +220,53 @@ const MemberForm = ({
       </div>
 
       {/* Form Actions */}
-      <div className="flex justify-end space-x-3 pt-6 border-t">
-        <Button
-          type="button"
-          variant="outline"
-          onClick={onCancel}
-          disabled={loading}
-        >
-          Cancel
-        </Button>
+      <div className="flex justify-between items-center pt-6 border-t">
+        {/* Delete button - only show when editing */}
+        {member && onDelete && (
+          <Button
+            type="button"
+            variant="danger"
+            onClick={() => setShowDeleteConfirm(true)}
+            disabled={loading || deleteLoading}
+          >
+            <Trash2 className="h-4 w-4 mr-2" />
+            Delete Member
+          </Button>
+        )}
         
-        <Button
-          type="submit"
-          loading={loading}
-          disabled={loading}
-        >
-          {member ? 'Update Member' : 'Add Member'}
-        </Button>
+        {/* Main action buttons */}
+        <div className={`flex space-x-3 ${member && onDelete ? '' : 'ml-auto'}`}>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={onCancel}
+            disabled={loading || deleteLoading}
+          >
+            Cancel
+          </Button>
+          
+          <Button
+            type="submit"
+            loading={loading}
+            disabled={loading || deleteLoading}
+          >
+            {member ? 'Update Member' : 'Add Member'}
+          </Button>
+        </div>
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={showDeleteConfirm}
+        onClose={() => setShowDeleteConfirm(false)}
+        onConfirm={handleDelete}
+        title="Delete Member"
+        message={`Are you sure you want to delete "${formData.firstName} ${formData.lastName}"? This action cannot be undone and will remove them from all tournaments and leagues.`}
+        confirmText="Delete Member"
+        cancelText="Keep Member"
+        type="danger"
+        loading={deleteLoading}
+      />
     </form>
   );
 };

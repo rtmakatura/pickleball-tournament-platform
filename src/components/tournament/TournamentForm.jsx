@@ -1,6 +1,7 @@
 // src/components/tournament/TournamentForm.jsx
 import React, { useState } from 'react';
-import { Input, Select, Button, Alert } from '../ui';
+import { Trash2 } from 'lucide-react';
+import { Input, Select, Button, Alert, ConfirmDialog } from '../ui';
 import { SKILL_LEVELS, TOURNAMENT_STATUS, PAYMENT_MODES } from '../../services/models';
 
 /**
@@ -10,13 +11,17 @@ import { SKILL_LEVELS, TOURNAMENT_STATUS, PAYMENT_MODES } from '../../services/m
  * - tournament: object - Existing tournament data (for editing)
  * - onSubmit: function - Called when form is submitted
  * - onCancel: function - Called when form is cancelled
+ * - onDelete: function - Called when tournament is deleted
  * - loading: boolean - Whether form is submitting
+ * - deleteLoading: boolean - Whether delete is in progress
  */
 const TournamentForm = ({ 
   tournament = null, 
   onSubmit, 
   onCancel, 
-  loading = false 
+  onDelete,
+  loading = false,
+  deleteLoading = false
 }) => {
   // Form state - initialize with existing tournament data or defaults
   const [formData, setFormData] = useState({
@@ -33,6 +38,7 @@ const TournamentForm = ({
   });
 
   const [errors, setErrors] = useState({});
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   // Handle input changes
   const handleChange = (field) => (e) => {
@@ -114,6 +120,14 @@ const TournamentForm = ({
     };
 
     onSubmit(submissionData);
+  };
+
+  // Handle delete action
+  const handleDelete = () => {
+    if (onDelete) {
+      onDelete(tournament.id);
+    }
+    setShowDeleteConfirm(false);
   };
 
   // Skill level options for dropdown
@@ -288,24 +302,53 @@ const TournamentForm = ({
       </div>
 
       {/* Form Actions */}
-      <div className="flex justify-end space-x-3 pt-6 border-t">
-        <Button
-          type="button"
-          variant="outline"
-          onClick={onCancel}
-          disabled={loading}
-        >
-          Cancel
-        </Button>
+      <div className="flex justify-between items-center pt-6 border-t">
+        {/* Delete button - only show when editing */}
+        {tournament && onDelete && (
+          <Button
+            type="button"
+            variant="danger"
+            onClick={() => setShowDeleteConfirm(true)}
+            disabled={loading || deleteLoading}
+          >
+            <Trash2 className="h-4 w-4 mr-2" />
+            Delete Tournament
+          </Button>
+        )}
         
-        <Button
-          type="submit"
-          loading={loading}
-          disabled={loading}
-        >
-          {tournament ? 'Update Tournament' : 'Create Tournament'}
-        </Button>
+        {/* Main action buttons */}
+        <div className={`flex space-x-3 ${tournament && onDelete ? '' : 'ml-auto'}`}>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={onCancel}
+            disabled={loading || deleteLoading}
+          >
+            Cancel
+          </Button>
+          
+          <Button
+            type="submit"
+            loading={loading}
+            disabled={loading || deleteLoading}
+          >
+            {tournament ? 'Update Tournament' : 'Create Tournament'}
+          </Button>
+        </div>
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={showDeleteConfirm}
+        onClose={() => setShowDeleteConfirm(false)}
+        onConfirm={handleDelete}
+        title="Delete Tournament"
+        message={`Are you sure you want to delete "${formData.name}"? This action cannot be undone and will remove all associated data including participant registrations and payment information.`}
+        confirmText="Delete Tournament"
+        cancelText="Keep Tournament"
+        type="danger"
+        loading={deleteLoading}
+      />
     </form>
   );
 };
