@@ -1,11 +1,11 @@
-// src/components/auth/SignUpForm.jsx
+// src/components/auth/SignUpForm.jsx (UPDATED - Enhanced with required fields)
 import React, { useState } from 'react';
-import { UserPlus, Mail, Lock, User, Phone } from 'lucide-react';
+import { UserPlus, Mail, Lock, User, Phone, DollarSign } from 'lucide-react';
 import { Button, Input, Select, Alert } from '../ui';
 import { SKILL_LEVELS } from '../../services/models';
 
 /**
- * SignUpForm Component - Enhanced signup form that creates both auth account and member profile
+ * SignUpForm Component - Enhanced signup form with required fields
  * 
  * Props:
  * - onSubmit: function - Called when form is submitted with signup data
@@ -26,6 +26,7 @@ const SignUpForm = ({
     firstName: '',
     lastName: '',
     phoneNumber: '',
+    venmoHandle: '',
     skillLevel: ''
   });
 
@@ -74,23 +75,33 @@ const SignUpForm = ({
       newErrors.confirmPassword = 'Passwords do not match';
     }
 
-    // Name validation
+    // REQUIRED: First name validation
     if (!formData.firstName.trim()) {
       newErrors.firstName = 'First name is required';
+    } else if (formData.firstName.trim().length < 2) {
+      newErrors.firstName = 'First name must be at least 2 characters';
     }
 
+    // REQUIRED: Last name validation
     if (!formData.lastName.trim()) {
       newErrors.lastName = 'Last name is required';
+    } else if (formData.lastName.trim().length < 2) {
+      newErrors.lastName = 'Last name must be at least 2 characters';
     }
 
-    // Skill level validation
+    // REQUIRED: Skill level validation
     if (!formData.skillLevel) {
       newErrors.skillLevel = 'Please select your skill level';
     }
 
-    // Phone number validation (optional but must be valid if provided)
+    // OPTIONAL: Phone number validation (only if provided)
     if (formData.phoneNumber && !/^\+?[\d\s\-\(\)]{10,}$/.test(formData.phoneNumber)) {
       newErrors.phoneNumber = 'Please enter a valid phone number';
+    }
+
+    // OPTIONAL: Venmo handle validation (only if provided)
+    if (formData.venmoHandle && !/^[a-zA-Z0-9_-]+$/.test(formData.venmoHandle)) {
+      newErrors.venmoHandle = 'Venmo handle can only contain letters, numbers, hyphens, and underscores';
     }
 
     setErrors(newErrors);
@@ -113,6 +124,7 @@ const SignUpForm = ({
         firstName: formData.firstName.trim(),
         lastName: formData.lastName.trim(),
         phoneNumber: formData.phoneNumber.trim(),
+        venmoHandle: formData.venmoHandle.trim(),
         skillLevel: formData.skillLevel
       }
     };
@@ -149,9 +161,12 @@ const SignUpForm = ({
       )}
 
       <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Personal Information */}
+        {/* Required Personal Information */}
         <div className="space-y-4">
-          <h3 className="text-lg font-medium text-gray-900">Personal Information</h3>
+          <h3 className="text-lg font-medium text-gray-900 flex items-center">
+            Personal Information
+            <span className="ml-2 text-sm text-red-600 font-normal">* Required</span>
+          </h3>
           
           <div className="grid grid-cols-2 gap-4">
             <Input
@@ -175,16 +190,6 @@ const SignUpForm = ({
             />
           </div>
 
-          <Input
-            label="Phone Number"
-            type="tel"
-            value={formData.phoneNumber}
-            onChange={handleChange('phoneNumber')}
-            error={errors.phoneNumber}
-            placeholder="(555) 123-4567"
-            helperText="Optional - for tournament communications"
-          />
-
           <Select
             label="Skill Level"
             value={formData.skillLevel}
@@ -197,9 +202,40 @@ const SignUpForm = ({
           />
         </div>
 
+        {/* Optional Contact Information */}
+        <div className="space-y-4">
+          <h3 className="text-lg font-medium text-gray-900 flex items-center">
+            Contact Information
+            <span className="ml-2 text-sm text-gray-500 font-normal">Optional</span>
+          </h3>
+
+          <Input
+            label="Phone Number"
+            type="tel"
+            value={formData.phoneNumber}
+            onChange={handleChange('phoneNumber')}
+            error={errors.phoneNumber}
+            placeholder="(555) 123-4567"
+            helperText="For tournament communications and updates"
+          />
+
+          <Input
+            label="Venmo Handle"
+            type="text"
+            value={formData.venmoHandle}
+            onChange={handleChange('venmoHandle')}
+            error={errors.venmoHandle}
+            placeholder="@your-venmo"
+            helperText="For easy payment collection in tournaments and leagues"
+          />
+        </div>
+
         {/* Account Information */}
         <div className="space-y-4">
-          <h3 className="text-lg font-medium text-gray-900">Account Information</h3>
+          <h3 className="text-lg font-medium text-gray-900 flex items-center">
+            Account Information
+            <span className="ml-2 text-sm text-red-600 font-normal">* Required</span>
+          </h3>
           
           <Input
             label="Email Address"
@@ -256,6 +292,7 @@ const SignUpForm = ({
               <li>• Track your payment status</li>
               <li>• View your game history and stats</li>
               <li>• Connect with the pickleball community</li>
+              <li>• Easy payment collection via Venmo (if provided)</li>
             </ul>
           </div>
 
@@ -282,6 +319,11 @@ const SignUpForm = ({
               Sign in instead
             </button>
           </p>
+        </div>
+
+        {/* Required fields note */}
+        <div className="text-center text-xs text-gray-500">
+          <p>* Required fields must be completed to create your account</p>
         </div>
       </form>
     </div>

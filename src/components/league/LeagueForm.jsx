@@ -1,8 +1,8 @@
-// src/components/league/LeagueForm.jsx
+// src/components/league/LeagueForm.jsx (FIXED - Date handling and event type)
 import React, { useState } from 'react';
 import { Trash2 } from 'lucide-react';
 import { Input, Select, Button, ConfirmDialog } from '../ui';
-import { SKILL_LEVELS, LEAGUE_STATUS, PAYMENT_MODES } from '../../services/models';
+import { SKILL_LEVELS, LEAGUE_STATUS, PAYMENT_MODES, EVENT_TYPES } from '../../services/models';
 
 /**
  * LeagueForm Component - For creating/editing leagues
@@ -23,15 +23,58 @@ const LeagueForm = ({
   loading = false,
   deleteLoading = false
 }) => {
+  // Helper function to safely convert date to string
+  const formatDateForInput = (date) => {
+    if (!date) return '';
+    
+    try {
+      let dateObj;
+      
+      // Handle Firestore timestamp
+      if (date.seconds) {
+        dateObj = new Date(date.seconds * 1000);
+      } 
+      // Handle Date object
+      else if (date instanceof Date) {
+        dateObj = date;
+      }
+      // Handle date string
+      else if (typeof date === 'string') {
+        dateObj = new Date(date);
+      }
+      // Handle timestamp number
+      else if (typeof date === 'number') {
+        dateObj = new Date(date);
+      }
+      else {
+        console.warn('Unknown date format:', date);
+        return '';
+      }
+      
+      // Check if date is valid
+      if (isNaN(dateObj.getTime())) {
+        console.warn('Invalid date:', date);
+        return '';
+      }
+      
+      // Format for HTML date input (YYYY-MM-DD)
+      return dateObj.toISOString().split('T')[0];
+    } catch (error) {
+      console.error('Error formatting date:', error, date);
+      return '';
+    }
+  };
+
   // Form state - initialize with existing league data or defaults
   const [formData, setFormData] = useState({
     name: league?.name || '',
     description: league?.description || '',
     skillLevel: league?.skillLevel || '',
+    eventType: league?.eventType || EVENT_TYPES.MIXED_DOUBLES, // NEW: Event type
     status: league?.status || LEAGUE_STATUS.ACTIVE,
-    startDate: league?.startDate ? new Date(league.startDate).toISOString().split('T')[0] : '',
-    endDate: league?.endDate ? new Date(league.endDate).toISOString().split('T')[0] : '',
-    maxParticipants: league?.maxParticipants || 20,
+    startDate: formatDateForInput(league?.startDate),
+    endDate: formatDateForInput(league?.endDate),
+    maxParticipants: league?.maxParticipants || 2, // UPDATED: Default to 2
     registrationFee: league?.registrationFee || 0,
     paymentMode: league?.paymentMode || PAYMENT_MODES.INDIVIDUAL,
     isActive: league?.isActive !== false
@@ -69,6 +112,10 @@ const LeagueForm = ({
       newErrors.skillLevel = 'Skill level is required';
     }
 
+    if (!formData.eventType) {
+      newErrors.eventType = 'Event type is required';
+    }
+
     if (!formData.startDate) {
       newErrors.startDate = 'Start date is required';
     }
@@ -95,16 +142,7 @@ const LeagueForm = ({
       }
     }
 
-    // Check if start date is in the future (only for new leagues)
-    if (!league && formData.startDate) {
-      const startDate = new Date(formData.startDate);
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      
-      if (startDate < today) {
-        newErrors.startDate = 'Start date should be today or in the future';
-      }
-    }
+    // REMOVED: Future date validation to allow backdating
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -142,6 +180,14 @@ const LeagueForm = ({
   const skillLevelOptions = Object.entries(SKILL_LEVELS).map(([key, value]) => ({
     value,
     label: key.charAt(0) + key.slice(1).toLowerCase()
+  }));
+
+  // Event type options
+  const eventTypeOptions = Object.entries(EVENT_TYPES).map(([key, value]) => ({
+    value,
+    label: key.split('_').map(word => 
+      word.charAt(0) + word.slice(1).toLowerCase()
+    ).join(' ')
   }));
 
   // League status options
@@ -201,7 +247,7 @@ const LeagueForm = ({
           helperText="What's special about this league? Format, rules, etc."
         />
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <Select
             label="Skill Level"
             value={formData.skillLevel}
@@ -210,6 +256,16 @@ const LeagueForm = ({
             error={errors.skillLevel}
             required
             helperText="Target skill level for participants"
+          />
+
+          <Select
+            label="Event Type"
+            value={formData.eventType}
+            onChange={handleChange('eventType')}
+            options={eventTypeOptions}
+            error={errors.eventType}
+            required
+            helperText="Tournament format"
           />
 
           <Select
@@ -236,6 +292,7 @@ const LeagueForm = ({
             onChange={handleChange('startDate')}
             error={errors.startDate}
             required
+            helperText="League can be backdated if needed"
           />
 
           <Input
@@ -245,6 +302,7 @@ const LeagueForm = ({
             onChange={handleChange('endDate')}
             error={errors.endDate}
             required
+            helperText="When the league ends"
           />
         </div>
 
@@ -296,7 +354,7 @@ const LeagueForm = ({
           onChange={handleChange('maxParticipants')}
           error={errors.maxParticipants}
           min="1"
-          placeholder="20"
+          placeholder="2"
           helperText="Maximum number of league members"
         />
 

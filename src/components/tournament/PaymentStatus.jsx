@@ -1,4 +1,4 @@
-// src/components/tournament/PaymentStatus.jsx
+// src/components/tournament/PaymentStatus.jsx (ENHANCED - Show Venmo handles)
 import React, { useState } from 'react';
 import { 
   DollarSign, 
@@ -11,13 +11,15 @@ import {
   UserCheck,
   Receipt,
   CheckCircle2,
-  AlertTriangle
+  AlertTriangle,
+  ExternalLink
 } from 'lucide-react';
 import { Button, Alert, Select } from '../ui';
 import { PAYMENT_MODES } from '../../services/models';
 
 /**
  * PaymentStatus Component - Track entry fee payments for tournaments and leagues
+ * Now includes Venmo handle display for easy payment processing
  * 
  * Props:
  * - event: object - Event data (tournament or league) with participants and fee
@@ -56,7 +58,7 @@ const PaymentStatus = ({
     return !isNaN(num) && num >= 0;
   };
 
-  // Get participant details with simplified payment info
+  // Get participant details with payment info and venmo handles
   const getParticipantsWithPaymentInfo = () => {
     if (!event.participants || event.participants.length === 0) {
       return [];
@@ -81,7 +83,7 @@ const PaymentStatus = ({
       
       return {
         id: participantId,
-        member: member || { firstName: 'Unknown', lastName: 'Member', email: '' },
+        member: member || { firstName: 'Unknown', lastName: 'Member', email: '', venmoHandle: '' },
         status,
         amountPaid,
         amountOwed: Math.max(0, fee - amountPaid),
@@ -209,6 +211,13 @@ const PaymentStatus = ({
       overpaid: { color: 'bg-blue-100 text-blue-800', label: 'Overpaid' }
     };
     return badges[status] || badges.unpaid;
+  };
+
+  // NEW: Get Venmo link for easy payment
+  const getVenmoLink = (venmoHandle, amount) => {
+    if (!venmoHandle) return null;
+    const note = encodeURIComponent(`${eventLabel} ${feeLabel} - ${event.name}`);
+    return `https://venmo.com/${venmoHandle}?txn=pay&amount=${amount}&note=${note}`;
   };
 
   if (fee <= 0) {
@@ -354,7 +363,7 @@ const PaymentStatus = ({
                 { value: '', label: 'Select group payer...' },
                 ...participantsWithPayment.map(p => ({
                   value: p.id,
-                  label: `${p.member.firstName} ${p.member.lastName}`
+                  label: `${p.member.firstName} ${p.member.lastName}${p.member.venmoHandle ? ` (@${p.member.venmoHandle})` : ''}`
                 }))
               ]}
               className="flex-1"
@@ -392,6 +401,8 @@ const PaymentStatus = ({
               summary.groupPayer.firstName === participant.member.firstName &&
               summary.groupPayer.lastName === participant.member.lastName;
             const statusBadge = getStatusBadge(participant.status);
+            const hasVenmo = participant.member.venmoHandle;
+            const venmoLink = hasVenmo ? getVenmoLink(participant.member.venmoHandle, fee) : null;
             
             return (
               <div 
@@ -423,6 +434,24 @@ const PaymentStatus = ({
                       <p className="text-sm text-gray-500">
                         {participant.member.email}
                       </p>
+                      
+                      {/* NEW: Venmo Handle Display */}
+                      {hasVenmo && (
+                        <div className="flex items-center space-x-2 mt-1">
+                          <DollarSign className="h-3 w-3 text-green-600" />
+                          <span className="text-xs text-green-700">@{participant.member.venmoHandle}</span>
+                          {venmoLink && (
+                            <a 
+                              href={venmoLink} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="text-xs text-green-600 hover:text-green-800 flex items-center"
+                            >
+                              <ExternalLink className="h-3 w-3 ml-1" />
+                            </a>
+                          )}
+                        </div>
+                      )}
                       
                       {/* Payment details */}
                       <div className="mt-1 text-sm">
@@ -456,12 +485,25 @@ const PaymentStatus = ({
                       // Individual payment mode
                       <>
                         {participant.status === 'unpaid' && (
-                          <Button
-                            size="sm"
-                            onClick={() => handlePayment(participant.id, fee)}
-                          >
-                            Mark Paid (${fee})
-                          </Button>
+                          <div className="flex items-center space-x-2">
+                            {hasVenmo && venmoLink && (
+                              <a
+                                href={venmoLink}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded hover:bg-green-200 flex items-center"
+                              >
+                                <DollarSign className="h-3 w-3 mr-1" />
+                                Pay via Venmo
+                              </a>
+                            )}
+                            <Button
+                              size="sm"
+                              onClick={() => handlePayment(participant.id, fee)}
+                            >
+                              Mark Paid (${fee})
+                            </Button>
+                          </div>
                         )}
                         
                         {participant.status !== 'unpaid' && (
@@ -494,9 +536,16 @@ const PaymentStatus = ({
                             Covered by group payment
                           </span>
                         ) : (
-                          <span className="text-sm text-gray-500">
-                            Waiting for group payment
-                          </span>
+                          <div className="text-center">
+                            <span className="text-sm text-gray-500">
+                              Waiting for group payment
+                            </span>
+                            {hasVenmo && summary.groupPayer && (
+                              <p className="text-xs text-green-600 mt-1">
+                                Reimburse @{summary.groupPayer.venmoHandle || 'group payer'}
+                              </p>
+                            )}
+                          </div>
                         )}
                       </>
                     )}
@@ -540,6 +589,12 @@ const PaymentStatus = ({
             <div className="text-sm text-green-700">
               <p>✓ {eventLabel} {feeLabel.toLowerCase()} are fully covered</p>
               <p>💰 Participants can arrange reimbursement directly with the group payer</p>
+              {summary.groupPayer.venmoHandle && (
+                <p className="flex items-center">
+                  <DollarSign className="h-4 w-4 mr-1" />
+                  Others can reimburse via Venmo: @{summary.groupPayer.venmoHandle}
+                </p>
+              )}
             </div>
           </div>
         </div>

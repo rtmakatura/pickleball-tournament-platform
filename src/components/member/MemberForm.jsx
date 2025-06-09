@@ -1,4 +1,4 @@
-// src/components/member/MemberForm.jsx
+// src/components/member/MemberForm.jsx (ENHANCED - Added Venmo Handle)
 import React, { useState } from 'react';
 import { Trash2 } from 'lucide-react';
 import { Input, Select, Button, ConfirmDialog } from '../ui';
@@ -29,6 +29,7 @@ const MemberForm = ({
     lastName: member?.lastName || '',
     email: member?.email || '',
     phoneNumber: member?.phoneNumber || '',
+    venmoHandle: member?.venmoHandle || '', // NEW: Venmo handle
     skillLevel: member?.skillLevel || '',
     role: member?.role || MEMBER_ROLES.PLAYER,
     isActive: member?.isActive !== false
@@ -81,6 +82,11 @@ const MemberForm = ({
       newErrors.phoneNumber = 'Please enter a valid phone number';
     }
 
+    // Venmo handle validation (optional but must be valid if provided)
+    if (formData.venmoHandle && !/^[a-zA-Z0-9_-]+$/.test(formData.venmoHandle)) {
+      newErrors.venmoHandle = 'Venmo handle can only contain letters, numbers, hyphens, and underscores';
+    }
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -97,6 +103,7 @@ const MemberForm = ({
     const submissionData = {
       ...formData,
       phoneNumber: formData.phoneNumber.replace(/[\s\-\(\)]/g, ''),
+      venmoHandle: formData.venmoHandle.trim(),
       displayName: `${formData.firstName} ${formData.lastName}`.trim()
     };
 
@@ -164,15 +171,27 @@ const MemberForm = ({
           helperText="Used for notifications and login"
         />
 
-        <Input
-          label="Phone Number"
-          type="tel"
-          value={formData.phoneNumber}
-          onChange={handleChange('phoneNumber')}
-          error={errors.phoneNumber}
-          placeholder="(555) 123-4567"
-          helperText="Optional - for tournament communications"
-        />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Input
+            label="Phone Number"
+            type="tel"
+            value={formData.phoneNumber}
+            onChange={handleChange('phoneNumber')}
+            error={errors.phoneNumber}
+            placeholder="(555) 123-4567"
+            helperText="Optional - for tournament communications"
+          />
+
+          <Input
+            label="Venmo Handle"
+            type="text"
+            value={formData.venmoHandle}
+            onChange={handleChange('venmoHandle')}
+            error={errors.venmoHandle}
+            placeholder="your-venmo"
+            helperText="Optional - for payment collection"
+          />
+        </div>
       </div>
 
       {/* Pickleball Information */}
@@ -217,6 +236,15 @@ const MemberForm = ({
             (Inactive members won't appear in tournament registration)
           </p>
         </div>
+      </div>
+
+      {/* Payment Information */}
+      <div className="bg-blue-50 p-4 rounded-lg">
+        <h4 className="text-sm font-medium text-blue-900 mb-2">Payment Information</h4>
+        <p className="text-sm text-blue-800">
+          Providing a Venmo handle makes it easier for organizers to collect payments and 
+          for other participants to pay you back in group payment scenarios.
+        </p>
       </div>
 
       {/* Form Actions */}

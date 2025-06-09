@@ -1,8 +1,8 @@
-// src/components/tournament/TournamentForm.jsx
+// src/components/tournament/TournamentForm.jsx (FIXED - Event type and date handling)
 import React, { useState } from 'react';
 import { Trash2 } from 'lucide-react';
 import { Input, Select, Button, Alert, ConfirmDialog } from '../ui';
-import { SKILL_LEVELS, TOURNAMENT_STATUS, PAYMENT_MODES } from '../../services/models';
+import { SKILL_LEVELS, TOURNAMENT_STATUS, PAYMENT_MODES, EVENT_TYPES } from '../../services/models';
 
 /**
  * TournamentForm Component - For creating/editing tournaments
@@ -23,17 +23,60 @@ const TournamentForm = ({
   loading = false,
   deleteLoading = false
 }) => {
+  // Helper function to safely convert date to string
+  const formatDateForInput = (date) => {
+    if (!date) return '';
+    
+    try {
+      let dateObj;
+      
+      // Handle Firestore timestamp
+      if (date.seconds) {
+        dateObj = new Date(date.seconds * 1000);
+      } 
+      // Handle Date object
+      else if (date instanceof Date) {
+        dateObj = date;
+      }
+      // Handle date string
+      else if (typeof date === 'string') {
+        dateObj = new Date(date);
+      }
+      // Handle timestamp number
+      else if (typeof date === 'number') {
+        dateObj = new Date(date);
+      }
+      else {
+        console.warn('Unknown date format:', date);
+        return '';
+      }
+      
+      // Check if date is valid
+      if (isNaN(dateObj.getTime())) {
+        console.warn('Invalid date:', date);
+        return '';
+      }
+      
+      // Format for HTML date input (YYYY-MM-DD)
+      return dateObj.toISOString().split('T')[0];
+    } catch (error) {
+      console.error('Error formatting date:', error, date);
+      return '';
+    }
+  };
+
   // Form state - initialize with existing tournament data or defaults
   const [formData, setFormData] = useState({
     name: tournament?.name || '',
     description: tournament?.description || '',
     skillLevel: tournament?.skillLevel || '',
+    eventType: tournament?.eventType || EVENT_TYPES.MIXED_DOUBLES, // NEW: Event type
     status: tournament?.status || TOURNAMENT_STATUS.DRAFT,
-    eventDate: tournament?.eventDate ? new Date(tournament.eventDate).toISOString().split('T')[0] : '',
-    registrationDeadline: tournament?.registrationDeadline ? new Date(tournament.registrationDeadline).toISOString().split('T')[0] : '',
+    eventDate: formatDateForInput(tournament?.eventDate),
+    registrationDeadline: formatDateForInput(tournament?.registrationDeadline),
     location: tournament?.location || '',
     entryFee: tournament?.entryFee || 0,
-    maxParticipants: tournament?.maxParticipants || 32,
+    maxParticipants: tournament?.maxParticipants || 2, // UPDATED: Default to 2
     paymentMode: tournament?.paymentMode || PAYMENT_MODES.INDIVIDUAL
   });
 
@@ -69,6 +112,10 @@ const TournamentForm = ({
       newErrors.skillLevel = 'Skill level is required';
     }
 
+    if (!formData.eventType) {
+      newErrors.eventType = 'Event type is required';
+    }
+
     if (!formData.eventDate) {
       newErrors.eventDate = 'Event date is required';
     }
@@ -85,16 +132,7 @@ const TournamentForm = ({
       newErrors.maxParticipants = 'Max participants must be at least 1';
     }
 
-    // Check if event date is in the future (only for new tournaments)
-    if (!tournament && formData.eventDate) {
-      const eventDate = new Date(formData.eventDate);
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      
-      if (eventDate < today) {
-        newErrors.eventDate = 'Event date must be in the future';
-      }
-    }
+    // REMOVED: Future date validation to allow backdating
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -136,6 +174,14 @@ const TournamentForm = ({
     label: key.charAt(0) + key.slice(1).toLowerCase()
   }));
 
+  // Event type options
+  const eventTypeOptions = Object.entries(EVENT_TYPES).map(([key, value]) => ({
+    value,
+    label: key.split('_').map(word => 
+      word.charAt(0) + word.slice(1).toLowerCase()
+    ).join(' ')
+  }));
+
   // Tournament status options
   const statusOptions = Object.entries(TOURNAMENT_STATUS).map(([key, value]) => ({
     value,
@@ -174,7 +220,7 @@ const TournamentForm = ({
           placeholder="Brief description of the tournament"
         />
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <Select
             label="Skill Level"
             value={formData.skillLevel}
@@ -182,6 +228,16 @@ const TournamentForm = ({
             options={skillLevelOptions}
             error={errors.skillLevel}
             required
+          />
+
+          <Select
+            label="Event Type"
+            value={formData.eventType}
+            onChange={handleChange('eventType')}
+            options={eventTypeOptions}
+            error={errors.eventType}
+            required
+            helperText="Tournament format"
           />
 
           <Select
@@ -208,6 +264,7 @@ const TournamentForm = ({
             onChange={handleChange('eventDate')}
             error={errors.eventDate}
             required
+            helperText="Tournament can be backdated if needed"
           />
 
           <Input
@@ -269,7 +326,7 @@ const TournamentForm = ({
           onChange={handleChange('maxParticipants')}
           error={errors.maxParticipants}
           min="1"
-          placeholder="32"
+          placeholder="2"
           helperText="Maximum number of tournament participants"
         />
 

@@ -1,4 +1,4 @@
-// src/services/models.js (UPDATED)
+// src/services/models.js (UPDATED - Enhanced Member Model)
 // Enhanced data models for PickleTrack entities with auth integration
 
 export const SKILL_LEVELS = {
@@ -34,7 +34,16 @@ export const PAYMENT_MODES = {
   GROUP: 'group'            // One person pays, others reimburse
 };
 
-// Enhanced Member model with auth integration
+// NEW: Event type options
+export const EVENT_TYPES = {
+  SINGLES: 'singles',
+  MENS_DOUBLES: 'mens_doubles',
+  WOMENS_DOUBLES: 'womens_doubles',
+  MIXED_DOUBLES: 'mixed_doubles',
+  TEAM: 'team'
+};
+
+// Enhanced Member model with venmo handle
 export const createMember = (data = {}) => ({
   // Authentication integration
   authUid: data.authUid || null, // Firebase Auth UID
@@ -45,6 +54,9 @@ export const createMember = (data = {}) => ({
   lastName: data.lastName || '',
   displayName: data.displayName || `${data.firstName || ''} ${data.lastName || ''}`.trim(),
   phoneNumber: data.phoneNumber || '',
+  
+  // Payment information
+  venmoHandle: data.venmoHandle || '', // NEW: Venmo handle for payments
   
   // Pickleball information
   skillLevel: data.skillLevel || SKILL_LEVELS.BEGINNER,
@@ -63,7 +75,7 @@ export const createMember = (data = {}) => ({
   isLegacyMember: data.authUid ? false : true
 });
 
-// League model - unchanged but documented for auth integration
+// Enhanced League model with event type
 export const createLeague = (data = {}) => ({
   name: data.name || '',
   description: data.description || '',
@@ -71,7 +83,10 @@ export const createLeague = (data = {}) => ({
   status: data.status || LEAGUE_STATUS.ACTIVE,
   startDate: data.startDate || null,
   endDate: data.endDate || null,
-  maxParticipants: data.maxParticipants || 20,
+  maxParticipants: data.maxParticipants || 2, // UPDATED: Default to 2
+  
+  // NEW: Event type
+  eventType: data.eventType || EVENT_TYPES.MIXED_DOUBLES,
   
   // Participants are now member IDs that correspond to authenticated users
   participants: data.participants || [],
@@ -102,7 +117,7 @@ export const createLeague = (data = {}) => ({
   numberOfWeeks: data.numberOfWeeks || 8
 });
 
-// Tournament model - unchanged but documented for auth integration
+// Enhanced Tournament model with event type
 export const createTournament = (data = {}) => ({
   name: data.name || '',
   description: data.description || '',
@@ -110,7 +125,10 @@ export const createTournament = (data = {}) => ({
   status: data.status || TOURNAMENT_STATUS.DRAFT,
   eventDate: data.eventDate || null,
   registrationDeadline: data.registrationDeadline || null,
-  maxParticipants: data.maxParticipants || 32,
+  maxParticipants: data.maxParticipants || 2, // UPDATED: Default to 2
+  
+  // NEW: Event type
+  eventType: data.eventType || EVENT_TYPES.MIXED_DOUBLES,
   
   // Participants are now member IDs that correspond to authenticated users
   participants: data.participants || [],
@@ -205,7 +223,7 @@ export const getRolePermissions = (role) => {
   return permissions[role] || [];
 };
 
-// Validation helpers
+// Enhanced validation helpers
 export const validateMemberData = (memberData) => {
   const errors = [];
   
@@ -227,6 +245,11 @@ export const validateMemberData = (memberData) => {
   
   if (!Object.values(MEMBER_ROLES).includes(memberData.role)) {
     errors.push('Valid role is required');
+  }
+  
+  // Validate venmo handle format if provided (optional)
+  if (memberData.venmoHandle && !/^[a-zA-Z0-9_-]+$/.test(memberData.venmoHandle)) {
+    errors.push('Venmo handle can only contain letters, numbers, hyphens, and underscores');
   }
   
   return {
@@ -252,6 +275,10 @@ export const validateTournamentData = (tournamentData) => {
   
   if (!Object.values(SKILL_LEVELS).includes(tournamentData.skillLevel)) {
     errors.push('Valid skill level is required');
+  }
+  
+  if (!Object.values(EVENT_TYPES).includes(tournamentData.eventType)) {
+    errors.push('Valid event type is required');
   }
   
   if (tournamentData.entryFee < 0) {
@@ -292,6 +319,10 @@ export const validateLeagueData = (leagueData) => {
     errors.push('Valid skill level is required');
   }
   
+  if (!Object.values(EVENT_TYPES).includes(leagueData.eventType)) {
+    errors.push('Valid event type is required');
+  }
+  
   if (leagueData.registrationFee < 0) {
     errors.push('Registration fee cannot be negative');
   }
@@ -314,6 +345,7 @@ export const createDefaultAdmin = (authUid, email) => ({
   lastName: 'Administrator',
   displayName: 'System Administrator',
   phoneNumber: '',
+  venmoHandle: '', // NEW: Include venmo handle
   skillLevel: SKILL_LEVELS.ADVANCED,
   role: MEMBER_ROLES.ADMIN,
   isActive: true,
@@ -336,5 +368,6 @@ export default {
   MEMBER_ROLES,
   TOURNAMENT_STATUS,
   LEAGUE_STATUS,
-  PAYMENT_MODES
+  PAYMENT_MODES,
+  EVENT_TYPES // NEW: Export event types
 };

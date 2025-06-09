@@ -1,6 +1,6 @@
-// src/components/member/MemberProfile.jsx
+// src/components/member/MemberProfile.jsx (ENHANCED - Added Venmo Handle support)
 import React, { useState, useEffect } from 'react';
-import { User, Mail, Phone, Trophy, Calendar, Save, Edit, Shield } from 'lucide-react';
+import { User, Mail, Phone, Trophy, Calendar, Save, Edit, Shield, DollarSign } from 'lucide-react';
 import { Button, Input, Select, Card, Alert } from '../ui';
 import { RoleIndicator } from '../ui/PermissionCheck';
 import { useAuth } from '../../hooks/useAuth';
@@ -37,6 +37,7 @@ const MemberProfile = ({
     firstName: '',
     lastName: '',
     phoneNumber: '',
+    venmoHandle: '', // NEW: Venmo handle
     skillLevel: ''
   });
 
@@ -47,6 +48,7 @@ const MemberProfile = ({
         firstName: currentMember.firstName || '',
         lastName: currentMember.lastName || '',
         phoneNumber: currentMember.phoneNumber || '',
+        venmoHandle: currentMember.venmoHandle || '', // NEW: Initialize venmo handle
         skillLevel: currentMember.skillLevel || ''
       });
     }
@@ -70,12 +72,19 @@ const MemberProfile = ({
   const handleSave = async () => {
     if (!currentMember) return;
 
+    // Validate venmo handle if provided
+    if (formData.venmoHandle && !/^[a-zA-Z0-9_-]+$/.test(formData.venmoHandle)) {
+      showAlert('error', 'Invalid Venmo Handle', 'Venmo handle can only contain letters, numbers, hyphens, and underscores');
+      return;
+    }
+
     setLoading(true);
     try {
       await updateMember(currentMember.id, {
         firstName: formData.firstName.trim(),
         lastName: formData.lastName.trim(),
         phoneNumber: formData.phoneNumber.trim(),
+        venmoHandle: formData.venmoHandle.trim(), // NEW: Include venmo handle
         skillLevel: formData.skillLevel,
         displayName: `${formData.firstName.trim()} ${formData.lastName.trim()}`
       });
@@ -96,6 +105,7 @@ const MemberProfile = ({
         firstName: currentMember.firstName || '',
         lastName: currentMember.lastName || '',
         phoneNumber: currentMember.phoneNumber || '',
+        venmoHandle: currentMember.venmoHandle || '', // NEW: Reset venmo handle
         skillLevel: currentMember.skillLevel || ''
       });
     }
@@ -302,6 +312,28 @@ const MemberProfile = ({
                     </div>
                   )}
                 </div>
+
+                {/* NEW: Venmo Handle */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Venmo Handle
+                  </label>
+                  {editing ? (
+                    <Input
+                      value={formData.venmoHandle}
+                      onChange={handleChange('venmoHandle')}
+                      placeholder="your-venmo"
+                      helperText="For easy payment collection (no @ symbol needed)"
+                    />
+                  ) : (
+                    <div className="flex items-center space-x-2">
+                      <DollarSign className="h-4 w-4 text-gray-400" />
+                      <span className="text-gray-900">
+                        {currentMember.venmoHandle ? `@${currentMember.venmoHandle}` : 'Not provided'}
+                      </span>
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* Pickleball Information */}
@@ -392,6 +424,24 @@ const MemberProfile = ({
                   <div className="flex justify-between">
                     <span className="text-gray-600">Total events:</span>
                     <span className="font-medium">{stats.totalEvents}</span>
+                  </div>
+                </div>
+              </div>
+            </Card>
+          )}
+
+          {/* Payment Information */}
+          {currentMember.venmoHandle && (
+            <Card title="Payment Information">
+              <div className="bg-green-50 p-4 rounded-lg">
+                <div className="flex items-center space-x-3">
+                  <DollarSign className="h-8 w-8 text-green-600" />
+                  <div>
+                    <h4 className="font-medium text-green-900">Venmo Ready</h4>
+                    <p className="text-sm text-green-800">@{currentMember.venmoHandle}</p>
+                    <p className="text-xs text-green-700 mt-1">
+                      Others can easily pay you for tournaments and leagues
+                    </p>
                   </div>
                 </div>
               </div>

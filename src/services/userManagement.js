@@ -1,4 +1,4 @@
-// src/services/userManagement.js
+// src/services/userManagement.js (ENHANCED - Added Venmo Handle support)
 // Service for managing the integration between Firebase Auth and member records
 
 import { 
@@ -32,6 +32,7 @@ export const createMemberFromAuth = async (user, additionalData = {}) => {
       lastName: additionalData.lastName || 'User',
       displayName: additionalData.displayName || `${additionalData.firstName || 'New'} ${additionalData.lastName || 'User'}`,
       phoneNumber: additionalData.phoneNumber || '',
+      venmoHandle: additionalData.venmoHandle || '', // NEW: Include venmo handle
       skillLevel: additionalData.skillLevel || 'beginner',
       role: MEMBER_ROLES.PLAYER, // New users start as players
       isActive: true
@@ -212,12 +213,18 @@ export const updateUserProfile = async (authUid, profileData) => {
       throw new Error('Member not found');
     }
     
+    // Validate venmo handle if provided
+    if (profileData.venmoHandle && !/^[a-zA-Z0-9_-]+$/.test(profileData.venmoHandle)) {
+      throw new Error('Venmo handle can only contain letters, numbers, hyphens, and underscores');
+    }
+    
     // Update member record
     const memberUpdates = {
       firstName: profileData.firstName,
       lastName: profileData.lastName,
       displayName: `${profileData.firstName} ${profileData.lastName}`,
       phoneNumber: profileData.phoneNumber || '',
+      venmoHandle: profileData.venmoHandle || '', // NEW: Include venmo handle
       skillLevel: profileData.skillLevel
     };
     
@@ -305,6 +312,7 @@ export const getUserStats = async (authUid) => {
       memberSince: member.createdAt,
       role: member.role,
       skillLevel: member.skillLevel,
+      venmoHandle: member.venmoHandle, // NEW: Include venmo handle in stats
       isActive: member.isActive
     };
   } catch (error) {
@@ -352,6 +360,60 @@ export const validateUserPermission = async (authUid, action, targetId = null) =
   }
 };
 
+/**
+ * NEW: Get member by Venmo handle (for payment assistance)
+ */
+export const getMemberByVenmoHandle = async (venmoHandle) => {
+  try {
+    if (!venmoHandle) return null;
+    
+    const membersRef = collection(db, 'members');
+    const q = query(membersRef, where('venmoHandle', '==', venmoHandle.replace('@', '')));
+    const querySnapshot = await getDocs(q);
+    
+    if (querySnapshot.empty) {
+      return null;
+    }
+    
+    const doc = querySnapshot.docs[0];
+    return {
+      id: doc.id,
+      ...doc.data()
+    };
+  } catch (error) {
+    console.error('Error getting member by venmo handle:', error);
+    return null;
+  }
+};
+
+/**
+ * NEW: Search members by venmo handle (partial matching)
+ */
+export const searchMembersByVenmo = async (searchTerm) => {
+  try {
+    if (!searchTerm) return [];
+    
+    // Get all members with venmo handles
+    const membersRef = collection(db, 'members');
+    const querySnapshot = await getDocs(membersRef);
+    
+    const members = querySnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    }));
+    
+    // Filter by venmo handle containing search term
+    const cleanSearch = searchTerm.replace('@', '').toLowerCase();
+    return members.filter(member => 
+      member.venmoHandle && 
+      member.venmoHandle.toLowerCase().includes(cleanSearch)
+    );
+  } catch (error) {
+    console.error('Error searching members by venmo:', error);
+    return [];
+  }
+};
+
 export default {
   createMemberFromAuth,
   getMemberByAuthUid,
@@ -362,5 +424,7 @@ export default {
   deactivateUser,
   reactivateUser,
   getUserStats,
-  validateUserPermission
+  validateUserPermission,
+  getMemberByVenmoHandle, // NEW
+  searchMembersByVenmo // NEW
 };

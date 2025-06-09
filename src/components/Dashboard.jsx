@@ -1,4 +1,4 @@
-// src/components/Dashboard.jsx (Updated - Include League Payment Tracking)
+// src/components/Dashboard.jsx (ENHANCED - Sorting and payment UI improvements)
 import React, { useState } from 'react';
 import { Plus, Calendar, Users, Trophy, DollarSign, Activity } from 'lucide-react';
 import { useMembers, useLeagues, useTournaments, useAuth } from '../hooks';
@@ -45,6 +45,24 @@ const Dashboard = () => {
   // Auth form state
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+
+  // Helper function to sort tournaments by event date (chronologically)
+  const getSortedTournaments = () => {
+    return [...tournaments].sort((a, b) => {
+      const dateA = a.eventDate ? (a.eventDate.seconds ? new Date(a.eventDate.seconds * 1000) : new Date(a.eventDate)) : new Date(0);
+      const dateB = b.eventDate ? (b.eventDate.seconds ? new Date(b.eventDate.seconds * 1000) : new Date(b.eventDate)) : new Date(0);
+      return dateA - dateB; // Oldest first
+    });
+  };
+
+  // Helper function to sort leagues by start date (chronologically)
+  const getSortedLeagues = () => {
+    return [...leagues].sort((a, b) => {
+      const dateA = a.startDate ? (a.startDate.seconds ? new Date(a.startDate.seconds * 1000) : new Date(a.startDate)) : new Date(0);
+      const dateB = b.startDate ? (b.startDate.seconds ? new Date(b.startDate.seconds * 1000) : new Date(b.startDate)) : new Date(0);
+      return dateA - dateB; // Oldest first
+    });
+  };
 
   // Show alert message
   const showAlert = (type, title, message) => {
@@ -295,6 +313,10 @@ const Dashboard = () => {
     );
   }
 
+  // Get sorted data
+  const sortedTournaments = getSortedTournaments();
+  const sortedLeagues = getSortedLeagues();
+
   // Table columns for tournaments
   const tournamentColumns = [
     {
@@ -314,6 +336,11 @@ const Dashboard = () => {
       key: 'skillLevel',
       label: 'Skill Level',
       render: (level) => <span className="capitalize">{level}</span>
+    },
+    {
+      key: 'eventType',
+      label: 'Type',
+      render: (type) => <span className="capitalize">{type?.replace('_', ' ')}</span>
     },
     {
       key: 'status',
@@ -375,6 +402,11 @@ const Dashboard = () => {
       render: (level) => <span className="capitalize">{level}</span>
     },
     {
+      key: 'eventType',
+      label: 'Type',
+      render: (type) => <span className="capitalize">{type?.replace('_', ' ')}</span>
+    },
+    {
       key: 'status',
       label: 'Status',
       render: (status) => (
@@ -430,6 +462,11 @@ const Dashboard = () => {
       key: 'role',
       label: 'Role',
       render: (role) => <span className="capitalize">{role}</span>
+    },
+    {
+      key: 'venmoHandle',
+      label: 'Venmo',
+      render: (handle) => handle ? `@${handle}` : '—'
     },
     {
       key: 'isActive',
@@ -563,7 +600,7 @@ const Dashboard = () => {
         {/* Tournaments Section */}
         <Card 
           title="Tournaments"
-          subtitle="Manage your pickleball tournaments"
+          subtitle="Manage your pickleball tournaments (sorted chronologically)"
           actions={[
             <Button 
               key="add-tournament"
@@ -577,7 +614,7 @@ const Dashboard = () => {
         >
           <Table
             columns={tournamentColumns}
-            data={tournaments}
+            data={sortedTournaments}
             loading={tournamentsLoading}
             emptyMessage="No tournaments yet. Create your first tournament!"
           />
@@ -586,7 +623,7 @@ const Dashboard = () => {
         {/* Leagues Section */}
         <Card 
           title="Leagues"
-          subtitle="Manage ongoing pickleball leagues"
+          subtitle="Manage ongoing pickleball leagues (sorted chronologically)"
           actions={[
             <Button 
               key="add-league"
@@ -600,7 +637,7 @@ const Dashboard = () => {
         >
           <Table
             columns={leagueColumns}
-            data={leagues}
+            data={sortedLeagues}
             loading={leaguesLoading}
             emptyMessage="No leagues yet. Create your first league!"
           />
@@ -730,31 +767,31 @@ const Dashboard = () => {
           />
         </Modal>
 
-        {/* Payment Tracking Modal - Now includes both tournaments and leagues */}
+        {/* Enhanced Payment Tracking Modal */}
         <Modal
           isOpen={showPaymentModal}
           onClose={() => setShowPaymentModal(false)}
           title="Payment Tracking Overview"
           size="xl"
         >
-          <div className="space-y-6">
+          <div className="space-y-8">
             {/* Payment Summary */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="bg-blue-50 p-4 rounded-lg">
+              <div className="bg-blue-50 p-4 rounded-lg border-2 border-blue-200">
                 <h4 className="font-medium text-blue-900">Total Expected</h4>
                 <p className="text-2xl font-bold text-blue-600">${paymentSummary.totalExpected}</p>
                 <p className="text-xs text-blue-700 mt-1">
                   {paymentSummary.paidTournaments} tournaments • {paymentSummary.paidLeagues} leagues
                 </p>
               </div>
-              <div className="bg-green-50 p-4 rounded-lg">
+              <div className="bg-green-50 p-4 rounded-lg border-2 border-green-200">
                 <h4 className="font-medium text-green-900">Total Collected</h4>
                 <p className="text-2xl font-bold text-green-600">${paymentSummary.totalCollected}</p>
                 <p className="text-xs text-green-700 mt-1">
                   {paymentSummary.participantsPaid} of {paymentSummary.participantsWithPayments} paid
                 </p>
               </div>
-              <div className="bg-red-50 p-4 rounded-lg">
+              <div className="bg-red-50 p-4 rounded-lg border-2 border-red-200">
                 <h4 className="font-medium text-red-900">Outstanding</h4>
                 <p className="text-2xl font-bold text-red-600">${paymentSummary.totalOwed}</p>
                 <p className="text-xs text-red-700 mt-1">
@@ -763,67 +800,86 @@ const Dashboard = () => {
               </div>
             </div>
 
-            {/* Tournament Payments */}
-            <div className="space-y-4">
-              <h3 className="text-lg font-medium text-gray-900">Tournament Payments</h3>
-              {tournaments.filter(t => t.entryFee > 0).map(tournament => (
-                <div key={tournament.id} className="border rounded-lg p-4">
-                  <div className="flex justify-between items-center mb-4">
-                    <h4 className="font-medium text-gray-900">{tournament.name}</h4>
-                    <span className="text-sm text-gray-500">
-                      ${tournament.entryFee} per person
-                    </span>
-                  </div>
-                  <PaymentStatus
-                    event={tournament}
-                    eventType="tournament"
-                    members={members}
-                    onPaymentUpdate={updateTournament}
-                    currentUserId={user?.uid}
-                  />
-                </div>
-              ))}
+            {/* Tournament Payments Section */}
+            <div className="bg-white border-2 border-gray-200 rounded-lg p-6">
+              <div className="border-b border-gray-200 pb-4 mb-6">
+                <h3 className="text-xl font-semibold text-gray-900 flex items-center">
+                  <Trophy className="h-6 w-6 text-green-600 mr-2" />
+                  Tournament Payments
+                </h3>
+                <p className="text-sm text-gray-600 mt-1">Track entry fee payments for tournaments</p>
+              </div>
               
-              {tournaments.filter(t => t.entryFee > 0).length === 0 && (
-                <p className="text-gray-500 text-center py-4">
-                  No tournaments with entry fees found.
-                </p>
-              )}
+              <div className="space-y-6">
+                {tournaments.filter(t => t.entryFee > 0).map(tournament => (
+                  <div key={tournament.id} className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                    <div className="flex justify-between items-center mb-4">
+                      <h4 className="font-medium text-gray-900">{tournament.name}</h4>
+                      <span className="text-sm text-gray-500 bg-white px-2 py-1 rounded">
+                        ${tournament.entryFee} per person
+                      </span>
+                    </div>
+                    <PaymentStatus
+                      event={tournament}
+                      eventType="tournament"
+                      members={members}
+                      onPaymentUpdate={updateTournament}
+                      currentUserId={user?.uid}
+                    />
+                  </div>
+                ))}
+                
+                {tournaments.filter(t => t.entryFee > 0).length === 0 && (
+                  <p className="text-gray-500 text-center py-8 bg-gray-50 rounded-lg">
+                    No tournaments with entry fees found.
+                  </p>
+                )}
+              </div>
             </div>
 
-            {/* League Payments */}
-            <div className="space-y-4">
-              <h3 className="text-lg font-medium text-gray-900">League Payments</h3>
-              {leagues.filter(l => l.registrationFee > 0).map(league => (
-                <div key={league.id} className="border rounded-lg p-4">
-                  <div className="flex justify-between items-center mb-4">
-                    <h4 className="font-medium text-gray-900">{league.name}</h4>
-                    <span className="text-sm text-gray-500">
-                      ${league.registrationFee} per person
-                    </span>
-                  </div>
-                  <PaymentStatus
-                    event={league}
-                    eventType="league"
-                    members={members}
-                    onPaymentUpdate={updateLeague}
-                    currentUserId={user?.uid}
-                  />
-                </div>
-              ))}
+            {/* League Payments Section */}
+            <div className="bg-white border-2 border-gray-200 rounded-lg p-6">
+              <div className="border-b border-gray-200 pb-4 mb-6">
+                <h3 className="text-xl font-semibold text-gray-900 flex items-center">
+                  <Activity className="h-6 w-6 text-blue-600 mr-2" />
+                  League Payments
+                </h3>
+                <p className="text-sm text-gray-600 mt-1">Track registration fee payments for leagues</p>
+              </div>
               
-              {leagues.filter(l => l.registrationFee > 0).length === 0 && (
-                <p className="text-gray-500 text-center py-4">
-                  No leagues with registration fees found.
-                </p>
-              )}
+              <div className="space-y-6">
+                {leagues.filter(l => l.registrationFee > 0).map(league => (
+                  <div key={league.id} className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                    <div className="flex justify-between items-center mb-4">
+                      <h4 className="font-medium text-gray-900">{league.name}</h4>
+                      <span className="text-sm text-gray-500 bg-white px-2 py-1 rounded">
+                        ${league.registrationFee} per person
+                      </span>
+                    </div>
+                    <PaymentStatus
+                      event={league}
+                      eventType="league"
+                      members={members}
+                      onPaymentUpdate={updateLeague}
+                      currentUserId={user?.uid}
+                    />
+                  </div>
+                ))}
+                
+                {leagues.filter(l => l.registrationFee > 0).length === 0 && (
+                  <p className="text-gray-500 text-center py-8 bg-gray-50 rounded-lg">
+                    No leagues with registration fees found.
+                  </p>
+                )}
+              </div>
             </div>
 
             {/* No paid events message */}
             {paymentSummary.paidEvents === 0 && (
-              <div className="text-center py-8">
-                <DollarSign className="h-12 w-12 mx-auto text-gray-300 mb-4" />
-                <p className="text-gray-500">No tournaments or leagues with fees found.</p>
+              <div className="text-center py-12 bg-gray-50 rounded-lg border-2 border-gray-200">
+                <DollarSign className="h-16 w-16 mx-auto text-gray-300 mb-4" />
+                <h3 className="text-lg font-medium text-gray-700 mb-2">No Payment Tracking Needed</h3>
+                <p className="text-gray-500 mb-4">No tournaments or leagues with fees found.</p>
                 <p className="text-sm text-gray-400">Create a tournament or league with an entry/registration fee to start tracking payments.</p>
               </div>
             )}

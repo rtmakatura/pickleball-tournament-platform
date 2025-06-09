@@ -1,4 +1,4 @@
-// src/hooks/useAuth.js (UPDATED)
+// src/hooks/useAuth.js (FIXED - Prevent duplicate member creation)
 import { useState, useEffect } from 'react';
 import {
   signInWithEmailAndPassword,
@@ -14,10 +14,37 @@ export const useAuth = () => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [memberCheckComplete, setMemberCheckComplete] = useState(false);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setUser(user);
+      
+      if (user) {
+        try {
+          // Check if member record exists
+          const member = await userManagement.getMemberByAuthUid(user.uid);
+          
+          if (!member) {
+            console.log('No member record found for user, creating one...');
+            // Only create if no member record exists
+            await userManagement.createMemberFromAuth(user, {
+              firstName: user.displayName?.split(' ')[0] || 'New',
+              lastName: user.displayName?.split(' ')[1] || 'User'
+            });
+          } else {
+            console.log('Member record found:', member.id);
+          }
+          
+          setMemberCheckComplete(true);
+        } catch (err) {
+          console.error('Error checking/creating member record:', err);
+          setError('Failed to setup user profile');
+        }
+      } else {
+        setMemberCheckComplete(false);
+      }
+      
       setLoading(false);
     });
 
@@ -29,15 +56,8 @@ export const useAuth = () => {
       setError(null);
       const result = await signInWithEmailAndPassword(auth, email, password);
       
-      // Verify that user has a corresponding member record
-      const member = await userManagement.getMemberByAuthUid(result.user.uid);
-      if (!member) {
-        // If no member record exists, create one
-        await userManagement.createMemberFromAuth(result.user, {
-          firstName: 'Unknown',
-          lastName: 'User'
-        });
-      }
+      // Member check will happen in the auth state change listener
+      // No need to check/create here to avoid duplicates
       
       return result;
     } catch (err) {
@@ -50,20 +70,28 @@ export const useAuth = () => {
     try {
       setError(null);
       
+      // Validate required member data
+      if (!memberData.firstName || !memberData.lastName || !memberData.skillLevel) {
+        throw new Error('First name, last name, and skill level are required');
+      }
+      
       // Create Firebase Auth account
       const result = await createUserWithEmailAndPassword(auth, email, password);
       
       // Update auth profile with display name
-      const displayName = `${memberData.firstName || 'New'} ${memberData.lastName || 'User'}`;
+      const displayName = `${memberData.firstName} ${memberData.lastName}`;
       await updateProfile(result.user, { displayName });
       
       // Create corresponding member record
       await userManagement.createMemberFromAuth(result.user, {
-        firstName: memberData.firstName || 'New',
-        lastName: memberData.lastName || 'User',
+        firstName: memberData.firstName,
+        lastName: memberData.lastName,
         phoneNumber: memberData.phoneNumber || '',
-        skillLevel: memberData.skillLevel || 'beginner'
+        venmoHandle: memberData.venmoHandle || '',
+        skillLevel: memberData.skillLevel
       });
+      
+      setMemberCheckComplete(true);
       
       return result;
     } catch (err) {
@@ -75,6 +103,7 @@ export const useAuth = () => {
   const logout = async () => {
     try {
       setError(null);
+      setMemberCheckComplete(false);
       await signOut(auth);
     } catch (err) {
       setError(err.message);
@@ -135,6 +164,7 @@ export const useAuth = () => {
     user,
     loading,
     error,
+    memberCheckComplete, // New: indicates if member record check is complete
     signIn,
     signUp,
     signUpWithProfile,
