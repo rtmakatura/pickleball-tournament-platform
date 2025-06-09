@@ -1,4 +1,4 @@
-// src/components/Dashboard.jsx (FIXED - Proper authentication flow)
+// src/components/Dashboard.jsx (UPDATED - Added Results Integration)
 import React, { useState } from 'react';
 import { Plus, Calendar, Users, Trophy, DollarSign, Activity } from 'lucide-react';
 import { useMembers, useLeagues, useTournaments, useAuth } from '../hooks';
@@ -20,7 +20,8 @@ import PaymentStatus from './tournament/PaymentStatus';
 import { MemberForm } from './member';
 import { LeagueForm, LeagueMemberSelector } from './league';
 import { SignUpForm } from './auth';
-import SignInForm from './auth/SignInForm'; // We'll create this
+import SignInForm from './auth/SignInForm';
+import { ResultsButton } from './results'; // NEW: Import results components
 
 const Dashboard = () => {
   const { user, signIn, signUpWithProfile, logout, isAuthenticated, loading: authLoading } = useAuth();
@@ -38,7 +39,7 @@ const Dashboard = () => {
   const [editingMember, setEditingMember] = useState(null);
   
   // Auth UI state
-  const [authMode, setAuthMode] = useState('signin'); // 'signin' or 'signup'
+  const [authMode, setAuthMode] = useState('signin');
   
   // Form states
   const [selectedMembers, setSelectedMembers] = useState([]);
@@ -52,7 +53,7 @@ const Dashboard = () => {
     return [...tournaments].sort((a, b) => {
       const dateA = a.eventDate ? (a.eventDate.seconds ? new Date(a.eventDate.seconds * 1000) : new Date(a.eventDate)) : new Date(0);
       const dateB = b.eventDate ? (b.eventDate.seconds ? new Date(b.eventDate.seconds * 1000) : new Date(b.eventDate)) : new Date(0);
-      return dateA - dateB; // Oldest first
+      return dateA - dateB;
     });
   };
 
@@ -61,7 +62,7 @@ const Dashboard = () => {
     return [...leagues].sort((a, b) => {
       const dateA = a.startDate ? (a.startDate.seconds ? new Date(a.startDate.seconds * 1000) : new Date(a.startDate)) : new Date(0);
       const dateB = b.startDate ? (b.startDate.seconds ? new Date(b.startDate.seconds * 1000) : new Date(b.startDate)) : new Date(0);
-      return dateA - dateB; // Oldest first
+      return dateA - dateB;
     });
   };
 
@@ -78,7 +79,7 @@ const Dashboard = () => {
       showAlert('success', 'Welcome back!', 'Signed in successfully');
     } catch (err) {
       showAlert('error', 'Sign in failed', err.message);
-      throw err; // Re-throw to let form handle it
+      throw err;
     }
   };
 
@@ -88,7 +89,7 @@ const Dashboard = () => {
       showAlert('success', 'Welcome!', 'Account created successfully');
     } catch (err) {
       showAlert('error', 'Sign up failed', err.message);
-      throw err; // Re-throw to let form handle it
+      throw err;
     }
   };
 
@@ -264,7 +265,7 @@ const Dashboard = () => {
     }
   };
 
-  // Payment tracking calculations - now includes both tournaments and leagues
+  // Payment tracking calculations
   const getPaymentSummary = () => {
     return calculateOverallPaymentSummary(tournaments, leagues);
   };
@@ -281,12 +282,11 @@ const Dashboard = () => {
     );
   }
 
-  // Authentication UI - now with proper separation of sign-in and sign-up
+  // Authentication UI
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="w-full max-w-md">
-          {/* Alert notification */}
           {alert && (
             <div className="mb-6">
               <Alert
@@ -318,7 +318,7 @@ const Dashboard = () => {
   const sortedTournaments = getSortedTournaments();
   const sortedLeagues = getSortedLeagues();
 
-  // Table columns for tournaments
+  // UPDATED: Table columns for tournaments with results integration
   const tournamentColumns = [
     {
       key: 'name',
@@ -369,19 +369,28 @@ const Dashboard = () => {
       key: 'actions',
       label: 'Actions',
       render: (_, tournament) => (
-        <TableActions
-          actions={[
-            {
-              label: 'Edit',
-              onClick: () => handleEditTournament(tournament)
-            }
-          ]}
-        />
+        <div className="flex items-center space-x-2">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => handleEditTournament(tournament)}
+          >
+            Edit
+          </Button>
+          
+          {/* NEW: Results Button */}
+          <ResultsButton
+            event={tournament}
+            eventType="tournament"
+            variant="auto"
+            size="sm"
+          />
+        </div>
       )
     }
   ];
 
-  // Table columns for leagues
+  // UPDATED: Table columns for leagues with results integration
   const leagueColumns = [
     {
       key: 'name',
@@ -431,14 +440,23 @@ const Dashboard = () => {
       key: 'actions',
       label: 'Actions',
       render: (_, league) => (
-        <TableActions
-          actions={[
-            {
-              label: 'Edit',
-              onClick: () => handleEditLeague(league)
-            }
-          ]}
-        />
+        <div className="flex items-center space-x-2">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => handleEditLeague(league)}
+          >
+            Edit
+          </Button>
+          
+          {/* NEW: Results Button */}
+          <ResultsButton
+            event={league}
+            eventType="league"
+            variant="auto"
+            size="sm"
+          />
+        </div>
       )
     }
   ];
@@ -524,7 +542,7 @@ const Dashboard = () => {
           </Button>
         </div>
 
-        {/* Stats Cards - Now only 3 cards, evenly spaced */}
+        {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           <div className="bg-white rounded-lg border shadow-sm p-6 text-center">
             <h3 className="text-sm font-medium text-gray-500 mb-2">Total Tournaments</h3>
@@ -557,7 +575,7 @@ const Dashboard = () => {
           </div>
         </div>
 
-        {/* Quick Actions - Moved to top */}
+        {/* Quick Actions */}
         <Card title="Quick Actions" className="mb-8">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <Button 

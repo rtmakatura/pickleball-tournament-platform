@@ -1,4 +1,4 @@
-// src/components/results/ResultsButton.jsx
+// src/components/results/ResultsButton.jsx (FIXED - Resolved naming conflict)
 import React, { useState } from 'react';
 import { Trophy, Award, Eye, Edit, Plus, BarChart3 } from 'lucide-react';
 import { Button, Modal } from '../ui';
@@ -7,7 +7,6 @@ import { useMembers } from '../../hooks/useMembers';
 import { useResults } from '../../hooks/useResults';
 import { canManageResults, canViewResults, canEnterResults } from '../../utils/roleUtils';
 import ResultsManagement from './ResultsManagement';
-import ResultsDisplay from './ResultsDisplay';
 
 /**
  * ResultsButton Component - Button to access results for completed events
@@ -130,7 +129,7 @@ const ResultsButton = ({
             onClose={() => setShowModal(false)}
           />
         ) : (
-          <ResultsDisplay
+          <ResultsViewer
             event={event}
             eventType={eventType}
             results={results}
@@ -143,7 +142,8 @@ const ResultsButton = ({
 };
 
 /**
- * ResultsDisplay Component - Read-only display of event results
+ * ResultsViewer Component - Read-only display of event results
+ * RENAMED from ResultsDisplay to avoid naming conflict
  * 
  * Props:
  * - event: object - Tournament or league data
@@ -151,7 +151,7 @@ const ResultsButton = ({
  * - results: object - Results data
  * - onClose: function - Called when closing
  */
-const ResultsDisplay = ({ 
+const ResultsViewer = ({ 
   event, 
   eventType = 'tournament',
   results,
@@ -414,5 +414,5 @@ const ResultsDisplay = ({
   );
 };
 
-export { ResultsButton, ResultsDisplay };
+export { ResultsButton, ResultsViewer };
 export default ResultsButton;

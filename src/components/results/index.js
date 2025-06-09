@@ -1,8 +1,8 @@
-// src/components/results/index.js
+// src/components/results/index.js (FIXED - Updated export names)
 // Export all results-related components
 
 export { default as ResultsManagement } from './ResultsManagement';
-export { ResultsButton, ResultsDisplay } from './ResultsButton';
+export { ResultsButton, ResultsViewer } from './ResultsButton'; // FIXED: Changed ResultsDisplay to ResultsViewer
 export { default as AwardModal, AwardDisplay } from './AwardModal';
 
 // Future results components can be added here:
