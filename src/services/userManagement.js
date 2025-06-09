@@ -1,4 +1,4 @@
-// src/services/userManagement.js (ENHANCED - Added Venmo Handle support)
+// src/services/userManagement.js (ENHANCED - Added email search function)
 // Service for managing the integration between Firebase Auth and member records
 
 import { 
@@ -67,6 +67,40 @@ export const getMemberByAuthUid = async (authUid) => {
   } catch (error) {
     console.error('Error getting member by auth UID:', error);
     throw new Error('Failed to get member profile: ' + error.message);
+  }
+};
+
+/**
+ * NEW: Search for members by email address
+ */
+export const searchMembersByEmail = async (email) => {
+  try {
+    if (!email) return [];
+    
+    const membersRef = collection(db, 'members');
+    const q = query(membersRef, where('email', '==', email.toLowerCase().trim()));
+    const querySnapshot = await getDocs(q);
+    
+    return querySnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    }));
+  } catch (error) {
+    console.error('Error searching members by email:', error);
+    throw new Error('Failed to search members: ' + error.message);
+  }
+};
+
+/**
+ * NEW: Check if email is already in use
+ */
+export const isEmailInUse = async (email) => {
+  try {
+    const members = await searchMembersByEmail(email);
+    return members.length > 0;
+  } catch (error) {
+    console.error('Error checking if email is in use:', error);
+    return false; // Default to false to allow signup attempt
   }
 };
 
@@ -361,7 +395,7 @@ export const validateUserPermission = async (authUid, action, targetId = null) =
 };
 
 /**
- * NEW: Get member by Venmo handle (for payment assistance)
+ * Get member by Venmo handle (for payment assistance)
  */
 export const getMemberByVenmoHandle = async (venmoHandle) => {
   try {
@@ -387,7 +421,7 @@ export const getMemberByVenmoHandle = async (venmoHandle) => {
 };
 
 /**
- * NEW: Search members by venmo handle (partial matching)
+ * Search members by venmo handle (partial matching)
  */
 export const searchMembersByVenmo = async (searchTerm) => {
   try {
@@ -417,6 +451,8 @@ export const searchMembersByVenmo = async (searchTerm) => {
 export default {
   createMemberFromAuth,
   getMemberByAuthUid,
+  searchMembersByEmail, // NEW
+  isEmailInUse, // NEW
   updateMemberRole,
   deleteUserAccount,
   sendPasswordReset,
@@ -425,6 +461,6 @@ export default {
   reactivateUser,
   getUserStats,
   validateUserPermission,
-  getMemberByVenmoHandle, // NEW
-  searchMembersByVenmo // NEW
+  getMemberByVenmoHandle,
+  searchMembersByVenmo
 };

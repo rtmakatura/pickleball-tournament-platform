@@ -1,4 +1,4 @@
-// src/components/auth/SignUpForm.jsx (UPDATED - Enhanced with required fields)
+// src/components/auth/SignUpForm.jsx (UPDATED - Enhanced error handling)
 import React, { useState } from 'react';
 import { UserPlus, Mail, Lock, User, Phone, DollarSign } from 'lucide-react';
 import { Button, Input, Select, Alert } from '../ui';
@@ -32,6 +32,7 @@ const SignUpForm = ({
 
   const [errors, setErrors] = useState({});
   const [showPassword, setShowPassword] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
   // Handle input changes
   const handleChange = (field) => (e) => {
@@ -109,27 +110,35 @@ const SignUpForm = ({
   };
 
   // Handle form submission
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     
     if (!validateForm()) {
       return;
     }
 
-    // Prepare signup data
-    const signupData = {
-      email: formData.email.trim(),
-      password: formData.password,
-      memberData: {
-        firstName: formData.firstName.trim(),
-        lastName: formData.lastName.trim(),
-        phoneNumber: formData.phoneNumber.trim(),
-        venmoHandle: formData.venmoHandle.trim(),
-        skillLevel: formData.skillLevel
-      }
-    };
+    setSubmitting(true);
+    try {
+      // Prepare signup data
+      const signupData = {
+        email: formData.email.trim(),
+        password: formData.password,
+        memberData: {
+          firstName: formData.firstName.trim(),
+          lastName: formData.lastName.trim(),
+          phoneNumber: formData.phoneNumber.trim(),
+          venmoHandle: formData.venmoHandle.trim(),
+          skillLevel: formData.skillLevel
+        }
+      };
 
-    onSubmit(signupData);
+      await onSubmit(signupData);
+    } catch (err) {
+      // Error handling is done by parent component
+      console.error('Sign up error:', err);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   // Skill level options
@@ -137,6 +146,8 @@ const SignUpForm = ({
     value,
     label: key.charAt(0) + key.slice(1).toLowerCase()
   }));
+
+  const isLoading = loading || submitting;
 
   return (
     <div className="max-w-md mx-auto">
@@ -177,6 +188,7 @@ const SignUpForm = ({
               error={errors.firstName}
               required
               placeholder="John"
+              disabled={isLoading}
             />
 
             <Input
@@ -187,6 +199,7 @@ const SignUpForm = ({
               error={errors.lastName}
               required
               placeholder="Doe"
+              disabled={isLoading}
             />
           </div>
 
@@ -199,6 +212,7 @@ const SignUpForm = ({
             required
             placeholder="Select your current skill level"
             helperText="Be honest - this helps us match you with appropriate tournaments"
+            disabled={isLoading}
           />
         </div>
 
@@ -217,6 +231,7 @@ const SignUpForm = ({
             error={errors.phoneNumber}
             placeholder="(555) 123-4567"
             helperText="For tournament communications and updates"
+            disabled={isLoading}
           />
 
           <Input
@@ -227,6 +242,7 @@ const SignUpForm = ({
             error={errors.venmoHandle}
             placeholder="@your-venmo"
             helperText="For easy payment collection in tournaments and leagues"
+            disabled={isLoading}
           />
         </div>
 
@@ -246,6 +262,7 @@ const SignUpForm = ({
             required
             placeholder="john.doe@example.com"
             helperText="This will be your login email"
+            disabled={isLoading}
           />
 
           <Input
@@ -257,6 +274,7 @@ const SignUpForm = ({
             required
             placeholder="Choose a secure password"
             helperText="At least 6 characters"
+            disabled={isLoading}
           />
 
           <Input
@@ -267,6 +285,7 @@ const SignUpForm = ({
             error={errors.confirmPassword}
             required
             placeholder="Confirm your password"
+            disabled={isLoading}
           />
 
           <div className="flex items-center">
@@ -276,6 +295,7 @@ const SignUpForm = ({
               checked={showPassword}
               onChange={(e) => setShowPassword(e.target.checked)}
               className="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded"
+              disabled={isLoading}
             />
             <label htmlFor="showPassword" className="ml-2 block text-sm text-gray-900">
               Show passwords
@@ -299,10 +319,10 @@ const SignUpForm = ({
           <Button
             type="submit"
             className="w-full"
-            loading={loading}
-            disabled={loading}
+            loading={isLoading}
+            disabled={isLoading}
           >
-            {loading ? 'Creating Account...' : 'Create Account'}
+            {isLoading ? 'Creating Account...' : 'Create Account'}
           </Button>
         </div>
 
@@ -314,7 +334,7 @@ const SignUpForm = ({
               type="button"
               onClick={onSwitchToSignIn}
               className="font-medium text-green-600 hover:text-green-500 focus:outline-none focus:underline"
-              disabled={loading}
+              disabled={isLoading}
             >
               Sign in instead
             </button>

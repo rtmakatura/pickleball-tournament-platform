@@ -1,4 +1,4 @@
-// src/hooks/useAuth.js (FIXED - Prevent duplicate member creation)
+// src/hooks/useAuth.js (FIXED - Prevent automatic account creation on sign-in)
 import { useState, useEffect } from 'react';
 import {
   signInWithEmailAndPassword,
@@ -22,24 +22,25 @@ export const useAuth = () => {
       
       if (user) {
         try {
-          // Check if member record exists
+          // Only check if member record exists, don't create one automatically
           const member = await userManagement.getMemberByAuthUid(user.uid);
           
-          if (!member) {
-            console.log('No member record found for user, creating one...');
-            // Only create if no member record exists
-            await userManagement.createMemberFromAuth(user, {
-              firstName: user.displayName?.split(' ')[0] || 'New',
-              lastName: user.displayName?.split(' ')[1] || 'User'
-            });
-          } else {
+          if (member) {
             console.log('Member record found:', member.id);
+            setMemberCheckComplete(true);
+          } else {
+            console.log('No member record found for user - this should only happen for incomplete signups');
+            // Don't create a member record automatically - this could indicate:
+            // 1. User signed in but their signup process was incomplete
+            // 2. User account exists but member creation failed during signup
+            // 3. Data inconsistency
+            setMemberCheckComplete(false);
+            setError('Account setup incomplete. Please contact support or try signing up again.');
           }
-          
-          setMemberCheckComplete(true);
         } catch (err) {
-          console.error('Error checking/creating member record:', err);
-          setError('Failed to setup user profile');
+          console.error('Error checking member record:', err);
+          setError('Failed to verify account status');
+          setMemberCheckComplete(false);
         }
       } else {
         setMemberCheckComplete(false);
@@ -54,13 +55,21 @@ export const useAuth = () => {
   const signIn = async (email, password) => {
     try {
       setError(null);
+      setLoading(true);
+      
       const result = await signInWithEmailAndPassword(auth, email, password);
       
-      // Member check will happen in the auth state change listener
-      // No need to check/create here to avoid duplicates
+      // Verify that the user has a corresponding member record
+      const member = await userManagement.getMemberByAuthUid(result.user.uid);
+      if (!member) {
+        // This shouldn't happen in a properly set up system
+        await signOut(auth); // Sign out the user
+        throw new Error('Account not properly set up. Please contact support or try signing up again.');
+      }
       
       return result;
     } catch (err) {
+      setLoading(false);
       setError(err.message);
       throw err;
     }
@@ -69,32 +78,52 @@ export const useAuth = () => {
   const signUp = async (email, password, memberData = {}) => {
     try {
       setError(null);
+      setLoading(true);
       
       // Validate required member data
       if (!memberData.firstName || !memberData.lastName || !memberData.skillLevel) {
         throw new Error('First name, last name, and skill level are required');
       }
       
+      // Check if email is already in use by checking member records first
+      // This helps prevent Firebase auth account creation if member already exists
+      const existingMembers = await userManagement.searchMembersByEmail(email);
+      if (existingMembers.length > 0) {
+        throw new Error('An account with this email already exists. Please sign in instead.');
+      }
+      
       // Create Firebase Auth account
       const result = await createUserWithEmailAndPassword(auth, email, password);
       
-      // Update auth profile with display name
-      const displayName = `${memberData.firstName} ${memberData.lastName}`;
-      await updateProfile(result.user, { displayName });
-      
-      // Create corresponding member record
-      await userManagement.createMemberFromAuth(result.user, {
-        firstName: memberData.firstName,
-        lastName: memberData.lastName,
-        phoneNumber: memberData.phoneNumber || '',
-        venmoHandle: memberData.venmoHandle || '',
-        skillLevel: memberData.skillLevel
-      });
-      
-      setMemberCheckComplete(true);
-      
-      return result;
+      try {
+        // Update auth profile with display name
+        const displayName = `${memberData.firstName} ${memberData.lastName}`;
+        await updateProfile(result.user, { displayName });
+        
+        // Create corresponding member record
+        await userManagement.createMemberFromAuth(result.user, {
+          firstName: memberData.firstName,
+          lastName: memberData.lastName,
+          phoneNumber: memberData.phoneNumber || '',
+          venmoHandle: memberData.venmoHandle || '',
+          skillLevel: memberData.skillLevel
+        });
+        
+        setMemberCheckComplete(true);
+        
+        return result;
+      } catch (memberError) {
+        // If member creation fails, we need to clean up the auth account
+        console.error('Failed to create member record, cleaning up auth account:', memberError);
+        try {
+          await result.user.delete();
+        } catch (deleteError) {
+          console.error('Failed to clean up auth account:', deleteError);
+        }
+        throw new Error('Failed to complete account setup. Please try again.');
+      }
     } catch (err) {
+      setLoading(false);
       setError(err.message);
       throw err;
     }
@@ -111,7 +140,7 @@ export const useAuth = () => {
     }
   };
 
-  // Enhanced signup with member data
+  // Enhanced signup with member data (for the comprehensive signup form)
   const signUpWithProfile = async (signupData) => {
     const { email, password, memberData } = signupData;
     return signUp(email, password, memberData);
@@ -164,7 +193,7 @@ export const useAuth = () => {
     user,
     loading,
     error,
-    memberCheckComplete, // New: indicates if member record check is complete
+    memberCheckComplete, // Indicates if member record check is complete and successful
     signIn,
     signUp,
     signUpWithProfile,
@@ -172,7 +201,7 @@ export const useAuth = () => {
     updateUserProfile,
     getCurrentMember,
     hasPermission,
-    isAuthenticated: !!user,
+    isAuthenticated: !!user && memberCheckComplete, // Only authenticated if both auth user exists AND member record exists
     // Convenience properties
     uid: user?.uid || null,
     email: user?.email || null,

@@ -1,4 +1,4 @@
-// src/components/Dashboard.jsx (ENHANCED - Sorting and payment UI improvements)
+// src/components/Dashboard.jsx (FIXED - Proper authentication flow)
 import React, { useState } from 'react';
 import { Plus, Calendar, Users, Trophy, DollarSign, Activity } from 'lucide-react';
 import { useMembers, useLeagues, useTournaments, useAuth } from '../hooks';
@@ -19,9 +19,11 @@ import MemberSelector from './tournament/MemberSelector';
 import PaymentStatus from './tournament/PaymentStatus';
 import { MemberForm } from './member';
 import { LeagueForm, LeagueMemberSelector } from './league';
+import { SignUpForm } from './auth';
+import SignInForm from './auth/SignInForm'; // We'll create this
 
 const Dashboard = () => {
-  const { user, signIn, signUp, logout, isAuthenticated } = useAuth();
+  const { user, signIn, signUpWithProfile, logout, isAuthenticated, loading: authLoading } = useAuth();
   const { members, loading: membersLoading, addMember, updateMember, deleteMember } = useMembers();
   const { leagues, loading: leaguesLoading, addLeague, updateLeague, deleteLeague } = useLeagues();
   const { tournaments, loading: tournamentsLoading, addTournament, updateTournament, deleteTournament } = useTournaments();
@@ -35,16 +37,15 @@ const Dashboard = () => {
   const [editingLeague, setEditingLeague] = useState(null);
   const [editingMember, setEditingMember] = useState(null);
   
+  // Auth UI state
+  const [authMode, setAuthMode] = useState('signin'); // 'signin' or 'signup'
+  
   // Form states
   const [selectedMembers, setSelectedMembers] = useState([]);
   const [selectedLeagueMembers, setSelectedLeagueMembers] = useState([]);
   const [formLoading, setFormLoading] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [alert, setAlert] = useState(null);
-
-  // Auth form state
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
 
   // Helper function to sort tournaments by event date (chronologically)
   const getSortedTournaments = () => {
@@ -71,19 +72,23 @@ const Dashboard = () => {
   };
 
   // Auth functions
-  const handleAuth = async (isSignUp) => {
+  const handleSignIn = async (credentials) => {
     try {
-      if (isSignUp) {
-        await signUp(email, password);
-        showAlert('success', 'Welcome!', 'Account created successfully');
-      } else {
-        await signIn(email, password);
-        showAlert('success', 'Welcome back!', 'Signed in successfully');
-      }
-      setEmail('');
-      setPassword('');
+      await signIn(credentials.email, credentials.password);
+      showAlert('success', 'Welcome back!', 'Signed in successfully');
     } catch (err) {
-      showAlert('error', 'Authentication failed', err.message);
+      showAlert('error', 'Sign in failed', err.message);
+      throw err; // Re-throw to let form handle it
+    }
+  };
+
+  const handleSignUp = async (signupData) => {
+    try {
+      await signUpWithProfile(signupData);
+      showAlert('success', 'Welcome!', 'Account created successfully');
+    } catch (err) {
+      showAlert('error', 'Sign up failed', err.message);
+      throw err; // Re-throw to let form handle it
     }
   };
 
@@ -259,56 +264,52 @@ const Dashboard = () => {
     }
   };
 
-  // Quick member creation
-  const handleQuickAddMember = async () => {
-    try {
-      await addMember({
-        firstName: 'New',
-        lastName: `Member ${Date.now()}`,
-        email: `member${Date.now()}@example.com`,
-        skillLevel: SKILL_LEVELS.BEGINNER
-      });
-      showAlert('success', 'Member added!', 'New member has been added successfully');
-    } catch (err) {
-      showAlert('error', 'Failed to add member', err.message);
-    }
-  };
-
   // Payment tracking calculations - now includes both tournaments and leagues
   const getPaymentSummary = () => {
     return calculateOverallPaymentSummary(tournaments, leagues);
   };
 
-  // Authentication UI
+  // Show loading state while auth is initializing
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-green-600"></div>
+          <p className="mt-2 text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Authentication UI - now with proper separation of sign-in and sign-up
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <Card title="Welcome to PicklePortal" className="w-full max-w-md">
-          <div className="space-y-4">
-            <input
-              type="email"
-              placeholder="Email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full p-3 border rounded-lg"
-            />
-            <input
-              type="password"
-              placeholder="Password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full p-3 border rounded-lg"
-            />
-            <div className="flex space-x-2">
-              <Button onClick={() => handleAuth(false)} className="flex-1">
-                Sign In
-              </Button>
-              <Button variant="outline" onClick={() => handleAuth(true)} className="flex-1">
-                Sign Up
-              </Button>
+        <div className="w-full max-w-md">
+          {/* Alert notification */}
+          {alert && (
+            <div className="mb-6">
+              <Alert
+                type={alert.type}
+                title={alert.title}
+                message={alert.message}
+                onClose={() => setAlert(null)}
+              />
             </div>
-          </div>
-        </Card>
+          )}
+
+          {authMode === 'signin' ? (
+            <SignInForm
+              onSubmit={handleSignIn}
+              onSwitchToSignUp={() => setAuthMode('signup')}
+            />
+          ) : (
+            <SignUpForm
+              onSubmit={handleSignUp}
+              onSwitchToSignIn={() => setAuthMode('signin')}
+            />
+          )}
+        </div>
       </div>
     );
   }
