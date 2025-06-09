@@ -1,7 +1,7 @@
 // src/components/league/LeagueForm.jsx
 import React, { useState } from 'react';
 import { Input, Select, Button } from '../ui';
-import { SKILL_LEVELS, LEAGUE_STATUS } from '../../services/models';
+import { SKILL_LEVELS, LEAGUE_STATUS, PAYMENT_MODES } from '../../services/models';
 
 /**
  * LeagueForm Component - For creating/editing leagues
@@ -28,6 +28,7 @@ const LeagueForm = ({
     endDate: league?.endDate ? new Date(league.endDate).toISOString().split('T')[0] : '',
     maxParticipants: league?.maxParticipants || 20,
     registrationFee: league?.registrationFee || 0,
+    paymentMode: league?.paymentMode || PAYMENT_MODES.INDIVIDUAL,
     isActive: league?.isActive !== false
   });
 
@@ -155,6 +156,9 @@ const LeagueForm = ({
     }
   };
 
+  // Calculate estimated total cost for group payment display
+  const estimatedTotal = formData.registrationFee * formData.maxParticipants;
+
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       {/* League Basic Info */}
@@ -259,19 +263,57 @@ const LeagueForm = ({
             helperText="Cost to join the league"
           />
 
-          <Input
-            label="Max Participants"
-            type="number"
-            value={formData.maxParticipants}
-            onChange={handleChange('maxParticipants')}
-            error={errors.maxParticipants}
-            min="1"
-            placeholder="20"
-            helperText="Maximum number of league members"
+          <Select
+            label="Payment Mode"
+            value={formData.paymentMode}
+            onChange={handleChange('paymentMode')}
+            options={[
+              { value: PAYMENT_MODES.INDIVIDUAL, label: 'Individual Payments' },
+              { value: PAYMENT_MODES.GROUP, label: 'Group Payment (One Payer)' }
+            ]}
+            helperText="How participants will handle payments"
           />
         </div>
 
-        {/* Active status */}
+        <Input
+          label="Max Participants"
+          type="number"
+          value={formData.maxParticipants}
+          onChange={handleChange('maxParticipants')}
+          error={errors.maxParticipants}
+          min="1"
+          placeholder="20"
+          helperText="Maximum number of league members"
+        />
+
+        {/* Payment mode explanation for leagues */}
+        {formData.registrationFee > 0 && (
+          <div className="bg-blue-50 p-4 rounded-lg">
+            <h4 className="text-sm font-medium text-blue-900 mb-2">League Payment Mode</h4>
+            {formData.paymentMode === PAYMENT_MODES.INDIVIDUAL ? (
+              <div className="text-sm text-blue-800">
+                <p className="font-medium mb-1">Individual Payments:</p>
+                <ul className="list-disc list-inside space-y-1">
+                  <li>Each participant pays their own ${formData.registrationFee} registration fee</li>
+                  <li>Payment tracking is done per person</li>
+                  <li>Best for casual leagues or when members prefer to pay separately</li>
+                </ul>
+              </div>
+            ) : (
+              <div className="text-sm text-blue-800">
+                <p className="font-medium mb-1">Group Payment:</p>
+                <ul className="list-disc list-inside space-y-1">
+                  <li>One person pays ${estimatedTotal} for the entire league</li>
+                  <li>Other participants reimburse that person directly</li>
+                  <li>Simplified payment collection and tracking</li>
+                  <li>Best for organized teams or when one person handles league finances</li>
+                </ul>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Active status checkbox */}
         <div className="flex items-center">
           <input
             id="isActive"

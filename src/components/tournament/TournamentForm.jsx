@@ -1,7 +1,7 @@
 // src/components/tournament/TournamentForm.jsx
 import React, { useState } from 'react';
 import { Input, Select, Button, Alert } from '../ui';
-import { SKILL_LEVELS, TOURNAMENT_STATUS } from '../../services/models';
+import { SKILL_LEVELS, TOURNAMENT_STATUS, PAYMENT_MODES } from '../../services/models';
 
 /**
  * TournamentForm Component - For creating/editing tournaments
@@ -28,7 +28,8 @@ const TournamentForm = ({
     registrationDeadline: tournament?.registrationDeadline ? new Date(tournament.registrationDeadline).toISOString().split('T')[0] : '',
     location: tournament?.location || '',
     entryFee: tournament?.entryFee || 0,
-    maxParticipants: tournament?.maxParticipants || 32
+    maxParticipants: tournament?.maxParticipants || 32,
+    paymentMode: tournament?.paymentMode || PAYMENT_MODES.INDIVIDUAL
   });
 
   const [errors, setErrors] = useState({});
@@ -129,6 +130,9 @@ const TournamentForm = ({
     ).join(' ')
   }));
 
+  // Calculate estimated total cost for group payment display
+  const estimatedTotal = formData.entryFee * formData.maxParticipants;
+
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       {/* Tournament Basic Info */}
@@ -211,7 +215,14 @@ const TournamentForm = ({
           required
           placeholder="Tournament venue or location"
         />
+      </div>
 
+      {/* Payment Settings */}
+      <div className="space-y-4">
+        <h3 className="text-lg font-medium text-gray-900">
+          Payment Settings
+        </h3>
+        
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Input
             label="Entry Fee ($)"
@@ -222,18 +233,58 @@ const TournamentForm = ({
             min="0"
             step="0.01"
             placeholder="0.00"
+            helperText="Cost per participant"
           />
 
-          <Input
-            label="Max Participants"
-            type="number"
-            value={formData.maxParticipants}
-            onChange={handleChange('maxParticipants')}
-            error={errors.maxParticipants}
-            min="1"
-            placeholder="32"
+          <Select
+            label="Payment Mode"
+            value={formData.paymentMode}
+            onChange={handleChange('paymentMode')}
+            options={[
+              { value: PAYMENT_MODES.INDIVIDUAL, label: 'Individual Payments' },
+              { value: PAYMENT_MODES.GROUP, label: 'Group Payment (One Payer)' }
+            ]}
+            helperText="How participants will handle payments"
           />
         </div>
+
+        <Input
+          label="Max Participants"
+          type="number"
+          value={formData.maxParticipants}
+          onChange={handleChange('maxParticipants')}
+          error={errors.maxParticipants}
+          min="1"
+          placeholder="32"
+          helperText="Maximum number of tournament participants"
+        />
+
+        {/* Payment mode explanation */}
+        {formData.entryFee > 0 && (
+          <div className="bg-blue-50 p-4 rounded-lg">
+            <h4 className="text-sm font-medium text-blue-900 mb-2">Payment Mode Guide</h4>
+            {formData.paymentMode === PAYMENT_MODES.INDIVIDUAL ? (
+              <div className="text-sm text-blue-800">
+                <p className="font-medium mb-1">Individual Payments:</p>
+                <ul className="list-disc list-inside space-y-1">
+                  <li>Each participant pays their own ${formData.entryFee} entry fee</li>
+                  <li>Payment tracking is done per person</li>
+                  <li>Best for smaller groups or when participants prefer to pay separately</li>
+                </ul>
+              </div>
+            ) : (
+              <div className="text-sm text-blue-800">
+                <p className="font-medium mb-1">Group Payment:</p>
+                <ul className="list-disc list-inside space-y-1">
+                  <li>One person pays the entire ${estimatedTotal} for all participants</li>
+                  <li>Other participants reimburse the payer directly</li>
+                  <li>Simplified payment collection and tracking</li>
+                  <li>Best for organized groups or when one person wants to handle payments</li>
+                </ul>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Form Actions */}

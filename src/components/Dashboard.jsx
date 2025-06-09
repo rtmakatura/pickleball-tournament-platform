@@ -1,4 +1,4 @@
-// src/components/Dashboard.jsx (Enhanced with Leagues and Payment Tracking)
+// src/components/Dashboard.jsx (Updated - Remove Payment Collection Card)
 import React, { useState } from 'react';
 import { Plus, Calendar, Users, Trophy, DollarSign, Activity } from 'lucide-react';
 import { useMembers, useLeagues, useTournaments, useAuth } from '../hooks';
@@ -180,7 +180,7 @@ const Dashboard = () => {
     }
   };
 
-  // Payment tracking calculations
+  // Payment tracking calculations for payment modal
   const getPaymentSummary = () => {
     const paidTournaments = tournaments.filter(t => t.entryFee > 0);
     let totalOwed = 0;
@@ -213,8 +213,6 @@ const Dashboard = () => {
       paymentRate: participantsWithPayments > 0 ? (participantsPaid / participantsWithPayments * 100).toFixed(1) : 0
     };
   };
-
-  const paymentSummary = getPaymentSummary();
 
   // Authentication UI
   if (!isAuthenticated) {
@@ -365,6 +363,8 @@ const Dashboard = () => {
     }
   ];
 
+  const paymentSummary = getPaymentSummary();
+
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -380,7 +380,7 @@ const Dashboard = () => {
           </div>
         )}
 
-        {/* Header - REMOVED "PickleTrack Dashboard" title */}
+        {/* Header */}
         <div className="flex justify-between items-center mb-8">
           <div>
             <p className="text-gray-600">Welcome back, {user.email}</p>
@@ -390,8 +390,8 @@ const Dashboard = () => {
           </Button>
         </div>
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        {/* Stats Cards - Now only 3 cards, evenly spaced */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           <div className="bg-white rounded-lg border shadow-sm p-6 text-center">
             <h3 className="text-sm font-medium text-gray-500 mb-2">Total Tournaments</h3>
             <div className="flex items-center justify-center">
@@ -419,20 +419,6 @@ const Dashboard = () => {
               <span className="text-3xl font-bold text-gray-900">
                 {members.length}
               </span>
-            </div>
-          </div>
-
-          {/* FIXED Payment Collection Card */}
-          <div className="bg-white rounded-lg border shadow-sm p-6 text-center">
-            <h3 className="text-sm font-medium text-gray-500 mb-2">Payment Collection</h3>
-            <div className="flex items-center justify-center">
-              <DollarSign className="h-8 w-8 text-yellow-600 mr-3" />
-              <span className="text-3xl font-bold text-gray-900">
-                {paymentSummary.paymentRate}%
-              </span>
-            </div>
-            <div className="text-sm text-gray-500 mt-2">
-              ${paymentSummary.totalCollected} collected
             </div>
           </div>
         </div>

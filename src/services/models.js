@@ -1,5 +1,4 @@
 // src/services/models.js
-
 // Simple data models for PickleTrack entities
 
 export const SKILL_LEVELS = {
@@ -30,6 +29,11 @@ export const LEAGUE_STATUS = {
   COMPLETED: 'completed'
 };
 
+export const PAYMENT_MODES = {
+  INDIVIDUAL: 'individual', // Each person pays separately
+  GROUP: 'group'            // One person pays, others reimburse
+};
+
 // Member model
 export const createMember = (data = {}) => ({
   email: data.email || '',
@@ -53,6 +57,7 @@ export const createLeague = (data = {}) => ({
   maxParticipants: data.maxParticipants || 20,
   participants: data.participants || [],
   registrationFee: data.registrationFee || 0,
+  paymentMode: data.paymentMode || PAYMENT_MODES.INDIVIDUAL,
   isActive: data.isActive !== false
 });
 
@@ -68,5 +73,6 @@ export const createTournament = (data = {}) => ({
   participants: data.participants || [],
   entryFee: data.entryFee || 0,
   location: data.location || '',
+  paymentMode: data.paymentMode || PAYMENT_MODES.INDIVIDUAL,
   isActive: data.isActive !== false
 });
