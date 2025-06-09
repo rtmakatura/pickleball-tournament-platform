@@ -1,4 +1,4 @@
-// src/utils/roleUtils.js
+// src/utils/roleUtils.js (ENHANCED - Added Results Management Permissions)
 // Utility functions for role validation and permission checking
 
 import { MEMBER_ROLES } from '../services/models';
@@ -115,6 +115,84 @@ export const canDeleteLeague = (authUid, league, members = []) => {
 };
 
 /**
+ * NEW: Results Management Permissions
+ */
+export const canManageResults = (authUid, members = []) => {
+  // Organizers and admins can manage results
+  return isOrganizer(authUid, members);
+};
+
+export const canViewResults = (authUid, members = []) => {
+  // All authenticated members can view published results
+  return isAuthenticatedMember(authUid, members);
+};
+
+export const canEnterResults = (authUid, event, members = []) => {
+  // Only organizers+ can enter results
+  if (!isOrganizer(authUid, members)) return false;
+  
+  // Event must be completed to enter results
+  return event?.status === 'completed';
+};
+
+export const canEditResults = (authUid, event, results, members = []) => {
+  // Must be organizer+
+  if (!isOrganizer(authUid, members)) return false;
+  
+  // Event must be completed
+  if (event?.status !== 'completed') return false;
+  
+  // Can edit draft results
+  if (results?.status === 'draft') return true;
+  
+  // Only admins can edit confirmed results
+  return isAdmin(authUid, members);
+};
+
+export const canPublishResults = (authUid, event, results, members = []) => {
+  // Must be organizer+
+  if (!isOrganizer(authUid, members)) return false;
+  
+  // Event must be completed
+  if (event?.status !== 'completed') return false;
+  
+  // Results must be in draft status
+  return results?.status === 'draft';
+};
+
+export const canDeleteResults = (authUid, event, results, members = []) => {
+  // Only admins can delete results
+  if (!isAdmin(authUid, members)) return false;
+  
+  // Cannot delete published results without special confirmation
+  if (results?.status === 'confirmed') {
+    // This would require additional confirmation in the UI
+    return true;
+  }
+  
+  return true;
+};
+
+export const canConfirmOwnResults = (authUid, participantId, members = []) => {
+  // Users can confirm their own results
+  const member = getMemberByAuthUid(authUid, members);
+  return member?.id === participantId;
+};
+
+export const canExportResults = (authUid, results, members = []) => {
+  // Organizers+ can export any results
+  if (isOrganizer(authUid, members)) return true;
+  
+  // Regular members can export published results they participated in
+  if (results?.status === 'confirmed') {
+    const member = getMemberByAuthUid(authUid, members);
+    return results?.participantResults?.some(r => r.participantId === member?.id);
+  }
+  
+  return false;
+};
+
+/**
  * Member Management Permissions
  */
 export const canEditMember = (authUid, targetMemberId, members = []) => {
@@ -205,7 +283,7 @@ export const canPromoteToRole = (promoterAuthUid, targetRole, members = []) => {
 };
 
 /**
- * Feature access checks
+ * Feature access checks (enhanced with results features)
  */
 export const canAccessFeature = (authUid, feature, members = []) => {
   const featurePermissions = {
@@ -213,12 +291,36 @@ export const canAccessFeature = (authUid, feature, members = []) => {
     'tournament_management': () => canManageTournaments(authUid, members),
     'league_management': () => canManageLeagues(authUid, members),
     'payment_management': () => canManagePayments(authUid, members),
+    'results_management': () => canManageResults(authUid, members),
+    'results_viewing': () => canViewResults(authUid, members),
     'reports': () => canViewReports(authUid, members),
     'admin_panel': () => canAccessAdminPanel(authUid, members),
     'member_profiles': () => isAuthenticatedMember(authUid, members)
   };
   
   const permissionCheck = featurePermissions[feature];
+  return permissionCheck ? permissionCheck() : false;
+};
+
+/**
+ * NEW: Results-specific feature access
+ */
+export const canAccessResultsFeature = (authUid, feature, event, results, members = []) => {
+  const resultFeaturePermissions = {
+    'enter_results': () => canEnterResults(authUid, event, members),
+    'edit_results': () => canEditResults(authUid, event, results, members),
+    'publish_results': () => canPublishResults(authUid, event, results, members),
+    'delete_results': () => canDeleteResults(authUid, event, results, members),
+    'export_results': () => canExportResults(authUid, results, members),
+    'view_results': () => canViewResults(authUid, members),
+    'confirm_results': () => {
+      // Can confirm if you're a participant
+      const member = getMemberByAuthUid(authUid, members);
+      return results?.participantResults?.some(r => r.participantId === member?.id);
+    }
+  };
+  
+  const permissionCheck = resultFeaturePermissions[feature];
   return permissionCheck ? permissionCheck() : false;
 };
 
@@ -275,6 +377,25 @@ export const getAvailableRoles = (assignerAuthUid, members = []) => {
   ];
 };
 
+/**
+ * NEW: Get results permissions summary for a user
+ */
+export const getResultsPermissions = (authUid, event, results, members = []) => {
+  return {
+    canManage: canManageResults(authUid, members),
+    canView: canViewResults(authUid, members),
+    canEnter: canEnterResults(authUid, event, members),
+    canEdit: canEditResults(authUid, event, results, members),
+    canPublish: canPublishResults(authUid, event, results, members),
+    canDelete: canDeleteResults(authUid, event, results, members),
+    canExport: canExportResults(authUid, results, members),
+    canConfirmOwn: (() => {
+      const member = getMemberByAuthUid(authUid, members);
+      return results?.participantResults?.some(r => r.participantId === member?.id);
+    })()
+  };
+};
+
 export default {
   getUserRole,
   getMemberByAuthUid,
@@ -304,5 +425,16 @@ export default {
   canPromoteToRole,
   canAccessFeature,
   validateRoleAssignment,
-  getAvailableRoles
+  getAvailableRoles,
+  // NEW: Results permissions
+  canManageResults,
+  canViewResults,
+  canEnterResults,
+  canEditResults,
+  canPublishResults,
+  canDeleteResults,
+  canConfirmOwnResults,
+  canExportResults,
+  canAccessResultsFeature,
+  getResultsPermissions
 };
