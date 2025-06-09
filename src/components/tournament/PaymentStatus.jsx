@@ -17,29 +17,38 @@ import { Button, Alert, Select } from '../ui';
 import { PAYMENT_MODES } from '../../services/models';
 
 /**
- * PaymentStatus Component - Track tournament entry fee payments
+ * PaymentStatus Component - Track entry fee payments for tournaments and leagues
  * 
  * Props:
- * - tournament: object - Tournament data with participants and entry fee
+ * - event: object - Event data (tournament or league) with participants and fee
+ * - eventType: string - 'tournament' or 'league'
  * - members: array - All members data for participant lookup
  * - onPaymentUpdate: function - Called when payment status changes
  * - currentUserId: string - ID of current user (for highlighting)
  */
 const PaymentStatus = ({ 
-  tournament, 
+  event, 
+  eventType = 'tournament', // 'tournament' or 'league'
   members = [], 
   onPaymentUpdate,
   currentUserId 
 }) => {
   const [paymentData, setPaymentData] = useState(
-    tournament.paymentData || {}
+    event.paymentData || {}
   );
   const [selectedGroupPayer, setSelectedGroupPayer] = useState('');
   const [errors, setErrors] = useState([]);
 
-  const paymentMode = tournament.paymentMode || PAYMENT_MODES.INDIVIDUAL;
+  const paymentMode = event.paymentMode || PAYMENT_MODES.INDIVIDUAL;
   const isGroupPayment = paymentMode === PAYMENT_MODES.GROUP;
-  const entryFee = parseFloat(tournament.entryFee) || 0;
+  
+  // Get the appropriate fee field based on event type
+  const feeFieldName = eventType === 'league' ? 'registrationFee' : 'entryFee';
+  const fee = parseFloat(event[feeFieldName]) || 0;
+  
+  // Get appropriate terminology
+  const feeLabel = eventType === 'league' ? 'Registration Fee' : 'Entry Fee';
+  const eventLabel = eventType === 'league' ? 'League' : 'Tournament';
 
   // Validation helper
   const validatePaymentAmount = (amount) => {
@@ -49,11 +58,11 @@ const PaymentStatus = ({
 
   // Get participant details with simplified payment info
   const getParticipantsWithPaymentInfo = () => {
-    if (!tournament.participants || tournament.participants.length === 0) {
+    if (!event.participants || event.participants.length === 0) {
       return [];
     }
 
-    return tournament.participants.map(participantId => {
+    return event.participants.map(participantId => {
       const member = members.find(m => m.id === participantId);
       const payment = paymentData[participantId] || {};
       
@@ -63,8 +72,8 @@ const PaymentStatus = ({
       
       if (payment.amount && validatePaymentAmount(payment.amount)) {
         amountPaid = parseFloat(payment.amount);
-        if (amountPaid >= entryFee) {
-          status = amountPaid > entryFee ? 'overpaid' : 'paid';
+        if (amountPaid >= fee) {
+          status = amountPaid > fee ? 'overpaid' : 'paid';
         } else if (amountPaid > 0) {
           status = 'partial';
         }
@@ -75,8 +84,8 @@ const PaymentStatus = ({
         member: member || { firstName: 'Unknown', lastName: 'Member', email: '' },
         status,
         amountPaid,
-        amountOwed: Math.max(0, entryFee - amountPaid),
-        overpaidAmount: Math.max(0, amountPaid - entryFee),
+        amountOwed: Math.max(0, fee - amountPaid),
+        overpaidAmount: Math.max(0, amountPaid - fee),
         paymentDate: payment.date || null,
         notes: payment.notes || ''
       };
@@ -88,7 +97,7 @@ const PaymentStatus = ({
   // Simplified payment summary calculation
   const getPaymentSummary = () => {
     const totalParticipants = participantsWithPayment.length;
-    const totalExpected = entryFee * totalParticipants;
+    const totalExpected = fee * totalParticipants;
     
     // Calculate actual totals
     const totalPaid = participantsWithPayment.reduce((sum, p) => sum + p.amountPaid, 0);
@@ -147,13 +156,13 @@ const PaymentStatus = ({
     setErrors([]);
     
     if (onPaymentUpdate) {
-      onPaymentUpdate(tournament.id, { paymentData: newPaymentData });
+      onPaymentUpdate(event.id, { paymentData: newPaymentData });
     }
   };
 
   // Handle group payment - one person pays for everyone
   const handleGroupPayment = (payerId) => {
-    const totalAmount = entryFee * participantsWithPayment.length;
+    const totalAmount = fee * participantsWithPayment.length;
     const newPaymentData = { ...paymentData };
     
     // Clear existing payments
@@ -175,7 +184,7 @@ const PaymentStatus = ({
     setErrors([]);
     
     if (onPaymentUpdate) {
-      onPaymentUpdate(tournament.id, { paymentData: newPaymentData });
+      onPaymentUpdate(event.id, { paymentData: newPaymentData });
     }
   };
 
@@ -187,7 +196,7 @@ const PaymentStatus = ({
     setPaymentData(newPaymentData);
     
     if (onPaymentUpdate) {
-      onPaymentUpdate(tournament.id, { paymentData: newPaymentData });
+      onPaymentUpdate(event.id, { paymentData: newPaymentData });
     }
   };
 
@@ -202,12 +211,12 @@ const PaymentStatus = ({
     return badges[status] || badges.unpaid;
   };
 
-  if (entryFee <= 0) {
+  if (fee <= 0) {
     return (
       <Alert 
         type="info" 
-        title="Free Tournament" 
-        message="This tournament has no entry fee." 
+        title={`Free ${eventLabel}`} 
+        message={`This ${eventType} has no ${feeLabel.toLowerCase()}.`} 
       />
     );
   }
@@ -239,7 +248,7 @@ const PaymentStatus = ({
             </p>
           </div>
           <div className="text-right">
-            <p className="text-lg font-bold text-blue-900">${entryFee}</p>
+            <p className="text-lg font-bold text-blue-900">${fee}</p>
             <p className="text-sm text-blue-700">per person</p>
           </div>
         </div>
@@ -334,7 +343,7 @@ const PaymentStatus = ({
         <div className="bg-yellow-50 p-4 rounded-lg">
           <h4 className="font-medium text-yellow-900 mb-3">Set Group Payer</h4>
           <p className="text-sm text-yellow-800 mb-4">
-            Select who will pay the ${summary.totalExpected} entry fee for the entire group:
+            Select who will pay the ${summary.totalExpected} {feeLabel.toLowerCase()} for the entire group:
           </p>
           
           <div className="flex items-center space-x-4">
@@ -434,7 +443,7 @@ const PaymentStatus = ({
                         )}
                         {participant.status === 'unpaid' && (
                           <p className="text-red-600">
-                            ✗ Unpaid (owes ${entryFee})
+                            ✗ Unpaid (owes ${fee})
                           </p>
                         )}
                       </div>
@@ -449,9 +458,9 @@ const PaymentStatus = ({
                         {participant.status === 'unpaid' && (
                           <Button
                             size="sm"
-                            onClick={() => handlePayment(participant.id, entryFee)}
+                            onClick={() => handlePayment(participant.id, fee)}
                           >
-                            Mark Paid (${entryFee})
+                            Mark Paid (${fee})
                           </Button>
                         )}
                         
@@ -507,7 +516,7 @@ const PaymentStatus = ({
             <div>
               <h4 className="font-medium text-green-900">Payment Complete</h4>
               <p className="text-sm text-green-700">
-                All participants have paid their entry fees.
+                All participants have paid their {feeLabel.toLowerCase()}.
                 {summary.totalOverpaid > 0 && ` Note: $${summary.totalOverpaid} in overpayments may need to be refunded.`}
               </p>
             </div>
@@ -529,7 +538,7 @@ const PaymentStatus = ({
             </p>
             
             <div className="text-sm text-green-700">
-              <p>✓ Tournament entry fees are fully covered</p>
+              <p>✓ {eventLabel} {feeLabel.toLowerCase()} are fully covered</p>
               <p>💰 Participants can arrange reimbursement directly with the group payer</p>
             </div>
           </div>

@@ -46,7 +46,7 @@ export const createMember = (data = {}) => ({
   isActive: data.isActive !== false
 });
 
-// League model
+// League model - now includes payment tracking
 export const createLeague = (data = {}) => ({
   name: data.name || '',
   description: data.description || '',
@@ -58,6 +58,7 @@ export const createLeague = (data = {}) => ({
   participants: data.participants || [],
   registrationFee: data.registrationFee || 0,
   paymentMode: data.paymentMode || PAYMENT_MODES.INDIVIDUAL,
+  paymentData: data.paymentData || {}, // Add payment tracking data
   isActive: data.isActive !== false
 });
 
@@ -74,5 +75,6 @@ export const createTournament = (data = {}) => ({
   entryFee: data.entryFee || 0,
   location: data.location || '',
   paymentMode: data.paymentMode || PAYMENT_MODES.INDIVIDUAL,
+  paymentData: data.paymentData || {}, // Payment tracking data
   isActive: data.isActive !== false
 });

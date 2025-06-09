@@ -1,8 +1,9 @@
-// src/components/Dashboard.jsx (Updated - Quick Actions moved to top)
+// src/components/Dashboard.jsx (Updated - Include League Payment Tracking)
 import React, { useState } from 'react';
 import { Plus, Calendar, Users, Trophy, DollarSign, Activity } from 'lucide-react';
 import { useMembers, useLeagues, useTournaments, useAuth } from '../hooks';
 import { SKILL_LEVELS, TOURNAMENT_STATUS, LEAGUE_STATUS } from '../services/models';
+import { calculateOverallPaymentSummary } from '../utils/paymentUtils';
 
 // Import our UI components
 import { 
@@ -17,7 +18,7 @@ import TournamentForm from './tournament/TournamentForm';
 import MemberSelector from './tournament/MemberSelector';
 import PaymentStatus from './tournament/PaymentStatus';
 import { MemberForm } from './member';
-import { LeagueForm } from './league';
+import { LeagueForm, LeagueMemberSelector } from './league';
 
 const Dashboard = () => {
   const { user, signIn, signUp, logout, isAuthenticated } = useAuth();
@@ -36,6 +37,7 @@ const Dashboard = () => {
   
   // Form states
   const [selectedMembers, setSelectedMembers] = useState([]);
+  const [selectedLeagueMembers, setSelectedLeagueMembers] = useState([]);
   const [formLoading, setFormLoading] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [alert, setAlert] = useState(null);
@@ -134,8 +136,16 @@ const Dashboard = () => {
   const handleCreateLeague = async (leagueData) => {
     setFormLoading(true);
     try {
-      await addLeague(leagueData);
+      const leagueId = await addLeague(leagueData);
+      
+      if (selectedLeagueMembers.length > 0) {
+        await updateLeague(leagueId, {
+          participants: selectedLeagueMembers
+        });
+      }
+      
       setShowLeagueModal(false);
+      setSelectedLeagueMembers([]);
       showAlert('success', 'League created!', `${leagueData.name} has been created successfully`);
     } catch (err) {
       showAlert('error', 'Failed to create league', err.message);
@@ -146,15 +156,21 @@ const Dashboard = () => {
 
   const handleEditLeague = (league) => {
     setEditingLeague(league);
+    setSelectedLeagueMembers(league.participants || []);
     setShowLeagueModal(true);
   };
 
   const handleUpdateLeague = async (leagueData) => {
     setFormLoading(true);
     try {
-      await updateLeague(editingLeague.id, leagueData);
+      await updateLeague(editingLeague.id, {
+        ...leagueData,
+        participants: selectedLeagueMembers
+      });
+      
       setShowLeagueModal(false);
       setEditingLeague(null);
+      setSelectedLeagueMembers([]);
       showAlert('success', 'League updated!', `${leagueData.name} has been updated successfully`);
     } catch (err) {
       showAlert('error', 'Failed to update league', err.message);
@@ -169,6 +185,7 @@ const Dashboard = () => {
       await deleteLeague(leagueId);
       setShowLeagueModal(false);
       setEditingLeague(null);
+      setSelectedLeagueMembers([]);
       showAlert('success', 'League deleted!', 'League has been successfully deleted');
     } catch (err) {
       showAlert('error', 'Failed to delete league', err.message);
@@ -239,38 +256,9 @@ const Dashboard = () => {
     }
   };
 
-  // Payment tracking calculations for payment modal
+  // Payment tracking calculations - now includes both tournaments and leagues
   const getPaymentSummary = () => {
-    const paidTournaments = tournaments.filter(t => t.entryFee > 0);
-    let totalOwed = 0;
-    let totalCollected = 0;
-    let participantsWithPayments = 0;
-    let participantsPaid = 0;
-
-    paidTournaments.forEach(tournament => {
-      const participants = tournament.participants?.length || 0;
-      const entryFee = tournament.entryFee || 0;
-      const paymentData = tournament.paymentData || {};
-      
-      totalOwed += participants * entryFee;
-      participantsWithPayments += participants;
-      
-      Object.values(paymentData).forEach(payment => {
-        if (payment.status === 'paid') {
-          totalCollected += payment.amount || entryFee;
-          participantsPaid++;
-        }
-      });
-    });
-
-    return {
-      totalOwed,
-      totalCollected,
-      remaining: totalOwed - totalCollected,
-      participantsWithPayments,
-      participantsPaid,
-      paymentRate: participantsWithPayments > 0 ? (participantsPaid / participantsWithPayments * 100).toFixed(1) : 0
-    };
+    return calculateOverallPaymentSummary(tournaments, leagues);
   };
 
   // Authentication UI
@@ -686,21 +674,37 @@ const Dashboard = () => {
           onClose={() => {
             setShowLeagueModal(false);
             setEditingLeague(null);
+            setSelectedLeagueMembers([]);
           }}
           title={editingLeague ? 'Edit League' : 'Create New League'}
           size="lg"
         >
-          <LeagueForm
-            league={editingLeague}
-            onSubmit={editingLeague ? handleUpdateLeague : handleCreateLeague}
-            onCancel={() => {
-              setShowLeagueModal(false);
-              setEditingLeague(null);
-            }}
-            onDelete={editingLeague ? handleDeleteLeague : null}
-            loading={formLoading}
-            deleteLoading={deleteLoading}
-          />
+          <div className="space-y-6">
+            <LeagueForm
+              league={editingLeague}
+              onSubmit={editingLeague ? handleUpdateLeague : handleCreateLeague}
+              onCancel={() => {
+                setShowLeagueModal(false);
+                setEditingLeague(null);
+                setSelectedLeagueMembers([]);
+              }}
+              onDelete={editingLeague ? handleDeleteLeague : null}
+              loading={formLoading}
+              deleteLoading={deleteLoading}
+            />
+            
+            <div className="border-t pt-6">
+              <h3 className="text-lg font-medium text-gray-900 mb-4">
+                Select League Members
+              </h3>
+              <LeagueMemberSelector
+                members={members}
+                selectedMembers={selectedLeagueMembers}
+                onSelectionChange={setSelectedLeagueMembers}
+                loading={membersLoading}
+              />
+            </div>
+          </div>
         </Modal>
 
         {/* Member Modal */}
@@ -726,7 +730,7 @@ const Dashboard = () => {
           />
         </Modal>
 
-        {/* Payment Tracking Modal */}
+        {/* Payment Tracking Modal - Now includes both tournaments and leagues */}
         <Modal
           isOpen={showPaymentModal}
           onClose={() => setShowPaymentModal(false)}
@@ -737,20 +741,29 @@ const Dashboard = () => {
             {/* Payment Summary */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="bg-blue-50 p-4 rounded-lg">
-                <h4 className="font-medium text-blue-900">Total Owed</h4>
-                <p className="text-2xl font-bold text-blue-600">${paymentSummary.totalOwed}</p>
+                <h4 className="font-medium text-blue-900">Total Expected</h4>
+                <p className="text-2xl font-bold text-blue-600">${paymentSummary.totalExpected}</p>
+                <p className="text-xs text-blue-700 mt-1">
+                  {paymentSummary.paidTournaments} tournaments • {paymentSummary.paidLeagues} leagues
+                </p>
               </div>
               <div className="bg-green-50 p-4 rounded-lg">
-                <h4 className="font-medium text-green-900">Collected</h4>
+                <h4 className="font-medium text-green-900">Total Collected</h4>
                 <p className="text-2xl font-bold text-green-600">${paymentSummary.totalCollected}</p>
+                <p className="text-xs text-green-700 mt-1">
+                  {paymentSummary.participantsPaid} of {paymentSummary.participantsWithPayments} paid
+                </p>
               </div>
               <div className="bg-red-50 p-4 rounded-lg">
-                <h4 className="font-medium text-red-900">Remaining</h4>
-                <p className="text-2xl font-bold text-red-600">${paymentSummary.remaining}</p>
+                <h4 className="font-medium text-red-900">Outstanding</h4>
+                <p className="text-2xl font-bold text-red-600">${paymentSummary.totalOwed}</p>
+                <p className="text-xs text-red-700 mt-1">
+                  {paymentSummary.paymentRate}% payment rate
+                </p>
               </div>
             </div>
 
-            {/* Individual Tournament Payments */}
+            {/* Tournament Payments */}
             <div className="space-y-4">
               <h3 className="text-lg font-medium text-gray-900">Tournament Payments</h3>
               {tournaments.filter(t => t.entryFee > 0).map(tournament => (
@@ -762,7 +775,8 @@ const Dashboard = () => {
                     </span>
                   </div>
                   <PaymentStatus
-                    tournament={tournament}
+                    event={tournament}
+                    eventType="tournament"
                     members={members}
                     onPaymentUpdate={updateTournament}
                     currentUserId={user?.uid}
@@ -771,11 +785,48 @@ const Dashboard = () => {
               ))}
               
               {tournaments.filter(t => t.entryFee > 0).length === 0 && (
-                <p className="text-gray-500 text-center py-8">
+                <p className="text-gray-500 text-center py-4">
                   No tournaments with entry fees found.
                 </p>
               )}
             </div>
+
+            {/* League Payments */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-medium text-gray-900">League Payments</h3>
+              {leagues.filter(l => l.registrationFee > 0).map(league => (
+                <div key={league.id} className="border rounded-lg p-4">
+                  <div className="flex justify-between items-center mb-4">
+                    <h4 className="font-medium text-gray-900">{league.name}</h4>
+                    <span className="text-sm text-gray-500">
+                      ${league.registrationFee} per person
+                    </span>
+                  </div>
+                  <PaymentStatus
+                    event={league}
+                    eventType="league"
+                    members={members}
+                    onPaymentUpdate={updateLeague}
+                    currentUserId={user?.uid}
+                  />
+                </div>
+              ))}
+              
+              {leagues.filter(l => l.registrationFee > 0).length === 0 && (
+                <p className="text-gray-500 text-center py-4">
+                  No leagues with registration fees found.
+                </p>
+              )}
+            </div>
+
+            {/* No paid events message */}
+            {paymentSummary.paidEvents === 0 && (
+              <div className="text-center py-8">
+                <DollarSign className="h-12 w-12 mx-auto text-gray-300 mb-4" />
+                <p className="text-gray-500">No tournaments or leagues with fees found.</p>
+                <p className="text-sm text-gray-400">Create a tournament or league with an entry/registration fee to start tracking payments.</p>
+              </div>
+            )}
           </div>
         </Modal>
       </div>

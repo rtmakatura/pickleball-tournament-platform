@@ -1,5 +1,5 @@
 // src/utils/paymentUtils.js
-// Improved payment calculation utilities with proper validation
+// Enhanced payment calculation utilities supporting both tournaments and leagues
 
 /**
  * Validates a payment amount
@@ -12,7 +12,7 @@ export const validatePaymentAmount = (amount) => {
 /**
  * Calculates payment status for a single participant
  */
-export const getParticipantPaymentStatus = (participantId, paymentData, entryFee) => {
+export const getParticipantPaymentStatus = (participantId, paymentData, fee) => {
   const payment = paymentData[participantId] || {};
   const amountPaid = validatePaymentAmount(payment.amount) ? parseFloat(payment.amount) : 0;
   
@@ -20,37 +20,37 @@ export const getParticipantPaymentStatus = (participantId, paymentData, entryFee
     return {
       status: 'unpaid',
       amountPaid: 0,
-      amountOwed: entryFee,
+      amountOwed: fee,
       overpaidAmount: 0
     };
   }
   
-  if (amountPaid >= entryFee) {
+  if (amountPaid >= fee) {
     return {
-      status: amountPaid > entryFee ? 'overpaid' : 'paid',
+      status: amountPaid > fee ? 'overpaid' : 'paid',
       amountPaid,
       amountOwed: 0,
-      overpaidAmount: Math.max(0, amountPaid - entryFee)
+      overpaidAmount: Math.max(0, amountPaid - fee)
     };
   }
   
   return {
     status: 'partial',
     amountPaid,
-    amountOwed: entryFee - amountPaid,
+    amountOwed: fee - amountPaid,
     overpaidAmount: 0
   };
 };
 
 /**
- * Calculates comprehensive payment summary for a tournament
+ * Generic payment summary calculation for any event (tournament or league)
  */
-export const calculateTournamentPaymentSummary = (tournament) => {
-  const entryFee = parseFloat(tournament.entryFee) || 0;
-  const participants = tournament.participants || [];
-  const paymentData = tournament.paymentData || {};
+export const calculateEventPaymentSummary = (event, feeFieldName = 'entryFee') => {
+  const fee = parseFloat(event[feeFieldName]) || 0;
+  const participants = event.participants || [];
+  const paymentData = event.paymentData || {};
   
-  if (entryFee <= 0 || participants.length === 0) {
+  if (fee <= 0 || participants.length === 0) {
     return {
       totalParticipants: participants.length,
       totalExpected: 0,
@@ -61,13 +61,13 @@ export const calculateTournamentPaymentSummary = (tournament) => {
       partialCount: 0,
       unpaidCount: participants.length,
       overpaidCount: 0,
-      isFullyPaid: true, // Free tournament is considered "fully paid"
+      isFullyPaid: true, // Free event is considered "fully paid"
       paymentRate: 100,
       hasPaymentIssues: false
     };
   }
   
-  const totalExpected = entryFee * participants.length;
+  const totalExpected = fee * participants.length;
   let totalPaid = 0;
   let totalOwed = 0;
   let totalOverpaid = 0;
@@ -77,7 +77,7 @@ export const calculateTournamentPaymentSummary = (tournament) => {
   let overpaidCount = 0;
   
   participants.forEach(participantId => {
-    const status = getParticipantPaymentStatus(participantId, paymentData, entryFee);
+    const status = getParticipantPaymentStatus(participantId, paymentData, fee);
     
     totalPaid += status.amountPaid;
     totalOwed += status.amountOwed;
@@ -106,7 +106,7 @@ export const calculateTournamentPaymentSummary = (tournament) => {
   return {
     totalParticipants: participants.length,
     totalExpected,
-    totalPaid: Math.round(totalPaid * 100) / 100, // Round to 2 decimal places
+    totalPaid: Math.round(totalPaid * 100) / 100,
     totalOwed: Math.round(totalOwed * 100) / 100,
     totalOverpaid: Math.round(totalOverpaid * 100) / 100,
     paidCount,
@@ -114,21 +114,40 @@ export const calculateTournamentPaymentSummary = (tournament) => {
     unpaidCount,
     overpaidCount,
     isFullyPaid,
-    paymentRate: Math.round(paymentRate * 10) / 10, // Round to 1 decimal place
+    paymentRate: Math.round(paymentRate * 10) / 10,
     hasPaymentIssues
   };
 };
 
 /**
- * Calculates overall payment summary across all tournaments
+ * Calculates comprehensive payment summary for a tournament
  */
-export const calculateOverallPaymentSummary = (tournaments) => {
+export const calculateTournamentPaymentSummary = (tournament) => {
+  return calculateEventPaymentSummary(tournament, 'entryFee');
+};
+
+/**
+ * Calculates comprehensive payment summary for a league
+ */
+export const calculateLeaguePaymentSummary = (league) => {
+  return calculateEventPaymentSummary(league, 'registrationFee');
+};
+
+/**
+ * Calculates overall payment summary across tournaments and leagues
+ */
+export const calculateOverallPaymentSummary = (tournaments, leagues = []) => {
   const paidTournaments = tournaments.filter(t => parseFloat(t.entryFee) > 0);
+  const paidLeagues = leagues.filter(l => parseFloat(l.registrationFee) > 0);
   
-  if (paidTournaments.length === 0) {
+  if (paidTournaments.length === 0 && paidLeagues.length === 0) {
     return {
+      totalEvents: tournaments.length + leagues.length,
       totalTournaments: tournaments.length,
+      totalLeagues: leagues.length,
+      paidEvents: 0,
       paidTournaments: 0,
+      paidLeagues: 0,
       totalExpected: 0,
       totalCollected: 0,
       totalOwed: 0,
@@ -147,8 +166,21 @@ export const calculateOverallPaymentSummary = (tournaments) => {
   let participantsWithPayments = 0;
   let participantsPaid = 0;
   
+  // Process tournaments
   paidTournaments.forEach(tournament => {
     const summary = calculateTournamentPaymentSummary(tournament);
+    
+    totalExpected += summary.totalExpected;
+    totalCollected += summary.totalPaid;
+    totalOwed += summary.totalOwed;
+    totalOverpaid += summary.totalOverpaid;
+    participantsWithPayments += summary.totalParticipants;
+    participantsPaid += summary.paidCount;
+  });
+  
+  // Process leagues
+  paidLeagues.forEach(league => {
+    const summary = calculateLeaguePaymentSummary(league);
     
     totalExpected += summary.totalExpected;
     totalCollected += summary.totalPaid;
@@ -163,8 +195,12 @@ export const calculateOverallPaymentSummary = (tournaments) => {
     : 100;
   
   return {
+    totalEvents: tournaments.length + leagues.length,
     totalTournaments: tournaments.length,
+    totalLeagues: leagues.length,
+    paidEvents: paidTournaments.length + paidLeagues.length,
     paidTournaments: paidTournaments.length,
+    paidLeagues: paidLeagues.length,
     totalExpected: Math.round(totalExpected * 100) / 100,
     totalCollected: Math.round(totalCollected * 100) / 100,
     totalOwed: Math.round(totalOwed * 100) / 100,
@@ -195,27 +231,27 @@ export const createPaymentRecord = (amount, participantId, options = {}) => {
 };
 
 /**
- * Validates tournament payment data structure
+ * Generic event payment data validation
  */
-export const validateTournamentPaymentData = (tournament) => {
+export const validateEventPaymentData = (event, feeFieldName = 'entryFee') => {
   const errors = [];
   
-  if (!tournament.entryFee || parseFloat(tournament.entryFee) < 0) {
-    errors.push('Invalid entry fee');
+  if (!event[feeFieldName] || parseFloat(event[feeFieldName]) < 0) {
+    errors.push(`Invalid ${feeFieldName}`);
   }
   
-  if (!tournament.participants || !Array.isArray(tournament.participants)) {
+  if (!event.participants || !Array.isArray(event.participants)) {
     errors.push('Invalid participants list');
   }
   
-  if (tournament.paymentData && typeof tournament.paymentData !== 'object') {
+  if (event.paymentData && typeof event.paymentData !== 'object') {
     errors.push('Invalid payment data structure');
   }
   
   // Validate individual payment records
-  if (tournament.paymentData) {
-    Object.entries(tournament.paymentData).forEach(([participantId, payment]) => {
-      if (!tournament.participants.includes(participantId)) {
+  if (event.paymentData) {
+    Object.entries(event.paymentData).forEach(([participantId, payment]) => {
+      if (!event.participants.includes(participantId)) {
         errors.push(`Payment record for non-participant: ${participantId}`);
       }
       
@@ -229,6 +265,20 @@ export const validateTournamentPaymentData = (tournament) => {
     isValid: errors.length === 0,
     errors
   };
+};
+
+/**
+ * Validates tournament payment data structure
+ */
+export const validateTournamentPaymentData = (tournament) => {
+  return validateEventPaymentData(tournament, 'entryFee');
+};
+
+/**
+ * Validates league payment data structure
+ */
+export const validateLeaguePaymentData = (league) => {
+  return validateEventPaymentData(league, 'registrationFee');
 };
 
 /**
@@ -260,9 +310,13 @@ export const getPaymentStatusBadge = (status) => {
 export default {
   validatePaymentAmount,
   getParticipantPaymentStatus,
+  calculateEventPaymentSummary,
   calculateTournamentPaymentSummary,
+  calculateLeaguePaymentSummary,
   calculateOverallPaymentSummary,
   createPaymentRecord,
+  validateEventPaymentData,
   validateTournamentPaymentData,
+  validateLeaguePaymentData,
   getPaymentStatusBadge
 };
