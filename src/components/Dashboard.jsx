@@ -220,7 +220,7 @@ const Dashboard = () => {
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <Card title="Welcome to PickleTrack" className="w-full max-w-md">
+        <Card title="Welcome to PicklePortal" className="w-full max-w-md">
           <div className="space-y-4">
             <input
               type="email"
@@ -380,10 +380,9 @@ const Dashboard = () => {
           </div>
         )}
 
-        {/* Header */}
+        {/* Header - REMOVED "PickleTrack Dashboard" title */}
         <div className="flex justify-between items-center mb-8">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">PickleTrack Dashboard</h1>
             <p className="text-gray-600">Welcome back, {user.email}</p>
           </div>
           <Button variant="outline" onClick={logout}>
@@ -423,18 +422,17 @@ const Dashboard = () => {
             </div>
           </div>
 
+          {/* FIXED Payment Collection Card */}
           <div className="bg-white rounded-lg border shadow-sm p-6 text-center">
             <h3 className="text-sm font-medium text-gray-500 mb-2">Payment Collection</h3>
             <div className="flex items-center justify-center">
               <DollarSign className="h-8 w-8 text-yellow-600 mr-3" />
-              <div>
-                <div className="text-3xl font-bold text-gray-900">
-                  {paymentSummary.paymentRate}%
-                </div>
-                <div className="text-sm text-gray-500">
-                  ${paymentSummary.totalCollected} collected
-                </div>
-              </div>
+              <span className="text-3xl font-bold text-gray-900">
+                {paymentSummary.paymentRate}%
+              </span>
+            </div>
+            <div className="text-sm text-gray-500 mt-2">
+              ${paymentSummary.totalCollected} collected
             </div>
           </div>
         </div>
