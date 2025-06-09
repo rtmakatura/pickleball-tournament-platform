@@ -193,14 +193,6 @@ const CommentForm = ({
         </div>
       </form>
 
-      {/* Formatting tips */}
-      <div className="mt-3 pt-3 border-t text-xs text-gray-500">
-        <div className="flex flex-wrap gap-4">
-          <span>• Be respectful and constructive</span>
-          <span>• Stay on topic</span>
-          <span>• Use proper language</span>
-        </div>
-      </div>
     </div>
   );
 };

@@ -268,22 +268,6 @@ const CommentSection = ({
           </p>
         </div>
       )}
-
-      {/* Comment Guidelines */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-        <div className="flex items-start space-x-3">
-          <AlertCircle className="h-5 w-5 text-blue-600 flex-shrink-0 mt-0.5" />
-          <div className="text-sm text-blue-800">
-            <h4 className="font-medium mb-1">Comment Guidelines</h4>
-            <ul className="space-y-1">
-              <li>• Be respectful and constructive</li>
-              <li>• Stay on topic related to this {eventType}</li>
-              <li>• No spam, advertising, or inappropriate content</li>
-              <li>• Use the voting system to highlight helpful comments</li>
-            </ul>
-          </div>
-        </div>
-      </div>
     </div>
   );
 };
