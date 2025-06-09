@@ -1,4 +1,4 @@
-// src/utils/roleUtils.js (ENHANCED - Added Results Management Permissions)
+// src/utils/roleUtils.js (ENHANCED - Added Comment Management Permissions)
 // Utility functions for role validation and permission checking
 
 import { MEMBER_ROLES } from '../services/models';
@@ -115,7 +115,7 @@ export const canDeleteLeague = (authUid, league, members = []) => {
 };
 
 /**
- * NEW: Results Management Permissions
+ * Results Management Permissions
  */
 export const canManageResults = (authUid, members = []) => {
   // Organizers and admins can manage results
@@ -190,6 +190,82 @@ export const canExportResults = (authUid, results, members = []) => {
   }
   
   return false;
+};
+
+/**
+ * NEW: Comment Management Permissions
+ */
+export const canViewComments = (authUid, members = []) => {
+  // All authenticated members can view comments
+  return isAuthenticatedMember(authUid, members);
+};
+
+export const canPostComments = (authUid, members = []) => {
+  // All authenticated members can post comments
+  return isAuthenticatedMember(authUid, members);
+};
+
+export const canEditComment = (authUid, comment, members = []) => {
+  if (!isAuthenticatedMember(authUid, members)) return false;
+  
+  // Get current user's member record
+  const member = getMemberByAuthUid(authUid, members);
+  if (!member) return false;
+  
+  // Users can edit their own comments (if not deleted)
+  if (comment.authorId === member.id && comment.status === 'active') {
+    return true;
+  }
+  
+  // Moderators can edit any comment
+  return canModerateComments(authUid, members);
+};
+
+export const canDeleteComment = (authUid, comment, members = []) => {
+  if (!isAuthenticatedMember(authUid, members)) return false;
+  
+  // Get current user's member record
+  const member = getMemberByAuthUid(authUid, members);
+  if (!member) return false;
+  
+  // Users can delete their own comments
+  if (comment.authorId === member.id) {
+    return true;
+  }
+  
+  // Moderators can delete any comment
+  return canModerateComments(authUid, members);
+};
+
+export const canModerateComments = (authUid, members = []) => {
+  // Organizers and admins can moderate comments
+  return isOrganizer(authUid, members);
+};
+
+export const canHideComment = (authUid, comment, members = []) => {
+  // Only moderators can hide comments
+  return canModerateComments(authUid, members) && comment.status !== 'hidden';
+};
+
+export const canVoteOnComment = (authUid, comment, members = []) => {
+  if (!isAuthenticatedMember(authUid, members)) return false;
+  
+  // Get current user's member record
+  const member = getMemberByAuthUid(authUid, members);
+  if (!member) return false;
+  
+  // Users cannot vote on their own comments
+  if (comment.authorId === member.id) return false;
+  
+  // Can vote on active comments
+  return comment.status === 'active';
+};
+
+export const canReplyToComment = (authUid, comment, members = []) => {
+  if (!isAuthenticatedMember(authUid, members)) return false;
+  
+  // Can reply to active comments that aren't too deep
+  return comment.status === 'active' && comment.depth < 5;
 };
 
 /**
@@ -283,7 +359,7 @@ export const canPromoteToRole = (promoterAuthUid, targetRole, members = []) => {
 };
 
 /**
- * Feature access checks (enhanced with results features)
+ * Feature access checks (enhanced with comment features)
  */
 export const canAccessFeature = (authUid, feature, members = []) => {
   const featurePermissions = {
@@ -295,7 +371,10 @@ export const canAccessFeature = (authUid, feature, members = []) => {
     'results_viewing': () => canViewResults(authUid, members),
     'reports': () => canViewReports(authUid, members),
     'admin_panel': () => canAccessAdminPanel(authUid, members),
-    'member_profiles': () => isAuthenticatedMember(authUid, members)
+    'member_profiles': () => isAuthenticatedMember(authUid, members),
+    'comments_viewing': () => canViewComments(authUid, members),
+    'comments_posting': () => canPostComments(authUid, members),
+    'comments_moderation': () => canModerateComments(authUid, members)
   };
   
   const permissionCheck = featurePermissions[feature];
@@ -303,7 +382,7 @@ export const canAccessFeature = (authUid, feature, members = []) => {
 };
 
 /**
- * NEW: Results-specific feature access
+ * Results-specific feature access
  */
 export const canAccessResultsFeature = (authUid, feature, event, results, members = []) => {
   const resultFeaturePermissions = {
@@ -321,6 +400,25 @@ export const canAccessResultsFeature = (authUid, feature, event, results, member
   };
   
   const permissionCheck = resultFeaturePermissions[feature];
+  return permissionCheck ? permissionCheck() : false;
+};
+
+/**
+ * NEW: Comment-specific feature access
+ */
+export const canAccessCommentFeature = (authUid, feature, comment, members = []) => {
+  const commentFeaturePermissions = {
+    'view_comments': () => canViewComments(authUid, members),
+    'post_comments': () => canPostComments(authUid, members),
+    'edit_comment': () => canEditComment(authUid, comment, members),
+    'delete_comment': () => canDeleteComment(authUid, comment, members),
+    'vote_on_comment': () => canVoteOnComment(authUid, comment, members),
+    'reply_to_comment': () => canReplyToComment(authUid, comment, members),
+    'moderate_comments': () => canModerateComments(authUid, members),
+    'hide_comment': () => canHideComment(authUid, comment, members)
+  };
+  
+  const permissionCheck = commentFeaturePermissions[feature];
   return permissionCheck ? permissionCheck() : false;
 };
 
@@ -378,7 +476,7 @@ export const getAvailableRoles = (assignerAuthUid, members = []) => {
 };
 
 /**
- * NEW: Get results permissions summary for a user
+ * Get results permissions summary for a user
  */
 export const getResultsPermissions = (authUid, event, results, members = []) => {
   return {
@@ -393,6 +491,22 @@ export const getResultsPermissions = (authUid, event, results, members = []) => 
       const member = getMemberByAuthUid(authUid, members);
       return results?.participantResults?.some(r => r.participantId === member?.id);
     })()
+  };
+};
+
+/**
+ * NEW: Get comment permissions summary for a user
+ */
+export const getCommentPermissions = (authUid, comment, members = []) => {
+  return {
+    canView: canViewComments(authUid, members),
+    canPost: canPostComments(authUid, members),
+    canEdit: canEditComment(authUid, comment, members),
+    canDelete: canDeleteComment(authUid, comment, members),
+    canVote: canVoteOnComment(authUid, comment, members),
+    canReply: canReplyToComment(authUid, comment, members),
+    canModerate: canModerateComments(authUid, members),
+    canHide: canHideComment(authUid, comment, members)
   };
 };
 
@@ -426,7 +540,7 @@ export default {
   canAccessFeature,
   validateRoleAssignment,
   getAvailableRoles,
-  // NEW: Results permissions
+  // Results permissions
   canManageResults,
   canViewResults,
   canEnterResults,
@@ -436,5 +550,16 @@ export default {
   canConfirmOwnResults,
   canExportResults,
   canAccessResultsFeature,
-  getResultsPermissions
+  getResultsPermissions,
+  // NEW: Comment permissions
+  canViewComments,
+  canPostComments,
+  canEditComment,
+  canDeleteComment,
+  canModerateComments,
+  canHideComment,
+  canVoteOnComment,
+  canReplyToComment,
+  canAccessCommentFeature,
+  getCommentPermissions
 };

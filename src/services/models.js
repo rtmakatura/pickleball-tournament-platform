@@ -1,5 +1,5 @@
-// src/services/models.js (ENHANCED - Added Results Support)
-// Enhanced data models for PickleTrack entities with results management
+// src/services/models.js (ENHANCED - Added Comment Support)
+// Enhanced data models for PickleTrack entities with results management and comments
 
 export const SKILL_LEVELS = {
   BEGINNER: 'beginner',
@@ -42,12 +42,11 @@ export const EVENT_TYPES = {
   TEAM: 'team'
 };
 
-// NEW: Results-related constants
 export const RESULT_STATUS = {
-  DRAFT: 'draft',           // Results being entered
-  PENDING: 'pending',       // Awaiting participant confirmation  
-  CONFIRMED: 'confirmed',   // Results confirmed and published
-  DISPUTED: 'disputed'      // Results are being disputed
+  DRAFT: 'draft',           
+  PENDING: 'pending',       
+  CONFIRMED: 'confirmed',   
+  DISPUTED: 'disputed'      
 };
 
 export const AWARD_TYPES = {
@@ -73,6 +72,57 @@ export const MATCH_TYPES = {
   PLAYOFF: 'playoff'
 };
 
+// NEW: Comment-related constants
+export const COMMENT_STATUS = {
+  ACTIVE: 'active',
+  EDITED: 'edited',
+  DELETED: 'deleted',
+  HIDDEN: 'hidden'        // Hidden by moderator
+};
+
+export const COMMENT_TYPES = {
+  COMMENT: 'comment',     // Top-level comment
+  REPLY: 'reply'          // Reply to another comment
+};
+
+export const VOTE_TYPES = {
+  UP: 'up',
+  DOWN: 'down'
+};
+
+// NEW: Comment Model
+export const createComment = (data = {}) => ({
+  eventId: data.eventId || '',
+  eventType: data.eventType || 'tournament', // 'tournament' or 'league'
+  authorId: data.authorId || '',
+  authorName: data.authorName || '',
+  content: data.content || '',
+  
+  // Comment hierarchy
+  parentId: data.parentId || null, // null for top-level comments
+  type: data.type || COMMENT_TYPES.COMMENT,
+  depth: data.depth || 0, // How deep the reply chain is
+  
+  // Status and moderation
+  status: data.status || COMMENT_STATUS.ACTIVE,
+  isEdited: data.isEdited || false,
+  editedAt: data.editedAt || null,
+  
+  // Voting system
+  upvotes: data.upvotes || 0,
+  downvotes: data.downvotes || 0,
+  score: data.score || 0, // upvotes - downvotes
+  voters: data.voters || {}, // { userId: 'up'|'down' }
+  
+  // Reply tracking
+  replyCount: data.replyCount || 0,
+  replies: data.replies || [], // Array of reply IDs for quick access
+  
+  // Timestamps
+  createdAt: data.createdAt || null,
+  updatedAt: data.updatedAt || null
+});
+
 // Enhanced Member model
 export const createMember = (data = {}) => ({
   authUid: data.authUid || null,
@@ -89,7 +139,7 @@ export const createMember = (data = {}) => ({
   lastLoginAt: data.lastLoginAt || null,
   isLegacyMember: data.authUid ? false : true,
   
-  // NEW: Performance statistics
+  // Performance statistics
   statistics: data.statistics || {
     totalTournaments: 0,
     totalLeagues: 0,
@@ -101,14 +151,23 @@ export const createMember = (data = {}) => ({
     pointsScored: 0,
     pointsAllowed: 0,
     winPercentage: 0,
-    awards: [] // Array of awards earned
+    awards: []
+  },
+  
+  // NEW: Comment statistics
+  commentStats: data.commentStats || {
+    totalComments: 0,
+    totalReplies: 0,
+    totalUpvotes: 0,
+    totalDownvotes: 0,
+    commentKarma: 0
   }
 });
 
-// NEW: Participant Result Model
+// Participant Result Model
 export const createParticipantResult = (data = {}) => ({
   participantId: data.participantId || '',
-  placement: data.placement || null, // 1, 2, 3, etc. (null if didn't place in top positions)
+  placement: data.placement || null,
   prizeAmount: data.prizeAmount || 0,
   
   // Performance metrics
@@ -119,7 +178,7 @@ export const createParticipantResult = (data = {}) => ({
   winPercentage: data.winPercentage || 0,
   
   // Awards and recognition
-  awards: data.awards || [], // Array of award objects
+  awards: data.awards || [],
   
   // Additional info
   notes: data.notes || '',
@@ -134,29 +193,29 @@ export const createParticipantResult = (data = {}) => ({
   enteredBy: data.enteredBy || null
 });
 
-// NEW: Award Model
+// Award Model
 export const createAward = (data = {}) => ({
   type: data.type || AWARD_TYPES.CUSTOM,
   title: data.title || '',
   description: data.description || '',
-  customTitle: data.customTitle || '', // For custom awards
-  value: data.value || 0, // Monetary value if applicable
+  customTitle: data.customTitle || '',
+  value: data.value || 0,
   recipientId: data.recipientId || '',
   awardedBy: data.awardedBy || '',
   awardedAt: data.awardedAt || new Date()
 });
 
-// NEW: Match Result Model  
+// Match Result Model  
 export const createMatchResult = (data = {}) => ({
   eventId: data.eventId || '',
-  eventType: data.eventType || 'tournament', // 'tournament' or 'league'
+  eventType: data.eventType || 'tournament',
   
   // Participants
   participant1Id: data.participant1Id || '',
-  participant2Id: data.participant2Id || null, // null for bye
+  participant2Id: data.participant2Id || null,
   
-  // Score tracking (flexible format)
-  games: data.games || [], // Array of game objects: [{score1: 11, score2: 8}, ...]
+  // Score tracking
+  games: data.games || [],
   finalScore: data.finalScore || {player1Games: 0, player2Games: 0},
   
   // Match details
@@ -165,7 +224,7 @@ export const createMatchResult = (data = {}) => ({
   round: data.round || '',
   court: data.court || '',
   matchDate: data.matchDate || null,
-  duration: data.duration || 0, // minutes
+  duration: data.duration || 0,
   
   // Additional info
   notes: data.notes || '',
@@ -177,17 +236,17 @@ export const createMatchResult = (data = {}) => ({
   disputeNotes: data.disputeNotes || ''
 });
 
-// NEW: Event Results Model (overall results for tournament/league)
+// Event Results Model
 export const createEventResults = (data = {}) => ({
   eventId: data.eventId || '',
   eventType: data.eventType || 'tournament',
   status: data.status || RESULT_STATUS.DRAFT,
   
   // Participant results
-  participantResults: data.participantResults || [], // Array of ParticipantResult objects
+  participantResults: data.participantResults || [],
   
-  // Match results (for detailed tracking)
-  matchResults: data.matchResults || [], // Array of MatchResult objects
+  // Match results
+  matchResults: data.matchResults || [],
   
   // Overall event statistics
   totalPrizeMoney: data.totalPrizeMoney || 0,
@@ -209,7 +268,7 @@ export const createEventResults = (data = {}) => ({
   sharedWithParticipants: data.sharedWithParticipants || false
 });
 
-// Enhanced League model with results support
+// Enhanced League model with comments support
 export const createLeague = (data = {}) => ({
   name: data.name || '',
   description: data.description || '',
@@ -234,14 +293,19 @@ export const createLeague = (data = {}) => ({
   format: data.format || 'round_robin',
   numberOfWeeks: data.numberOfWeeks || 8,
   
-  // NEW: Results integration
+  // Results integration
   hasResults: data.hasResults || false,
-  resultsId: data.resultsId || null, // Reference to EventResults document
+  resultsId: data.resultsId || null,
   allowResultsEntry: data.allowResultsEntry !== false,
-  requireResultsConfirmation: data.requireResultsConfirmation || false
+  requireResultsConfirmation: data.requireResultsConfirmation || false,
+  
+  // NEW: Comments integration
+  commentsEnabled: data.commentsEnabled !== false,
+  commentCount: data.commentCount || 0,
+  allowCommentsAfterEnd: data.allowCommentsAfterEnd !== false
 });
 
-// Enhanced Tournament model with results support
+// Enhanced Tournament model with comments support
 export const createTournament = (data = {}) => ({
   name: data.name || '',
   description: data.description || '',
@@ -272,16 +336,21 @@ export const createTournament = (data = {}) => ({
   specialRules: data.specialRules || '',
   equipmentProvided: data.equipmentProvided || false,
   
-  // NEW: Results integration
+  // Results integration
   hasResults: data.hasResults || false,
-  resultsId: data.resultsId || null, // Reference to EventResults document
+  resultsId: data.resultsId || null,
   allowResultsEntry: data.allowResultsEntry !== false,
   requireResultsConfirmation: data.requireResultsConfirmation || false,
-  bracketType: data.bracketType || 'single_elimination', // single_elimination, double_elimination, round_robin
-  consolationBracket: data.consolationBracket || false
+  bracketType: data.bracketType || 'single_elimination',
+  consolationBracket: data.consolationBracket || false,
+  
+  // NEW: Comments integration
+  commentsEnabled: data.commentsEnabled !== false,
+  commentCount: data.commentCount || 0,
+  allowCommentsAfterEvent: data.allowCommentsAfterEvent !== false
 });
 
-// User session model for tracking login activity
+// User session model
 export const createUserSession = (data = {}) => ({
   authUid: data.authUid || '',
   memberId: data.memberId || '',
@@ -292,7 +361,7 @@ export const createUserSession = (data = {}) => ({
   isActive: data.isActive !== false
 });
 
-// Permission model for fine-grained access control
+// Permission model
 export const createPermission = (data = {}) => ({
   name: data.name || '',
   description: data.description || '',
@@ -300,7 +369,7 @@ export const createPermission = (data = {}) => ({
   isActive: data.isActive !== false
 });
 
-// Role permission mapping
+// Role permission mapping (enhanced with comment permissions)
 export const getRolePermissions = (role) => {
   const permissions = {
     [MEMBER_ROLES.PLAYER]: [
@@ -311,7 +380,12 @@ export const getRolePermissions = (role) => {
       'edit_own_profile',
       'view_member_list',
       'view_results',
-      'confirm_own_results'
+      'confirm_own_results',
+      'view_comments',
+      'post_comments',
+      'edit_own_comments',
+      'delete_own_comments',
+      'vote_on_comments'
     ],
     [MEMBER_ROLES.ORGANIZER]: [
       'view_tournaments',
@@ -332,7 +406,14 @@ export const getRolePermissions = (role) => {
       'manage_results',
       'enter_results',
       'publish_results',
-      'export_results'
+      'export_results',
+      'view_comments',
+      'post_comments',
+      'edit_own_comments',
+      'delete_own_comments',
+      'vote_on_comments',
+      'moderate_comments',
+      'hide_comments'
     ],
     [MEMBER_ROLES.ADMIN]: [
       'all_permissions'
@@ -342,7 +423,7 @@ export const getRolePermissions = (role) => {
   return permissions[role] || [];
 };
 
-// Enhanced validation helpers with results support
+// Validation helpers with comment validation
 export const validateMemberData = (memberData) => {
   const errors = [];
   
@@ -455,7 +536,7 @@ export const validateLeagueData = (leagueData) => {
   };
 };
 
-// NEW: Results validation
+// Results validation
 export const validateParticipantResult = (resultData, totalParticipants) => {
   const errors = [];
   
@@ -522,7 +603,45 @@ export const validateEventResults = (resultsData) => {
   };
 };
 
-// Default admin user (for initial setup)
+// NEW: Comment validation
+export const validateCommentData = (commentData) => {
+  const errors = [];
+  
+  if (!commentData.eventId) {
+    errors.push('Event ID is required');
+  }
+  
+  if (!commentData.eventType || !['tournament', 'league'].includes(commentData.eventType)) {
+    errors.push('Valid event type is required');
+  }
+  
+  if (!commentData.authorId) {
+    errors.push('Author ID is required');
+  }
+  
+  if (!commentData.content || commentData.content.trim().length < 1) {
+    errors.push('Comment content is required');
+  }
+  
+  if (commentData.content && commentData.content.length > 2000) {
+    errors.push('Comment content must be 2000 characters or less');
+  }
+  
+  if (commentData.parentId && commentData.depth > 5) {
+    errors.push('Reply depth cannot exceed 5 levels');
+  }
+  
+  if (!Object.values(COMMENT_STATUS).includes(commentData.status)) {
+    errors.push('Valid comment status is required');
+  }
+  
+  return {
+    isValid: errors.length === 0,
+    errors
+  };
+};
+
+// Default admin user
 export const createDefaultAdmin = (authUid, email) => ({
   authUid,
   email,
@@ -548,6 +667,13 @@ export const createDefaultAdmin = (authUid, email) => ({
     pointsAllowed: 0,
     winPercentage: 0,
     awards: []
+  },
+  commentStats: {
+    totalComments: 0,
+    totalReplies: 0,
+    totalUpvotes: 0,
+    totalDownvotes: 0,
+    commentKarma: 0
   }
 });
 
@@ -555,6 +681,7 @@ export default {
   createMember,
   createLeague,
   createTournament,
+  createComment,
   createUserSession,
   createPermission,
   createDefaultAdmin,
@@ -562,21 +689,19 @@ export default {
   validateMemberData,
   validateTournamentData,
   validateLeagueData,
-  // NEW: Results exports
-  createParticipantResult,
-  createAward,
-  createMatchResult,
-  createEventResults,
   validateParticipantResult,
   validateEventResults,
+  validateCommentData,
   SKILL_LEVELS,
   MEMBER_ROLES,
   TOURNAMENT_STATUS,
   LEAGUE_STATUS,
   PAYMENT_MODES,
   EVENT_TYPES,
-  // NEW: Results constants
   RESULT_STATUS,
   AWARD_TYPES,
-  MATCH_TYPES
+  MATCH_TYPES,
+  COMMENT_STATUS,
+  COMMENT_TYPES,
+  VOTE_TYPES
 };

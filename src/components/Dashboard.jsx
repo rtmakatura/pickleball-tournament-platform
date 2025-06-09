@@ -1,6 +1,6 @@
-// src/components/Dashboard.jsx (UPDATED - Added Results Integration)
+// src/components/Dashboard.jsx (UPDATED - Added Comment Integration)
 import React, { useState } from 'react';
-import { Plus, Calendar, Users, Trophy, DollarSign, Activity } from 'lucide-react';
+import { Plus, Calendar, Users, Trophy, DollarSign, Activity, MessageSquare } from 'lucide-react';
 import { useMembers, useLeagues, useTournaments, useAuth } from '../hooks';
 import { SKILL_LEVELS, TOURNAMENT_STATUS, LEAGUE_STATUS } from '../services/models';
 import { calculateOverallPaymentSummary } from '../utils/paymentUtils';
@@ -21,7 +21,8 @@ import { MemberForm } from './member';
 import { LeagueForm, LeagueMemberSelector } from './league';
 import { SignUpForm } from './auth';
 import SignInForm from './auth/SignInForm';
-import { ResultsButton } from './results'; // NEW: Import results components
+import { ResultsButton } from './results';
+import { CommentSection } from './comments'; // NEW: Import comment components
 
 const Dashboard = () => {
   const { user, signIn, signUpWithProfile, logout, isAuthenticated, loading: authLoading } = useAuth();
@@ -34,9 +35,13 @@ const Dashboard = () => {
   const [showLeagueModal, setShowLeagueModal] = useState(false);
   const [showMemberModal, setShowMemberModal] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [showTournamentDetailModal, setShowTournamentDetailModal] = useState(false); // NEW: Tournament detail modal
+  const [showLeagueDetailModal, setShowLeagueDetailModal] = useState(false); // NEW: League detail modal
   const [editingTournament, setEditingTournament] = useState(null);
   const [editingLeague, setEditingLeague] = useState(null);
   const [editingMember, setEditingMember] = useState(null);
+  const [viewingTournament, setViewingTournament] = useState(null); // NEW: Tournament being viewed
+  const [viewingLeague, setViewingLeague] = useState(null); // NEW: League being viewed
   
   // Auth UI state
   const [authMode, setAuthMode] = useState('signin');
@@ -121,6 +126,12 @@ const Dashboard = () => {
     setShowTournamentModal(true);
   };
 
+  // NEW: Handle viewing tournament details with comments
+  const handleViewTournament = (tournament) => {
+    setViewingTournament(tournament);
+    setShowTournamentDetailModal(true);
+  };
+
   const handleUpdateTournament = async (tournamentData) => {
     setFormLoading(true);
     try {
@@ -182,6 +193,12 @@ const Dashboard = () => {
     setEditingLeague(league);
     setSelectedLeagueMembers(league.participants || []);
     setShowLeagueModal(true);
+  };
+
+  // NEW: Handle viewing league details with comments
+  const handleViewLeague = (league) => {
+    setViewingLeague(league);
+    setShowLeagueDetailModal(true);
   };
 
   const handleUpdateLeague = async (leagueData) => {
@@ -318,7 +335,7 @@ const Dashboard = () => {
   const sortedTournaments = getSortedTournaments();
   const sortedLeagues = getSortedLeagues();
 
-  // UPDATED: Table columns for tournaments with results integration
+  // UPDATED: Table columns for tournaments with comments support
   const tournamentColumns = [
     {
       key: 'name',
@@ -366,10 +383,28 @@ const Dashboard = () => {
       render: (participants) => participants?.length || 0
     },
     {
+      key: 'commentCount', // NEW: Comment count column
+      label: 'Comments',
+      render: (_, tournament) => (
+        <div className="flex items-center space-x-1">
+          <MessageSquare className="h-4 w-4 text-gray-400" />
+          <span className="text-sm text-gray-600">{tournament.commentCount || 0}</span>
+        </div>
+      )
+    },
+    {
       key: 'actions',
       label: 'Actions',
       render: (_, tournament) => (
         <div className="flex items-center space-x-2">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => handleViewTournament(tournament)} // NEW: View button
+          >
+            View
+          </Button>
+          
           <Button
             size="sm"
             variant="outline"
@@ -378,7 +413,6 @@ const Dashboard = () => {
             Edit
           </Button>
           
-          {/* NEW: Results Button */}
           <ResultsButton
             event={tournament}
             eventType="tournament"
@@ -390,7 +424,7 @@ const Dashboard = () => {
     }
   ];
 
-  // UPDATED: Table columns for leagues with results integration
+  // UPDATED: Table columns for leagues with comments support
   const leagueColumns = [
     {
       key: 'name',
@@ -437,10 +471,28 @@ const Dashboard = () => {
       render: (participants) => participants?.length || 0
     },
     {
+      key: 'commentCount', // NEW: Comment count column
+      label: 'Comments',
+      render: (_, league) => (
+        <div className="flex items-center space-x-1">
+          <MessageSquare className="h-4 w-4 text-gray-400" />
+          <span className="text-sm text-gray-600">{league.commentCount || 0}</span>
+        </div>
+      )
+    },
+    {
       key: 'actions',
       label: 'Actions',
       render: (_, league) => (
         <div className="flex items-center space-x-2">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => handleViewLeague(league)} // NEW: View button
+          >
+            View
+          </Button>
+          
           <Button
             size="sm"
             variant="outline"
@@ -449,7 +501,6 @@ const Dashboard = () => {
             Edit
           </Button>
           
-          {/* NEW: Results Button */}
           <ResultsButton
             event={league}
             eventType="league"
@@ -724,6 +775,56 @@ const Dashboard = () => {
           </div>
         </Modal>
 
+        {/* NEW: Tournament Detail Modal with Comments */}
+        <Modal
+          isOpen={showTournamentDetailModal}
+          onClose={() => {
+            setShowTournamentDetailModal(false);
+            setViewingTournament(null);
+          }}
+          title={viewingTournament?.name || 'Tournament Details'}
+          size="xl"
+        >
+          {viewingTournament && (
+            <div className="space-y-6">
+              {/* Tournament Info */}
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                  <div>
+                    <span className="font-medium text-gray-700">Date:</span>
+                    <p>{viewingTournament.eventDate ? new Date(viewingTournament.eventDate.seconds * 1000).toLocaleDateString() : 'TBD'}</p>
+                  </div>
+                  <div>
+                    <span className="font-medium text-gray-700">Location:</span>
+                    <p>{viewingTournament.location}</p>
+                  </div>
+                  <div>
+                    <span className="font-medium text-gray-700">Participants:</span>
+                    <p>{viewingTournament.participants?.length || 0}</p>
+                  </div>
+                  <div>
+                    <span className="font-medium text-gray-700">Entry Fee:</span>
+                    <p>${viewingTournament.entryFee || 0}</p>
+                  </div>
+                </div>
+                {viewingTournament.description && (
+                  <div className="mt-4">
+                    <span className="font-medium text-gray-700">Description:</span>
+                    <p className="mt-1">{viewingTournament.description}</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Comments Section */}
+              <CommentSection
+                eventId={viewingTournament.id}
+                eventType="tournament"
+                event={viewingTournament}
+              />
+            </div>
+          )}
+        </Modal>
+
         {/* League Modal */}
         <Modal
           isOpen={showLeagueModal}
@@ -761,6 +862,56 @@ const Dashboard = () => {
               />
             </div>
           </div>
+        </Modal>
+
+        {/* NEW: League Detail Modal with Comments */}
+        <Modal
+          isOpen={showLeagueDetailModal}
+          onClose={() => {
+            setShowLeagueDetailModal(false);
+            setViewingLeague(null);
+          }}
+          title={viewingLeague?.name || 'League Details'}
+          size="xl"
+        >
+          {viewingLeague && (
+            <div className="space-y-6">
+              {/* League Info */}
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                  <div>
+                    <span className="font-medium text-gray-700">Start Date:</span>
+                    <p>{viewingLeague.startDate ? new Date(viewingLeague.startDate.seconds * 1000).toLocaleDateString() : 'TBD'}</p>
+                  </div>
+                  <div>
+                    <span className="font-medium text-gray-700">End Date:</span>
+                    <p>{viewingLeague.endDate ? new Date(viewingLeague.endDate.seconds * 1000).toLocaleDateString() : 'TBD'}</p>
+                  </div>
+                  <div>
+                    <span className="font-medium text-gray-700">Participants:</span>
+                    <p>{viewingLeague.participants?.length || 0}</p>
+                  </div>
+                  <div>
+                    <span className="font-medium text-gray-700">Registration Fee:</span>
+                    <p>${viewingLeague.registrationFee || 0}</p>
+                  </div>
+                </div>
+                {viewingLeague.description && (
+                  <div className="mt-4">
+                    <span className="font-medium text-gray-700">Description:</span>
+                    <p className="mt-1">{viewingLeague.description}</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Comments Section */}
+              <CommentSection
+                eventId={viewingLeague.id}
+                eventType="league"
+                event={viewingLeague}
+              />
+            </div>
+          )}
         </Modal>
 
         {/* Member Modal */}
