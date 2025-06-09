@@ -1,4 +1,4 @@
-// src/components/Dashboard.jsx (Updated - With Delete Functionality)
+// src/components/Dashboard.jsx (Updated - Quick Actions moved to top)
 import React, { useState } from 'react';
 import { Plus, Calendar, Users, Trophy, DollarSign, Activity } from 'lucide-react';
 import { useMembers, useLeagues, useTournaments, useAuth } from '../hooks';
@@ -531,6 +531,47 @@ const Dashboard = () => {
           </div>
         </div>
 
+        {/* Quick Actions - Moved to top */}
+        <Card title="Quick Actions" className="mb-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <Button 
+              variant="outline" 
+              onClick={() => setShowMemberModal(true)}
+              className="h-16"
+            >
+              <Users className="h-5 w-5 mr-2" />
+              Add Member
+            </Button>
+            
+            <Button 
+              variant="outline" 
+              onClick={() => setShowTournamentModal(true)}
+              className="h-16"
+            >
+              <Trophy className="h-5 w-5 mr-2" />
+              Create Tournament
+            </Button>
+
+            <Button 
+              variant="outline" 
+              onClick={() => setShowLeagueModal(true)}
+              className="h-16"
+            >
+              <Activity className="h-5 w-5 mr-2" />
+              Create League
+            </Button>
+            
+            <Button 
+              variant="outline" 
+              onClick={() => setShowPaymentModal(true)}
+              className="h-16"
+            >
+              <DollarSign className="h-5 w-5 mr-2" />
+              Payment Tracker
+            </Button>
+          </div>
+        </Card>
+
         {/* Tournaments Section */}
         <Card 
           title="Tournaments"
@@ -598,47 +639,6 @@ const Dashboard = () => {
             loading={membersLoading}
             emptyMessage="No members yet. Add your first member!"
           />
-        </Card>
-
-        {/* Quick Actions */}
-        <Card title="Quick Actions" className="mb-8">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <Button 
-              variant="outline" 
-              onClick={() => setShowMemberModal(true)}
-              className="h-16"
-            >
-              <Users className="h-5 w-5 mr-2" />
-              Add Member
-            </Button>
-            
-            <Button 
-              variant="outline" 
-              onClick={() => setShowTournamentModal(true)}
-              className="h-16"
-            >
-              <Trophy className="h-5 w-5 mr-2" />
-              Create Tournament
-            </Button>
-
-            <Button 
-              variant="outline" 
-              onClick={() => setShowLeagueModal(true)}
-              className="h-16"
-            >
-              <Activity className="h-5 w-5 mr-2" />
-              Create League
-            </Button>
-            
-            <Button 
-              variant="outline" 
-              onClick={() => setShowPaymentModal(true)}
-              className="h-16"
-            >
-              <DollarSign className="h-5 w-5 mr-2" />
-              Payment Tracker
-            </Button>
-          </div>
         </Card>
 
         {/* Tournament Modal */}
