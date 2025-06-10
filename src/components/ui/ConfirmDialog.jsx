@@ -1,10 +1,21 @@
 // src/components/ui/ConfirmDialog.jsx
 import React from 'react';
-import { AlertTriangle } from 'lucide-react';
-import Button from './Button';
+import { AlertTriangle, Trash2 } from 'lucide-react';
+import { Button, Modal } from './';
 
 /**
- * ConfirmDialog Component - Modal confirmation dialog
+ * ConfirmDialog Component - For confirming destructive actions
+ * 
+ * Props:
+ * - isOpen: boolean - Whether dialog is visible
+ * - onClose: function - Called when dialog is closed
+ * - onConfirm: function - Called when user confirms action
+ * - title: string - Dialog title
+ * - message: string - Confirmation message
+ * - confirmText: string - Text for confirm button
+ * - cancelText: string - Text for cancel button
+ * - type: 'danger' | 'warning' - Dialog type for styling
+ * - loading: boolean - Whether action is in progress
  */
 const ConfirmDialog = ({
   isOpen,
@@ -17,75 +28,70 @@ const ConfirmDialog = ({
   type = 'danger',
   loading = false
 }) => {
-  if (!isOpen) return null;
+  const handleConfirm = () => {
+    onConfirm();
+  };
 
-  const typeConfig = {
+  const iconConfig = {
     danger: {
-      icon: AlertTriangle,
-      iconColor: 'text-red-600',
-      buttonVariant: 'danger'
+      icon: Trash2,
+      color: 'text-red-600',
+      bgColor: 'bg-red-100'
     },
     warning: {
       icon: AlertTriangle,
-      iconColor: 'text-yellow-600',
-      buttonVariant: 'primary'
-    },
-    info: {
-      icon: AlertTriangle,
-      iconColor: 'text-blue-600',
-      buttonVariant: 'primary'
+      color: 'text-yellow-600',
+      bgColor: 'bg-yellow-100'
     }
   };
 
-  const config = typeConfig[type] || typeConfig.danger;
+  const config = iconConfig[type];
   const Icon = config.icon;
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto">
-      <div className="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:p-0">
-        {/* Backdrop */}
-        <div className="fixed inset-0 transition-opacity bg-gray-500 bg-opacity-75" />
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title=""
+      size="sm"
+    >
+      <div className="text-center">
+        {/* Icon */}
+        <div className={`mx-auto flex items-center justify-center h-12 w-12 rounded-full ${config.bgColor} mb-4`}>
+          <Icon className={`h-6 w-6 ${config.color}`} />
+        </div>
 
-        {/* Dialog */}
-        <div className="relative inline-block w-full max-w-lg text-left align-bottom transition-all transform bg-white rounded-lg shadow-xl sm:align-middle">
-          <div className="px-6 py-4">
-            <div className="flex items-start">
-              <div className="flex-shrink-0">
-                <Icon className={`h-6 w-6 ${config.iconColor}`} />
-              </div>
-              
-              <div className="ml-4 flex-1">
-                <h3 className="text-lg font-medium text-gray-900 mb-2">
-                  {title}
-                </h3>
-                <p className="text-sm text-gray-500">
-                  {message}
-                </p>
-              </div>
-            </div>
-          </div>
+        {/* Title */}
+        <h3 className="text-lg font-medium text-gray-900 mb-2">
+          {title}
+        </h3>
+
+        {/* Message */}
+        <p className="text-sm text-gray-500 mb-6">
+          {message}
+        </p>
+
+        {/* Actions */}
+        <div className="flex space-x-3 justify-center">
+          <Button
+            variant="outline"
+            onClick={onClose}
+            disabled={loading}
+          >
+            {cancelText}
+          </Button>
           
-          <div className="px-6 py-4 bg-gray-50 flex justify-end space-x-3">
-            <Button
-              variant="outline"
-              onClick={onClose}
-              disabled={loading}
-            >
-              {cancelText}
-            </Button>
-            
-            <Button
-              variant={config.buttonVariant}
-              onClick={onConfirm}
-              loading={loading}
-              disabled={loading}
-            >
-              {confirmText}
-            </Button>
-          </div>
+          <Button
+            variant="danger"
+            onClick={handleConfirm}
+            loading={loading}
+            disabled={loading}
+          >
+            {confirmText}
+          </Button>
         </div>
       </div>
-    </div>
+    </Modal>
   );
 };
 

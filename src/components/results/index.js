@@ -1,45 +1,16 @@
-// src/components/results/index.js
-// Export results-related components
+// src/components/results/index.js (FIXED - Updated export names)
+// Export all results-related components
 
-import React from 'react';
-import { Trophy } from 'lucide-react';
-
-/**
- * ResultsButton Component - Stub for results management
- * This is a placeholder that can be expanded later
- */
-export const ResultsButton = ({ 
-  event, 
-  eventType = 'tournament', 
-  variant = 'auto', 
-  size = 'sm' 
-}) => {
-  const handleResultsClick = () => {
-    alert(`Results management for ${event?.name || 'this event'} coming soon!`);
-  };
-
-  return (
-    <button
-      onClick={handleResultsClick}
-      className={`
-        inline-flex items-center px-2 py-1 border border-gray-300 
-        rounded text-sm hover:bg-gray-50 focus:outline-none focus:ring-2 
-        focus:ring-blue-500 text-gray-700
-        ${size === 'md' ? 'px-3 py-2' : ''}
-      `}
-      title={`Manage results for ${event?.name || 'this event'}`}
-    >
-      <Trophy className="h-4 w-4 mr-1" />
-      Results
-    </button>
-  );
-};
+export { default as ResultsManagement } from './ResultsManagement';
+export { ResultsButton, ResultsViewer } from './ResultsButton'; // FIXED: Changed ResultsDisplay to ResultsViewer
+export { default as AwardModal, AwardDisplay } from './AwardModal';
 
 // Future results components can be added here:
-// export { default as ResultsForm } from './ResultsForm';
-// export { default as ResultsTable } from './ResultsTable';
-// export { default as ResultsView } from './ResultsView';
+// export { default as ResultsChart } from './ResultsChart';
+// export { default as ResultsHistory } from './ResultsHistory';
+// export { default as PlayerStats } from './PlayerStats';
 
-export default {
-  ResultsButton
-};
+// Usage Examples:
+// import { ResultsManagement, ResultsButton, AwardModal } from '../results';
+// OR
+// import ResultsManagement from '../results/ResultsManagement';

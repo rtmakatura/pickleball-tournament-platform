@@ -1,7 +1,7 @@
 // src/components/ui/LinkButtons.jsx
 import React from 'react';
 import { MapPin, ExternalLink, Navigation } from 'lucide-react';
-import Button from './Button';
+import { Button } from './Button';
 import { openInGoogleMaps, openDirections, openUrlSafely, formatWebsiteUrl, getDomainFromUrl } from '../../utils/linkUtils';
 
 /**
