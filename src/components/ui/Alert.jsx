@@ -1,67 +1,59 @@
 // src/components/ui/Alert.jsx
 import React from 'react';
-import { CheckCircle, AlertCircle, XCircle, Info, X } from 'lucide-react';
+import { CheckCircle, XCircle, AlertTriangle, Info, X } from 'lucide-react';
 
 /**
- * Alert Component - For showing notifications and messages
- * 
- * Props:
- * - type: 'success' | 'warning' | 'error' | 'info' - Alert style
- * - title: string - Alert title
- * - message: string - Alert message
- * - onClose: function - Called when close button clicked
- * - className: string - Additional CSS classes
+ * Alert Component - Displays status messages and notifications
  */
-export const Alert = ({ 
+const Alert = ({
   type = 'info',
   title,
   message,
   onClose,
-  className = '' 
+  className = ''
 }) => {
-  // Icon and styling for each alert type
   const alertConfig = {
     success: {
-      icon: CheckCircle,
       bgColor: 'bg-green-50',
       borderColor: 'border-green-200',
+      textColor: 'text-green-800',
       iconColor: 'text-green-400',
-      titleColor: 'text-green-800',
-      messageColor: 'text-green-700'
-    },
-    warning: {
-      icon: AlertCircle,
-      bgColor: 'bg-yellow-50',
-      borderColor: 'border-yellow-200',
-      iconColor: 'text-yellow-400',
-      titleColor: 'text-yellow-800',
-      messageColor: 'text-yellow-700'
+      icon: CheckCircle
     },
     error: {
-      icon: XCircle,
       bgColor: 'bg-red-50',
       borderColor: 'border-red-200',
+      textColor: 'text-red-800',
       iconColor: 'text-red-400',
-      titleColor: 'text-red-800',
-      messageColor: 'text-red-700'
+      icon: XCircle
+    },
+    warning: {
+      bgColor: 'bg-yellow-50',
+      borderColor: 'border-yellow-200',
+      textColor: 'text-yellow-800',
+      iconColor: 'text-yellow-400',
+      icon: AlertTriangle
     },
     info: {
-      icon: Info,
       bgColor: 'bg-blue-50',
       borderColor: 'border-blue-200',
+      textColor: 'text-blue-800',
       iconColor: 'text-blue-400',
-      titleColor: 'text-blue-800',
-      messageColor: 'text-blue-700'
+      icon: Info
     }
   };
 
-  const config = alertConfig[type];
+  const config = alertConfig[type] || alertConfig.info;
   const Icon = config.icon;
 
   return (
-    <div className={`
-      rounded-md border p-4 ${config.bgColor} ${config.borderColor} ${className}
-    `}>
+    <div
+      className={`
+        rounded-md border p-4
+        ${config.bgColor} ${config.borderColor}
+        ${className}
+      `}
+    >
       <div className="flex">
         <div className="flex-shrink-0">
           <Icon className={`h-5 w-5 ${config.iconColor}`} />
@@ -69,17 +61,18 @@ export const Alert = ({
         
         <div className="ml-3 flex-1">
           {title && (
-            <h3 className={`text-sm font-medium ${config.titleColor}`}>
+            <h3 className={`text-sm font-medium ${config.textColor}`}>
               {title}
             </h3>
           )}
+          
           {message && (
-            <div className={`${title ? 'mt-2' : ''} text-sm ${config.messageColor}`}>
-              <p>{message}</p>
+            <div className={`${title ? 'mt-2' : ''} text-sm ${config.textColor}`}>
+              {message}
             </div>
           )}
         </div>
-
+        
         {onClose && (
           <div className="ml-auto pl-3">
             <div className="-mx-1.5 -my-1.5">
@@ -87,10 +80,10 @@ export const Alert = ({
                 onClick={onClose}
                 className={`
                   inline-flex rounded-md p-1.5 focus:outline-none focus:ring-2 focus:ring-offset-2
-                  ${config.iconColor} hover:${config.bgColor}
+                  ${config.textColor} hover:bg-opacity-20 focus:ring-offset-current
                 `}
               >
-                <X className="h-4 w-4" />
+                <X className="h-5 w-5" />
               </button>
             </div>
           </div>
