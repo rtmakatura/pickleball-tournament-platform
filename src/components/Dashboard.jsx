@@ -42,6 +42,7 @@ const Dashboard = () => {
   const [editingMember, setEditingMember] = useState(null);
   const [viewingTournament, setViewingTournament] = useState(null); // NEW: Tournament being viewed
   const [viewingLeague, setViewingLeague] = useState(null); // NEW: League being viewed
+  const currentUserMember = members.find(m => m.authUid === user?.uid);
   
   // Auth UI state
   const [authMode, setAuthMode] = useState('signin');
@@ -585,12 +586,14 @@ const Dashboard = () => {
 
         {/* Header */}
         <div className="flex justify-between items-center mb-8">
-          <div>
-            <p className="text-gray-600">Welcome back, {user.email}</p>
-          </div>
-          <Button variant="outline" onClick={logout}>
+        <div>
+            <p className="text-gray-600">
+            Welcome back, {currentUserMember?.firstName || user.email}!
+            </p>
+        </div>
+        <Button variant="outline" onClick={logout}>
             Logout
-          </Button>
+        </Button>
         </div>
 
         {/* Stats Cards */}
