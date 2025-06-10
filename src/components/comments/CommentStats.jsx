@@ -1,16 +1,16 @@
-// src/components/comments/CommentStats.jsx
+// src/components/comments/CommentStats.jsx (SIMPLIFIED - Message Board Style)
 import React from 'react';
 import { 
   MessageSquare, 
   Reply, 
-  TrendingUp, 
-  Award,
   Users,
-  Activity
+  Activity,
+  Clock
 } from 'lucide-react';
 
 /**
- * CommentStats Component - Displays statistics about comments
+ * CommentStats Component - Displays basic statistics about comments
+ * Simplified for team message board use
  * 
  * Props:
  * - stats: object - Comment statistics
@@ -25,9 +25,8 @@ const CommentStats = ({
   const {
     totalComments = 0,
     totalReplies = 0,
-    totalVotes = 0,
-    averageScore = 0,
-    topComment = null
+    mostActiveAuthor = null,
+    recentActivity = null
   } = stats;
 
   const totalDiscussions = totalComments + totalReplies;
@@ -51,12 +50,10 @@ const CommentStats = ({
           </div>
         )}
         
-        {totalVotes > 0 && (
-          <div className="flex items-center space-x-1">
-            <TrendingUp className="h-4 w-4" />
-            <span>{totalVotes} votes</span>
-          </div>
-        )}
+        <div className="flex items-center space-x-1">
+          <Activity className="h-4 w-4" />
+          <span>{totalDiscussions} total</span>
+        </div>
       </div>
     );
   }
@@ -85,48 +82,40 @@ const CommentStats = ({
         </div>
       </div>
 
-      {/* Total Engagement */}
+      {/* Total Activity */}
       <div className="bg-purple-50 border border-purple-200 rounded-lg p-4 text-center">
         <div className="flex items-center justify-center mb-2">
           <Activity className="h-6 w-6 text-purple-600" />
         </div>
-        <div className="text-2xl font-bold text-purple-900">{totalVotes}</div>
+        <div className="text-2xl font-bold text-purple-900">{totalDiscussions}</div>
         <div className="text-sm text-purple-700">
-          Vote{totalVotes !== 1 ? 's' : ''}
+          Total Messages
         </div>
       </div>
 
-      {/* Average Score */}
+      {/* Most Active Author */}
       <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 text-center">
         <div className="flex items-center justify-center mb-2">
-          <TrendingUp className="h-6 w-6 text-orange-600" />
+          <Users className="h-6 w-6 text-orange-600" />
         </div>
-        <div className="text-2xl font-bold text-orange-900">
-          {averageScore > 0 ? '+' : ''}{averageScore.toFixed(1)}
+        <div className="text-lg font-bold text-orange-900 truncate">
+          {mostActiveAuthor?.name || 'None'}
         </div>
-        <div className="text-sm text-orange-700">Avg Score</div>
+        <div className="text-sm text-orange-700">
+          Most Active ({mostActiveAuthor?.count || 0})
+        </div>
       </div>
 
-      {/* Top Comment (if exists) */}
-      {topComment && topComment.score > 0 && (
-        <div className="md:col-span-4 bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-          <div className="flex items-start space-x-3">
-            <div className="flex items-center space-x-2">
-              <Award className="h-5 w-5 text-yellow-600" />
-              <span className="font-medium text-yellow-900">Top Comment</span>
-              <span className="bg-yellow-200 text-yellow-800 px-2 py-1 rounded text-xs font-medium">
-                +{topComment.score}
-              </span>
-            </div>
+      {/* Recent Activity Indicator */}
+      {recentActivity && (
+        <div className="md:col-span-4 bg-gray-50 border border-gray-200 rounded-lg p-4">
+          <div className="flex items-center space-x-3">
+            <Clock className="h-5 w-5 text-gray-600" />
+            <span className="font-medium text-gray-900">Recent Activity</span>
           </div>
           <div className="mt-2">
-            <p className="text-sm text-yellow-800 line-clamp-2">
-              "{topComment.content.length > 100 
-                ? topComment.content.substring(0, 100) + '...' 
-                : topComment.content}"
-            </p>
-            <p className="text-xs text-yellow-600 mt-1">
-              by {topComment.authorName}
+            <p className="text-sm text-gray-600">
+              Last message posted {recentActivity} ago
             </p>
           </div>
         </div>
@@ -136,7 +125,7 @@ const CommentStats = ({
 };
 
 /**
- * CommentEngagementBar - Visual representation of comment engagement
+ * CommentEngagementBar - Visual representation of comment activity
  */
 export const CommentEngagementBar = ({ 
   totalComments, 
@@ -144,19 +133,19 @@ export const CommentEngagementBar = ({
   maxValue = 100,
   className = '' 
 }) => {
-  const totalEngagement = totalComments + totalReplies;
-  const percentage = Math.min((totalEngagement / maxValue) * 100, 100);
+  const totalActivity = totalComments + totalReplies;
+  const percentage = Math.min((totalActivity / maxValue) * 100, 100);
   
-  const commentsPercentage = totalEngagement > 0 
-    ? (totalComments / totalEngagement) * percentage 
+  const commentsPercentage = totalActivity > 0 
+    ? (totalComments / totalActivity) * percentage 
     : 0;
   const repliesPercentage = percentage - commentsPercentage;
 
   return (
     <div className={`space-y-2 ${className}`}>
       <div className="flex justify-between text-sm text-gray-600">
-        <span>Engagement</span>
-        <span>{totalEngagement} total</span>
+        <span>Message Activity</span>
+        <span>{totalActivity} total</span>
       </div>
       
       <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">

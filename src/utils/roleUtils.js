@@ -1,4 +1,4 @@
-// src/utils/roleUtils.js (ENHANCED - Added Comment Management Permissions)
+// src/utils/roleUtils.js (SIMPLIFIED - Comment Permissions Without Voting)
 // Utility functions for role validation and permission checking
 
 import { MEMBER_ROLES } from '../services/models';
@@ -193,7 +193,7 @@ export const canExportResults = (authUid, results, members = []) => {
 };
 
 /**
- * NEW: Comment Management Permissions
+ * SIMPLIFIED: Comment Management Permissions (No Voting)
  */
 export const canViewComments = (authUid, members = []) => {
   // All authenticated members can view comments
@@ -245,20 +245,6 @@ export const canModerateComments = (authUid, members = []) => {
 export const canHideComment = (authUid, comment, members = []) => {
   // Only moderators can hide comments
   return canModerateComments(authUid, members) && comment.status !== 'hidden';
-};
-
-export const canVoteOnComment = (authUid, comment, members = []) => {
-  if (!isAuthenticatedMember(authUid, members)) return false;
-  
-  // Get current user's member record
-  const member = getMemberByAuthUid(authUid, members);
-  if (!member) return false;
-  
-  // Users cannot vote on their own comments
-  if (comment.authorId === member.id) return false;
-  
-  // Can vote on active comments
-  return comment.status === 'active';
 };
 
 export const canReplyToComment = (authUid, comment, members = []) => {
@@ -359,7 +345,7 @@ export const canPromoteToRole = (promoterAuthUid, targetRole, members = []) => {
 };
 
 /**
- * Feature access checks (enhanced with comment features)
+ * Feature access checks (simplified without voting features)
  */
 export const canAccessFeature = (authUid, feature, members = []) => {
   const featurePermissions = {
@@ -404,7 +390,7 @@ export const canAccessResultsFeature = (authUid, feature, event, results, member
 };
 
 /**
- * NEW: Comment-specific feature access
+ * SIMPLIFIED: Comment-specific feature access (no voting)
  */
 export const canAccessCommentFeature = (authUid, feature, comment, members = []) => {
   const commentFeaturePermissions = {
@@ -412,7 +398,6 @@ export const canAccessCommentFeature = (authUid, feature, comment, members = [])
     'post_comments': () => canPostComments(authUid, members),
     'edit_comment': () => canEditComment(authUid, comment, members),
     'delete_comment': () => canDeleteComment(authUid, comment, members),
-    'vote_on_comment': () => canVoteOnComment(authUid, comment, members),
     'reply_to_comment': () => canReplyToComment(authUid, comment, members),
     'moderate_comments': () => canModerateComments(authUid, members),
     'hide_comment': () => canHideComment(authUid, comment, members)
@@ -495,7 +480,7 @@ export const getResultsPermissions = (authUid, event, results, members = []) => 
 };
 
 /**
- * NEW: Get comment permissions summary for a user
+ * SIMPLIFIED: Get comment permissions summary for a user (no voting)
  */
 export const getCommentPermissions = (authUid, comment, members = []) => {
   return {
@@ -503,7 +488,6 @@ export const getCommentPermissions = (authUid, comment, members = []) => {
     canPost: canPostComments(authUid, members),
     canEdit: canEditComment(authUid, comment, members),
     canDelete: canDeleteComment(authUid, comment, members),
-    canVote: canVoteOnComment(authUid, comment, members),
     canReply: canReplyToComment(authUid, comment, members),
     canModerate: canModerateComments(authUid, members),
     canHide: canHideComment(authUid, comment, members)
@@ -551,14 +535,13 @@ export default {
   canExportResults,
   canAccessResultsFeature,
   getResultsPermissions,
-  // NEW: Comment permissions
+  // SIMPLIFIED: Comment permissions (no voting)
   canViewComments,
   canPostComments,
   canEditComment,
   canDeleteComment,
   canModerateComments,
   canHideComment,
-  canVoteOnComment,
   canReplyToComment,
   canAccessCommentFeature,
   getCommentPermissions

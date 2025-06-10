@@ -1,4 +1,4 @@
-// src/components/comments/CommentThread.jsx
+// src/components/comments/CommentThread.jsx (SIMPLIFIED - Message Board Style)
 import React, { useState } from 'react';
 import { 
   ChevronUp, 
@@ -8,7 +8,6 @@ import {
   Trash2, 
   Flag,
   MoreHorizontal,
-  Eye,
   EyeOff,
   MessageSquare,
   Clock
@@ -19,10 +18,10 @@ import { useMembers } from '../../hooks/useMembers';
 import { useComments } from '../../hooks/useComments';
 import { formatDistanceToNow } from 'date-fns';
 import CommentForm from './CommentForm';
-import CommentVoting from './CommentVoting';
 
 /**
  * CommentThread Component - Displays a comment and its nested replies
+ * Simplified for team message board use (no voting)
  * 
  * Props:
  * - comment: object - Comment data
@@ -120,7 +119,7 @@ const CommentThread = ({
 
   // Handle comment deletion
   const handleDelete = async () => {
-    if (!confirm('Are you sure you want to delete this comment?')) return;
+    if (!confirm('Are you sure you want to delete this message?')) return;
     
     setLoading(true);
     try {
@@ -134,7 +133,7 @@ const CommentThread = ({
 
   // Handle comment hiding (moderation)
   const handleHide = async () => {
-    if (!confirm('Are you sure you want to hide this comment?')) return;
+    if (!confirm('Are you sure you want to hide this message?')) return;
     
     setLoading(true);
     try {
@@ -150,7 +149,7 @@ const CommentThread = ({
   if (comment.status === 'deleted') {
     return (
       <div className="py-2 text-gray-400 text-sm italic">
-        [Comment deleted]
+        [Message deleted]
       </div>
     );
   }
@@ -158,14 +157,14 @@ const CommentThread = ({
   if (comment.status === 'hidden' && !canModerate) {
     return (
       <div className="py-2 text-gray-400 text-sm italic">
-        [Comment hidden by moderator]
+        [Message hidden by moderator]
       </div>
     );
   }
 
   return (
     <div className={`${depth > 0 ? 'ml-8 border-l-2 border-gray-100 pl-4' : ''}`}>
-      <div className="bg-white border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition-colors">
+      <div className="bg-white border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition-colors group">
         {/* Comment Header */}
         <div className="flex items-start justify-between mb-3">
           <div className="flex items-center space-x-3">
@@ -296,16 +295,6 @@ const CommentThread = ({
         {!isEditing && (
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
-              {/* Voting */}
-              <CommentVoting
-                commentId={comment.id}
-                upvotes={comment.upvotes}
-                downvotes={comment.downvotes}
-                score={comment.score}
-                userVote={comment.voters?.[currentUserId]}
-                disabled={!currentMember}
-              />
-
               {/* Reply Button */}
               {canReply && (
                 <Button

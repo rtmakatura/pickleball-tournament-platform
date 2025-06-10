@@ -1,10 +1,12 @@
-// src/hooks/useComments.js
+// src/hooks/useComments.js (SIMPLIFIED - No Voting)
 import { useState, useEffect } from 'react';
 import firebaseOps from '../services/firebaseOperations';
-import { createComment, COMMENT_STATUS, COMMENT_TYPES, VOTE_TYPES } from '../services/models';
+import { createComment, COMMENT_STATUS, COMMENT_TYPES } from '../services/models';
+import { formatDistanceToNow } from 'date-fns';
 
 /**
- * useComments Hook - Manages comments for tournaments and leagues
+ * useComments Hook - Manages team messages for tournaments and leagues
+ * Simplified version without voting functionality
  * 
  * Props:
  * - eventId: string - ID of the event (tournament or league)
@@ -87,12 +89,9 @@ export const useComments = (eventId, eventType = 'tournament', options = {}) => 
       }
     });
 
-    // Sort top-level comments by score then date
+    // Sort top-level comments by date (newest first by default)
     return topLevelComments.sort((a, b) => {
-      if (a.score !== b.score) {
-        return b.score - a.score; // Higher score first
-      }
-      return new Date(b.createdAt) - new Date(a.createdAt); // Newer first
+      return new Date(b.createdAt) - new Date(a.createdAt);
     });
   };
 
@@ -145,7 +144,7 @@ export const useComments = (eventId, eventType = 'tournament', options = {}) => 
         content: newContent.trim(),
         isEdited: true,
         editedAt: new Date(),
-        status: COMMENT_STATUS.EDITED
+        status: COMMENT_STATUS.ACTIVE // Keep active status after edit
       });
       
       return true;
@@ -163,7 +162,7 @@ export const useComments = (eventId, eventType = 'tournament', options = {}) => 
     
     try {
       const comment = await firebaseOps.read('comments', commentId);
-      if (!comment) throw new Error('Comment not found');
+      if (!comment) throw new Error('Message not found');
       
       await firebaseOps.update('comments', commentId, {
         content: '[deleted]',
@@ -177,69 +176,6 @@ export const useComments = (eventId, eventType = 'tournament', options = {}) => 
       if (comment.parentId) {
         await updateCommentReplyCount(comment.parentId, -1);
       }
-      
-      return true;
-    } catch (err) {
-      setError(err.message);
-      throw err;
-    }
-  };
-
-  /**
-   * Vote on a comment
-   */
-  const voteOnComment = async (commentId, userId, voteType) => {
-    setError(null);
-    
-    try {
-      const comment = await firebaseOps.read('comments', commentId);
-      if (!comment) throw new Error('Comment not found');
-      
-      const currentVote = comment.voters[userId];
-      let upvoteChange = 0;
-      let downvoteChange = 0;
-      const newVoters = { ...comment.voters };
-      
-      if (currentVote === voteType) {
-        // Remove vote
-        delete newVoters[userId];
-        if (voteType === VOTE_TYPES.UP) {
-          upvoteChange = -1;
-        } else {
-          downvoteChange = -1;
-        }
-      } else {
-        // Add or change vote
-        if (currentVote) {
-          // Changing vote
-          if (currentVote === VOTE_TYPES.UP) {
-            upvoteChange = -1;
-            downvoteChange = 1;
-          } else {
-            upvoteChange = 1;
-            downvoteChange = -1;
-          }
-        } else {
-          // New vote
-          if (voteType === VOTE_TYPES.UP) {
-            upvoteChange = 1;
-          } else {
-            downvoteChange = 1;
-          }
-        }
-        newVoters[userId] = voteType;
-      }
-      
-      const newUpvotes = comment.upvotes + upvoteChange;
-      const newDownvotes = comment.downvotes + downvoteChange;
-      const newScore = newUpvotes - newDownvotes;
-      
-      await firebaseOps.update('comments', commentId, {
-        upvotes: newUpvotes,
-        downvotes: newDownvotes,
-        score: newScore,
-        voters: newVoters
-      });
       
       return true;
     } catch (err) {
@@ -316,21 +252,42 @@ export const useComments = (eventId, eventType = 'tournament', options = {}) => 
   };
 
   /**
-   * Get comment statistics
+   * Get simplified comment statistics (no voting data)
    */
   const getCommentStats = () => {
     const flatComments = flattenComments(comments);
     
+    // Count authors and their message counts
+    const authorCounts = {};
+    flatComments.forEach(comment => {
+      authorCounts[comment.authorName] = (authorCounts[comment.authorName] || 0) + 1;
+    });
+    
+    // Find most active author
+    const mostActiveAuthor = Object.entries(authorCounts).reduce(
+      (max, [name, count]) => count > (max.count || 0) ? { name, count } : max,
+      { name: null, count: 0 }
+    );
+    
+    // Get most recent activity
+    const mostRecentComment = flatComments.reduce(
+      (latest, comment) => {
+        const commentDate = new Date(comment.createdAt);
+        const latestDate = latest ? new Date(latest.createdAt) : new Date(0);
+        return commentDate > latestDate ? comment : latest;
+      },
+      null
+    );
+    
+    const recentActivity = mostRecentComment 
+      ? formatDistanceToNow(new Date(mostRecentComment.createdAt))
+      : null;
+    
     return {
       totalComments: flatComments.filter(c => c.type === COMMENT_TYPES.COMMENT).length,
       totalReplies: flatComments.filter(c => c.type === COMMENT_TYPES.REPLY).length,
-      totalVotes: flatComments.reduce((sum, c) => sum + c.upvotes + c.downvotes, 0),
-      averageScore: flatComments.length > 0 
-        ? flatComments.reduce((sum, c) => sum + c.score, 0) / flatComments.length 
-        : 0,
-      topComment: flatComments.reduce((top, c) => 
-        c.score > (top?.score || -Infinity) ? c : top, null
-      )
+      mostActiveAuthor: mostActiveAuthor.name ? mostActiveAuthor : null,
+      recentActivity
     };
   };
 
@@ -388,9 +345,6 @@ export const useComments = (eventId, eventType = 'tournament', options = {}) => 
     postComment,
     editComment,
     deleteComment,
-    
-    // Voting
-    voteOnComment,
     
     // Moderation
     hideComment,

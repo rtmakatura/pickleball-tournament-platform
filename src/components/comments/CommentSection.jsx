@@ -1,11 +1,10 @@
-// src/components/comments/CommentSection.jsx
+// src/components/comments/CommentSection.jsx (SIMPLIFIED - Message Board Style)
 import React, { useState } from 'react';
 import { 
   MessageSquare, 
   Plus, 
   Search,
-  SortAsc,
-  SortDesc,
+  Clock,
   Filter,
   AlertCircle
 } from 'lucide-react';
@@ -19,7 +18,8 @@ import CommentThread from './CommentThread';
 import CommentStats from './CommentStats';
 
 /**
- * CommentSection Component - Main comment interface for events
+ * CommentSection Component - Team message board interface for events
+ * Simplified without voting functionality
  * 
  * Props:
  * - eventId: string - ID of the event
@@ -47,8 +47,8 @@ const CommentSection = ({
 
   const [showCommentForm, setShowCommentForm] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [sortBy, setSortBy] = useState('score'); // 'score', 'date', 'replies'
-  const [filterBy, setFilterBy] = useState('all'); // 'all', 'recent', 'popular'
+  const [sortBy, setSortBy] = useState('newest'); // 'newest', 'oldest', 'replies'
+  const [filterBy, setFilterBy] = useState('all'); // 'all', 'recent'
   const [expandedComments, setExpandedComments] = useState(new Set());
 
   // Get current user's member record
@@ -84,22 +84,20 @@ const CommentSection = ({
       displayComments = displayComments.filter(comment => 
         new Date(comment.createdAt) > oneDayAgo
       );
-    } else if (filterBy === 'popular') {
-      displayComments = displayComments.filter(comment => comment.score > 0);
     }
     
     // Apply sorting
     displayComments = [...displayComments].sort((a, b) => {
       switch (sortBy) {
-        case 'date':
-          return new Date(b.createdAt) - new Date(a.createdAt);
+        case 'oldest':
+          return new Date(a.createdAt) - new Date(b.createdAt);
         case 'replies':
-          return b.replyCount - a.replyCount;
-        case 'score':
-        default:
-          if (a.score !== b.score) {
-            return b.score - a.score;
+          if (a.replyCount !== b.replyCount) {
+            return b.replyCount - a.replyCount;
           }
+          return new Date(b.createdAt) - new Date(a.createdAt);
+        case 'newest':
+        default:
           return new Date(b.createdAt) - new Date(a.createdAt);
       }
     });
@@ -114,7 +112,7 @@ const CommentSection = ({
     return (
       <div className={`bg-gray-50 rounded-lg p-6 text-center ${className}`}>
         <MessageSquare className="h-12 w-12 text-gray-300 mx-auto mb-2" />
-        <p className="text-gray-500">Comments are disabled for this {eventType}</p>
+        <p className="text-gray-500">Team discussion is disabled for this {eventType}</p>
       </div>
     );
   }
@@ -126,9 +124,9 @@ const CommentSection = ({
         <div className="flex items-center space-x-3">
           <MessageSquare className="h-6 w-6 text-blue-600" />
           <div>
-            <h2 className="text-xl font-semibold text-gray-900">Discussion</h2>
+            <h2 className="text-xl font-semibold text-gray-900">Team Discussion</h2>
             <p className="text-sm text-gray-500">
-              {stats.totalComments + stats.totalReplies} comment{stats.totalComments + stats.totalReplies !== 1 ? 's' : ''}
+              {stats.totalComments + stats.totalReplies} message{stats.totalComments + stats.totalReplies !== 1 ? 's' : ''}
             </p>
           </div>
         </div>
@@ -139,7 +137,7 @@ const CommentSection = ({
             disabled={loading}
           >
             <Plus className="h-4 w-4 mr-2" />
-            Add Comment
+            Add Message
           </Button>
         )}
       </div>
@@ -148,7 +146,7 @@ const CommentSection = ({
       {error && (
         <Alert
           type="error"
-          title="Comment Error"
+          title="Message Error"
           message={error}
           onClose={clearError}
         />
@@ -162,8 +160,8 @@ const CommentSection = ({
         <CommentForm
           onSubmit={handleCommentSubmit}
           onCancel={() => setShowCommentForm(false)}
-          placeholder={`Share your thoughts about this ${eventType}...`}
-          submitText="Post Comment"
+          placeholder={`Share updates or questions about this ${eventType}...`}
+          submitText="Post Message"
           loading={loading}
         />
       )}
@@ -174,7 +172,7 @@ const CommentSection = ({
           <div className="relative">
             <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
             <Input
-              placeholder="Search comments..."
+              placeholder="Search messages..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="pl-10"
@@ -187,43 +185,42 @@ const CommentSection = ({
             value={sortBy}
             onChange={(e) => setSortBy(e.target.value)}
             options={[
-              { value: 'score', label: 'Best' },
-              { value: 'date', label: 'Newest' },
+              { value: 'newest', label: 'Newest First' },
+              { value: 'oldest', label: 'Oldest First' },
               { value: 'replies', label: 'Most Replies' }
             ]}
-            className="min-w-[120px]"
+            className="min-w-[140px]"
           />
           
           <Select
             value={filterBy}
             onChange={(e) => setFilterBy(e.target.value)}
             options={[
-              { value: 'all', label: 'All' },
-              { value: 'recent', label: 'Recent' },
-              { value: 'popular', label: 'Popular' }
+              { value: 'all', label: 'All Messages' },
+              { value: 'recent', label: 'Last 24 Hours' }
             ]}
-            className="min-w-[120px]"
+            className="min-w-[140px]"
           />
         </div>
       </div>
 
-      {/* Comments List */}
+      {/* Messages List */}
       <div className="space-y-4">
         {loading && comments.length === 0 ? (
           <div className="text-center py-8">
             <div className="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
-            <p className="mt-2 text-gray-500">Loading comments...</p>
+            <p className="mt-2 text-gray-500">Loading messages...</p>
           </div>
         ) : displayComments.length === 0 ? (
           <div className="text-center py-12 bg-gray-50 rounded-lg">
             <MessageSquare className="h-12 w-12 text-gray-300 mx-auto mb-4" />
             <h3 className="text-lg font-medium text-gray-700 mb-2">
-              {searchTerm ? 'No matching comments' : 'No comments yet'}
+              {searchTerm ? 'No matching messages' : 'No messages yet'}
             </h3>
             <p className="text-gray-500 mb-4">
               {searchTerm 
                 ? 'Try adjusting your search terms or filters'
-                : `Be the first to share your thoughts about this ${eventType}!`
+                : `Start the team discussion for this ${eventType}!`
               }
             </p>
             {!searchTerm && canPost && !showCommentForm && (
@@ -232,7 +229,7 @@ const CommentSection = ({
                 variant="outline"
               >
                 <Plus className="h-4 w-4 mr-2" />
-                Start the Discussion
+                Post First Message
               </Button>
             )}
           </div>
@@ -260,11 +257,14 @@ const CommentSection = ({
         )}
       </div>
 
-      {/* Load More (if needed) */}
+      {/* Message Count */}
       {comments.length > 0 && (
-        <div className="text-center pt-4">
-          <p className="text-sm text-gray-500">
-            Showing {displayComments.length} of {stats.totalComments + stats.totalReplies} comments
+        <div className="text-center pt-4 border-t">
+          <p className="text-sm text-gray-500 flex items-center justify-center space-x-2">
+            <Clock className="h-4 w-4" />
+            <span>
+              Showing {displayComments.length} of {stats.totalComments + stats.totalReplies} messages
+            </span>
           </p>
         </div>
       )}

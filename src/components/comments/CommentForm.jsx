@@ -1,10 +1,11 @@
-// src/components/comments/CommentForm.jsx
+// src/components/comments/CommentForm.jsx (SIMPLIFIED - Message Board Style)
 import React, { useState } from 'react';
-import { Send, X, AlertCircle } from 'lucide-react';
+import { Send, X, AlertCircle, MessageSquare } from 'lucide-react';
 import { Button } from '../ui';
 
 /**
- * CommentForm Component - Form for posting comments and replies
+ * CommentForm Component - Form for posting team messages and replies
+ * Simplified for team message board use
  * 
  * Props:
  * - onSubmit: function - Called when form is submitted with content
@@ -21,8 +22,8 @@ import { Button } from '../ui';
 const CommentForm = ({
   onSubmit,
   onCancel,
-  placeholder = "Share your thoughts...",
-  submitText = "Post Comment",
+  placeholder = "Share a message with the team...",
+  submitText = "Post Message",
   initialValue = "",
   loading = false,
   maxLength = 2000,
@@ -49,9 +50,9 @@ const CommentForm = ({
     
     // Validate content
     if (newContent.length > maxLength) {
-      setError(`Comment must be ${maxLength} characters or less`);
+      setError(`Message must be ${maxLength} characters or less`);
     } else if (newContent.trim().length === 0 && newContent.length > 0) {
-      setError('Comment cannot be empty or only whitespace');
+      setError('Message cannot be empty or only whitespace');
     }
   };
 
@@ -63,17 +64,17 @@ const CommentForm = ({
     
     // Validate content
     if (!trimmedContent) {
-      setError('Please enter a comment');
+      setError('Please enter a message');
       return;
     }
     
     if (trimmedContent.length < minLength) {
-      setError(`Comment must be at least ${minLength} character${minLength !== 1 ? 's' : ''}`);
+      setError(`Message must be at least ${minLength} character${minLength !== 1 ? 's' : ''}`);
       return;
     }
     
     if (trimmedContent.length > maxLength) {
-      setError(`Comment must be ${maxLength} characters or less`);
+      setError(`Message must be ${maxLength} characters or less`);
       return;
     }
     
@@ -82,7 +83,7 @@ const CommentForm = ({
       setContent('');
       setError('');
     } catch (err) {
-      setError(err.message || 'Failed to post comment');
+      setError(err.message || 'Failed to post message');
     }
   };
 
@@ -109,10 +110,11 @@ const CommentForm = ({
   };
 
   return (
-    <div className={`border rounded-lg p-4 bg-white ${isReply ? 'ml-8 mt-3' : ''}`}>
+    <div className={`border rounded-lg p-4 bg-white ${isReply ? 'ml-8 mt-3 border-blue-200 bg-blue-50' : 'border-gray-200'}`}>
       {/* Reply indicator */}
       {isReply && parentAuthor && (
-        <div className="mb-3 text-sm text-gray-600">
+        <div className="mb-3 text-sm text-blue-700 flex items-center">
+          <MessageSquare className="h-4 w-4 mr-1" />
           Replying to <span className="font-medium">{parentAuthor}</span>
         </div>
       )}
@@ -164,7 +166,7 @@ const CommentForm = ({
         <div className="flex items-center justify-between">
           <div className="text-xs text-gray-500">
             <span className="hidden sm:inline">
-              Press Ctrl+Enter to submit • Press Escape to cancel
+              Press Ctrl+Enter to send • Press Escape to cancel
             </span>
           </div>
           
@@ -185,14 +187,26 @@ const CommentForm = ({
               disabled={!canSubmit}
               loading={loading}
               size="sm"
+              className={isReply ? 'bg-blue-600 hover:bg-blue-700' : ''}
             >
               <Send className="h-4 w-4 mr-1" />
-              {loading ? 'Posting...' : submitText}
+              {loading ? 'Sending...' : submitText}
             </Button>
           </div>
         </div>
       </form>
 
+      {/* Team message board tips */}
+      {!isReply && content.length === 0 && (
+        <div className="mt-3 text-xs text-gray-500 bg-gray-50 p-2 rounded">
+          <p><strong>💡 Team Message Board Tips:</strong></p>
+          <ul className="mt-1 space-y-1">
+            <li>• Share updates, questions, or coordination info</li>
+            <li>• Reply to messages to keep discussions organized</li>
+            <li>• Be respectful and keep messages relevant to the event</li>
+          </ul>
+        </div>
+      )}
     </div>
   );
 };
