@@ -1,4 +1,4 @@
-// src/components/Dashboard.jsx (FINAL - Enhanced Table Only with Fixes)
+// src/components/Dashboard.jsx (UPDATED - Division Support)
 import React, { useState } from 'react';
 import { 
   Plus, 
@@ -10,11 +10,18 @@ import {
   MessageSquare, 
   MapPin, 
   ExternalLink, 
-  Navigation
+  Navigation,
+  Layers
 } from 'lucide-react';
 import { useMembers, useLeagues, useTournaments, useAuth } from '../hooks';
-import { SKILL_LEVELS, TOURNAMENT_STATUS, LEAGUE_STATUS } from '../services/models';
-import { calculateOverallPaymentSummary } from '../utils/paymentUtils';
+import { 
+  SKILL_LEVELS, 
+  TOURNAMENT_STATUS, 
+  LEAGUE_STATUS,
+  getTournamentTotalParticipants,
+  getTournamentTotalExpected
+} from '../services/models';
+import { calculateTournamentPaymentSummary, calculateOverallPaymentSummary } from '../utils/paymentUtils';
 import { generateGoogleMapsLink, generateDirectionsLink, openLinkSafely, extractDomain } from '../utils/linkUtils';
 
 // Import our UI components
@@ -26,7 +33,7 @@ import {
   Alert 
 } from './ui';
 import TournamentForm from './tournament/TournamentForm';
-import MemberSelector from './tournament/MemberSelector';
+import DivisionMemberSelector from './tournament/DivisionMemberSelector'; // NEW: Division-aware selector
 import PaymentStatus from './tournament/PaymentStatus';
 import { MemberForm } from './member';
 import { LeagueForm, LeagueMemberSelector } from './league';
@@ -60,7 +67,6 @@ const Dashboard = () => {
   const [authMode, setAuthMode] = useState('signin');
   
   // Form states
-  const [selectedMembers, setSelectedMembers] = useState([]);
   const [selectedLeagueMembers, setSelectedLeagueMembers] = useState([]);
   const [formLoading, setFormLoading] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
@@ -111,13 +117,237 @@ const Dashboard = () => {
     return 'Until event date';
   };
 
-  // Enhanced table component with fixes
-  const EnhancedTable = ({ data, type = 'tournament' }) => {
+  // NEW: Enhanced tournament table with division support
+  const EnhancedTournamentTable = ({ data }) => {
     if (!data || data.length === 0) {
       return (
         <div className="text-center py-12 text-gray-500">
           <Trophy className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-          <p>No {type}s yet. Create your first {type}!</p>
+          <p>No tournaments yet. Create your first tournament!</p>
+        </div>
+      );
+    }
+
+    return (
+      <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead>
+              <tr className="bg-gray-50 border-b border-gray-200">
+                <th className="text-left py-3 px-4 font-medium text-gray-700 text-sm uppercase tracking-wider w-[30%]">
+                  Tournament
+                </th>
+                <th className="text-left py-3 px-4 font-medium text-gray-700 text-sm uppercase tracking-wider w-[20%] hidden sm:table-cell">
+                  Date & Divisions
+                </th>
+                <th className="text-left py-3 px-4 font-medium text-gray-700 text-sm uppercase tracking-wider w-[25%] hidden md:table-cell">
+                  Location
+                </th>
+                <th className="text-left py-3 px-4 font-medium text-gray-700 text-sm uppercase tracking-wider w-[15%] hidden lg:table-cell">
+                  Status
+                </th>
+                <th className="text-right py-3 px-4 font-medium text-gray-700 text-sm uppercase tracking-wider w-[10%]">
+                  Actions
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {data.map((tournament) => {
+                const totalParticipants = getTournamentTotalParticipants(tournament);
+                const totalExpected = getTournamentTotalExpected(tournament);
+                const divisionCount = tournament.divisions?.length || 0;
+                
+                return (
+                  <tr key={tournament.id} className="hover:bg-gray-50 transition-colors">
+                    {/* Name Column */}
+                    <td className="py-4 px-4 align-top">
+                      <div className="space-y-2">
+                        <div className="font-medium text-gray-900 leading-5 break-words">
+                          {tournament.name}
+                        </div>
+                        
+                        {/* Mobile-only: Key info */}
+                        <div className="sm:hidden space-y-1">
+                          <div className="flex items-center text-sm text-gray-600">
+                            <Calendar className="h-3.5 w-3.5 mr-1.5 flex-shrink-0" />
+                            <span>
+                              {tournament.eventDate ? new Date(tournament.eventDate.seconds * 1000).toLocaleDateString() : 'TBD'}
+                            </span>
+                          </div>
+                          {divisionCount > 0 && (
+                            <div className="flex items-center justify-between text-sm">
+                              <div className="flex items-center text-gray-600">
+                                <Layers className="h-3.5 w-3.5 mr-1.5" />
+                                <span>{divisionCount} division{divisionCount !== 1 ? 's' : ''}</span>
+                              </div>
+                              {totalExpected > 0 && (
+                                <div className="flex items-center text-green-600 font-medium">
+                                  <span>${totalExpected}</span>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                          {tournament.location && (
+                            <div className="text-sm text-gray-500 truncate">
+                              📍 {tournament.location}
+                            </div>
+                          )}
+                        </div>
+                        
+                        {/* Quick indicators */}
+                        <div className="flex items-center space-x-4 text-xs">
+                          <div className="flex items-center text-gray-500">
+                            <Users className="h-3 w-3 mr-1" />
+                            <span>{totalParticipants} total</span>
+                          </div>
+                          {divisionCount > 0 && (
+                            <div className="hidden sm:flex items-center text-blue-600">
+                              <Layers className="h-3 w-3 mr-1" />
+                              <span>{divisionCount} divisions</span>
+                            </div>
+                          )}
+                          {totalExpected > 0 && (
+                            <div className="hidden sm:flex items-center text-green-600 font-medium">
+                              <span>${totalExpected}</span>
+                            </div>
+                          )}
+                          {tournament.commentCount > 0 && (
+                            <div className="flex items-center text-gray-400">
+                              <MessageSquare className="h-3 w-3 mr-1" />
+                              <span>{tournament.commentCount}</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </td>
+
+                    {/* Date & Divisions Column */}
+                    <td className="py-4 px-4 align-top hidden sm:table-cell">
+                      <div className="space-y-2">
+                        <div className="flex items-center text-sm text-gray-900">
+                          <Calendar className="h-4 w-4 mr-2 text-gray-400" />
+                          <span className="font-medium">
+                            {tournament.eventDate 
+                              ? new Date(tournament.eventDate.seconds * 1000).toLocaleDateString('en-US', {
+                                  month: 'short',
+                                  day: 'numeric',
+                                  year: 'numeric'
+                                })
+                              : 'TBD'
+                            }
+                          </span>
+                        </div>
+                        <div className="flex items-center text-sm text-gray-600">
+                          <Layers className="h-4 w-4 mr-2 text-gray-400" />
+                          <span>{divisionCount} division{divisionCount !== 1 ? 's' : ''}</span>
+                        </div>
+                        <div className="flex items-center text-sm text-gray-600">
+                          <Users className="h-4 w-4 mr-2 text-gray-400" />
+                          <span>{totalParticipants} participants</span>
+                        </div>
+                      </div>
+                    </td>
+
+                    {/* Location Column */}
+                    <td className="py-4 px-4 align-top hidden md:table-cell">
+                      <div className="space-y-2">
+                        {tournament.location ? (
+                          <>
+                            <div className="text-sm text-gray-900 leading-5 break-words">
+                              {tournament.location}
+                            </div>
+                            <div className="flex items-center space-x-1">
+                              <button 
+                                className="inline-flex items-center px-2 py-1 text-xs bg-blue-50 text-blue-700 rounded-md hover:bg-blue-100 transition-colors"
+                                onClick={() => openLinkSafely(generateGoogleMapsLink(tournament.location))}
+                                title="View on Maps"
+                              >
+                                <MapPin className="h-3 w-3 mr-1" />
+                                Maps
+                              </button>
+                              {tournament.website && (
+                                <button 
+                                  className="inline-flex items-center px-2 py-1 text-xs bg-gray-50 text-gray-700 rounded-md hover:bg-gray-100 transition-colors"
+                                  onClick={() => openLinkSafely(tournament.website)}
+                                  title="Visit Website"
+                                >
+                                  <ExternalLink className="h-3 w-3 mr-1" />
+                                  Site
+                                </button>
+                              )}
+                            </div>
+                          </>
+                        ) : (
+                          <span className="text-gray-400 text-sm">No location</span>
+                        )}
+                      </div>
+                    </td>
+
+                    {/* Status Column */}
+                    <td className="py-4 px-4 align-top hidden lg:table-cell">
+                      <div className="space-y-2">
+                        <span className={`
+                          inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium
+                          ${tournament.status === TOURNAMENT_STATUS.DRAFT ? 'bg-gray-100 text-gray-800' :
+                            tournament.status === TOURNAMENT_STATUS.REGISTRATION_OPEN ? 'bg-green-100 text-green-800' :
+                            tournament.status === TOURNAMENT_STATUS.IN_PROGRESS ? 'bg-blue-100 text-blue-800' :
+                            tournament.status === TOURNAMENT_STATUS.COMPLETED ? 'bg-purple-100 text-purple-800' :
+                            'bg-gray-100 text-gray-800'
+                          }
+                        `}>
+                          <div className={`
+                            w-1.5 h-1.5 rounded-full mr-1.5
+                            ${tournament.status === TOURNAMENT_STATUS.REGISTRATION_OPEN ? 'bg-green-400' :
+                              tournament.status === TOURNAMENT_STATUS.IN_PROGRESS ? 'bg-blue-400' :
+                              tournament.status === TOURNAMENT_STATUS.COMPLETED ? 'bg-purple-400' :
+                              'bg-gray-400'
+                            }
+                          `}></div>
+                          {tournament.status.replace('_', ' ')}
+                        </span>
+                        <div className="text-xs text-gray-500">
+                          {tournament.status === TOURNAMENT_STATUS.REGISTRATION_OPEN 
+                            ? getRegistrationDeadlineText(tournament) 
+                            : ''
+                          }
+                        </div>
+                      </div>
+                    </td>
+
+                    {/* Actions Column */}
+                    <td className="py-4 px-4 align-top">
+                      <div className="flex flex-col space-y-1">
+                        <button 
+                          className="inline-flex items-center justify-center px-3 py-1.5 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors w-20"
+                          onClick={() => handleViewTournament(tournament)}
+                        >
+                          Comment
+                        </button>
+                        <button 
+                          className="inline-flex items-center justify-center px-3 py-1.5 text-sm bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors w-20"
+                          onClick={() => handleEditTournament(tournament)}
+                        >
+                          Edit
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    );
+  };
+
+  // League table (unchanged)
+  const EnhancedLeagueTable = ({ data }) => {
+    if (!data || data.length === 0) {
+      return (
+        <div className="text-center py-12 text-gray-500">
+          <Activity className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+          <p>No leagues yet. Create your first league!</p>
         </div>
       );
     }
@@ -129,10 +359,10 @@ const Dashboard = () => {
             <thead>
               <tr className="bg-gray-50 border-b border-gray-200">
                 <th className="text-left py-3 px-4 font-medium text-gray-700 text-sm uppercase tracking-wider w-[35%]">
-                  {type === 'tournament' ? 'Tournament' : 'League'}
+                  League
                 </th>
                 <th className="text-left py-3 px-4 font-medium text-gray-700 text-sm uppercase tracking-wider w-[20%] hidden sm:table-cell">
-                  {type === 'tournament' ? 'Date & Details' : 'Duration & Details'}
+                  Duration & Details
                 </th>
                 <th className="text-left py-3 px-4 font-medium text-gray-700 text-sm uppercase tracking-wider w-[25%] hidden md:table-cell">
                   Location
@@ -146,125 +376,107 @@ const Dashboard = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {data.map((item) => (
-                <tr key={item.id} className="hover:bg-gray-50 transition-colors">
-                  {/* Name Column - Allows wrapping, shows key info */}
+              {data.map((league) => (
+                <tr key={league.id} className="hover:bg-gray-50 transition-colors">
+                  {/* Similar structure to tournament table but for leagues */}
                   <td className="py-4 px-4 align-top">
                     <div className="space-y-2">
-                      {/* Name - allows natural wrapping */}
                       <div className="font-medium text-gray-900 leading-5 break-words">
-                        {item.name}
+                        {league.name}
                       </div>
                       
-                      {/* Mobile-only: Date and key details */}
                       <div className="sm:hidden space-y-1">
                         <div className="flex items-center text-sm text-gray-600">
                           <Calendar className="h-3.5 w-3.5 mr-1.5 flex-shrink-0" />
                           <span>
-                            {type === 'tournament' 
-                              ? (item.eventDate ? new Date(item.eventDate.seconds * 1000).toLocaleDateString() : 'TBD')
-                              : `${item.startDate ? new Date(item.startDate.seconds * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'TBD'} to ${item.endDate ? new Date(item.endDate.seconds * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'TBD'}`
-                            }
+                            {league.startDate ? new Date(league.startDate.seconds * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'TBD'} to {league.endDate ? new Date(league.endDate.seconds * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'TBD'}
                           </span>
                         </div>
                         <div className="flex items-center justify-between text-sm">
                           <div className="flex items-center text-gray-600">
                             <Trophy className="h-3.5 w-3.5 mr-1.5" />
-                            <span className="capitalize">{item.skillLevel}</span>
+                            <span className="capitalize">{league.skillLevel}</span>
                           </div>
-                          {((type === 'tournament' && item.entryFee > 0) || (type === 'league' && item.registrationFee > 0)) && (
+                          {league.registrationFee > 0 && (
                             <div className="flex items-center text-green-600 font-medium">
-                              <span>${type === 'tournament' ? item.entryFee : item.registrationFee}</span>
+                              <span>${league.registrationFee}</span>
                             </div>
                           )}
                         </div>
-                        {item.location && (
+                        {league.location && (
                           <div className="text-sm text-gray-500 truncate">
-                            📍 {item.location}
+                            📍 {league.location}
                           </div>
                         )}
                       </div>
                       
-                      {/* Quick indicators - FIXED: Removed duplicate dollar sign */}
                       <div className="flex items-center space-x-4 text-xs">
                         <div className="flex items-center text-gray-500">
-                          <span>Type: {formatEventType(item.eventType)}</span>
+                          <span>Type: {formatEventType(league.eventType)}</span>
                         </div>
-                        {((type === 'tournament' && item.entryFee > 0) || (type === 'league' && item.registrationFee > 0)) && (
+                        {league.registrationFee > 0 && (
                           <div className="hidden sm:flex items-center text-green-600 font-medium">
-                            <span>${type === 'tournament' ? item.entryFee : item.registrationFee}</span>
+                            <span>${league.registrationFee}</span>
                           </div>
                         )}
-                        {item.commentCount > 0 && (
+                        {league.commentCount > 0 && (
                           <div className="flex items-center text-gray-400">
                             <MessageSquare className="h-3 w-3 mr-1" />
-                            <span>{item.commentCount}</span>
+                            <span>{league.commentCount}</span>
                           </div>
                         )}
                       </div>
                     </div>
                   </td>
 
-                  {/* Date & Details Column */}
                   <td className="py-4 px-4 align-top hidden sm:table-cell">
                     <div className="space-y-2">
                       <div className="flex items-center text-sm text-gray-900">
                         <Calendar className="h-4 w-4 mr-2 text-gray-400" />
                         <span className="font-medium">
-                          {type === 'tournament' 
-                            ? (item.eventDate 
-                                ? new Date(item.eventDate.seconds * 1000).toLocaleDateString('en-US', {
-                                    month: 'short',
-                                    day: 'numeric',
-                                    year: 'numeric'
-                                  })
-                                : 'TBD'
-                              )
-                            : (item.startDate && item.endDate
-                                ? `${new Date(item.startDate.seconds * 1000).toLocaleDateString('en-US', {
-                                    month: 'short',
-                                    day: 'numeric'
-                                  })} to ${new Date(item.endDate.seconds * 1000).toLocaleDateString('en-US', {
-                                    month: 'short',
-                                    day: 'numeric'
-                                  })}`
-                                : 'TBD'
-                              )
+                          {league.startDate && league.endDate
+                            ? `${new Date(league.startDate.seconds * 1000).toLocaleDateString('en-US', {
+                                month: 'short',
+                                day: 'numeric'
+                              })} to ${new Date(league.endDate.seconds * 1000).toLocaleDateString('en-US', {
+                                month: 'short',
+                                day: 'numeric'
+                              })}`
+                            : 'TBD'
                           }
                         </span>
                       </div>
                       <div className="flex items-center text-sm text-gray-600">
                         <Trophy className="h-4 w-4 mr-2 text-gray-400" />
-                        <span className="capitalize">{item.skillLevel}</span>
+                        <span className="capitalize">{league.skillLevel}</span>
                       </div>
                       <div className="flex items-center text-sm text-gray-600">
                         <Users className="h-4 w-4 mr-2 text-gray-400" />
-                        <span>{item.participants?.length || 0} {type === 'tournament' ? 'registered' : 'members'}</span>
+                        <span>{league.participants?.length || 0} members</span>
                       </div>
                     </div>
                   </td>
 
-                  {/* Location Column */}
                   <td className="py-4 px-4 align-top hidden md:table-cell">
                     <div className="space-y-2">
-                      {item.location ? (
+                      {league.location ? (
                         <>
                           <div className="text-sm text-gray-900 leading-5 break-words">
-                            {item.location}
+                            {league.location}
                           </div>
                           <div className="flex items-center space-x-1">
                             <button 
                               className="inline-flex items-center px-2 py-1 text-xs bg-blue-50 text-blue-700 rounded-md hover:bg-blue-100 transition-colors"
-                              onClick={() => openLinkSafely(generateGoogleMapsLink(item.location))}
+                              onClick={() => openLinkSafely(generateGoogleMapsLink(league.location))}
                               title="View on Maps"
                             >
                               <MapPin className="h-3 w-3 mr-1" />
                               Maps
                             </button>
-                            {item.website && (
+                            {league.website && (
                               <button 
                                 className="inline-flex items-center px-2 py-1 text-xs bg-gray-50 text-gray-700 rounded-md hover:bg-gray-100 transition-colors"
-                                onClick={() => openLinkSafely(item.website)}
+                                onClick={() => openLinkSafely(league.website)}
                                 title="Visit Website"
                               >
                                 <ExternalLink className="h-3 w-3 mr-1" />
@@ -279,51 +491,41 @@ const Dashboard = () => {
                     </div>
                   </td>
 
-                  {/* Status Column - FIXED: Registration deadline logic */}
                   <td className="py-4 px-4 align-top hidden lg:table-cell">
                     <div className="space-y-2">
                       <span className={`
                         inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium
-                        ${item.status === TOURNAMENT_STATUS.DRAFT ? 'bg-gray-100 text-gray-800' :
-                          item.status === TOURNAMENT_STATUS.REGISTRATION_OPEN ? 'bg-green-100 text-green-800' :
-                          item.status === TOURNAMENT_STATUS.IN_PROGRESS ? 'bg-blue-100 text-blue-800' :
-                          item.status === TOURNAMENT_STATUS.COMPLETED ? 'bg-purple-100 text-purple-800' :
-                          item.status === LEAGUE_STATUS.ACTIVE ? 'bg-green-100 text-green-800' :
-                          item.status === LEAGUE_STATUS.COMPLETED ? 'bg-purple-100 text-purple-800' :
+                        ${league.status === LEAGUE_STATUS.ACTIVE ? 'bg-green-100 text-green-800' :
+                          league.status === LEAGUE_STATUS.COMPLETED ? 'bg-purple-100 text-purple-800' :
                           'bg-gray-100 text-gray-800'
                         }
                       `}>
                         <div className={`
                           w-1.5 h-1.5 rounded-full mr-1.5
-                          ${item.status === TOURNAMENT_STATUS.REGISTRATION_OPEN || item.status === LEAGUE_STATUS.ACTIVE ? 'bg-green-400' :
-                            item.status === TOURNAMENT_STATUS.IN_PROGRESS ? 'bg-blue-400' :
-                            item.status === TOURNAMENT_STATUS.COMPLETED || item.status === LEAGUE_STATUS.COMPLETED ? 'bg-purple-400' :
+                          ${league.status === LEAGUE_STATUS.ACTIVE ? 'bg-green-400' :
+                            league.status === LEAGUE_STATUS.COMPLETED ? 'bg-purple-400' :
                             'bg-gray-400'
                           }
                         `}></div>
-                        {item.status.replace('_', ' ')}
+                        {league.status.replace('_', ' ')}
                       </span>
                       <div className="text-xs text-gray-500">
-                        {type === 'tournament' 
-                          ? (item.status === TOURNAMENT_STATUS.REGISTRATION_OPEN ? getRegistrationDeadlineText(item) : '')
-                          : (item.status === LEAGUE_STATUS.ACTIVE ? 'Ongoing' : '')
-                        }
+                        {league.status === LEAGUE_STATUS.ACTIVE ? 'Ongoing' : ''}
                       </div>
                     </div>
                   </td>
 
-                  {/* Actions Column - FIXED: Both buttons same width, "Comment" instead of "View" */}
                   <td className="py-4 px-4 align-top">
                     <div className="flex flex-col space-y-1">
                       <button 
                         className="inline-flex items-center justify-center px-3 py-1.5 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors w-20"
-                        onClick={() => type === 'tournament' ? handleViewTournament(item) : handleViewLeague(item)}
+                        onClick={() => handleViewLeague(league)}
                       >
                         Comment
                       </button>
                       <button 
                         className="inline-flex items-center justify-center px-3 py-1.5 text-sm bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors w-20"
-                        onClick={() => type === 'tournament' ? handleEditTournament(item) : handleEditLeague(item)}
+                        onClick={() => handleEditLeague(league)}
                       >
                         Edit
                       </button>
@@ -338,8 +540,23 @@ const Dashboard = () => {
     );
   };
 
-  // [All existing handler functions remain the same...]
-  // Auth functions
+  // NEW: Handle division participant changes
+  const handleDivisionParticipantsChange = (divisionId, participants) => {
+    if (!editingTournament) return;
+    
+    const updatedDivisions = editingTournament.divisions.map(division => 
+      division.id === divisionId 
+        ? { ...division, participants }
+        : division
+    );
+    
+    setEditingTournament(prev => ({
+      ...prev,
+      divisions: updatedDivisions
+    }));
+  };
+
+  // Auth functions (unchanged)
   const handleSignIn = async (credentials) => {
     try {
       await signIn(credentials.email, credentials.password);
@@ -360,21 +577,13 @@ const Dashboard = () => {
     }
   };
 
-  // Tournament functions
+  // UPDATED: Tournament functions
   const handleCreateTournament = async (tournamentData) => {
     setFormLoading(true);
     try {
-      const tournamentId = await addTournament(tournamentData);
-      
-      if (selectedMembers.length > 0) {
-        await updateTournament(tournamentId, {
-          participants: selectedMembers
-        });
-      }
-      
+      await addTournament(tournamentData);
       setShowTournamentModal(false);
-      setSelectedMembers([]);
-      showAlert('success', 'Tournament created!', `${tournamentData.name} has been created successfully`);
+      showAlert('success', 'Tournament created!', `${tournamentData.name} has been created successfully with ${tournamentData.divisions.length} division${tournamentData.divisions.length !== 1 ? 's' : ''}`);
     } catch (err) {
       showAlert('error', 'Failed to create tournament', err.message);
     } finally {
@@ -384,7 +593,6 @@ const Dashboard = () => {
 
   const handleEditTournament = (tournament) => {
     setEditingTournament(tournament);
-    setSelectedMembers(tournament.participants || []);
     setShowTournamentModal(true);
   };
 
@@ -396,14 +604,9 @@ const Dashboard = () => {
   const handleUpdateTournament = async (tournamentData) => {
     setFormLoading(true);
     try {
-      await updateTournament(editingTournament.id, {
-        ...tournamentData,
-        participants: selectedMembers
-      });
-      
+      await updateTournament(editingTournament.id, tournamentData);
       setShowTournamentModal(false);
       setEditingTournament(null);
-      setSelectedMembers([]);
       showAlert('success', 'Tournament updated!', `${tournamentData.name} has been updated successfully`);
     } catch (err) {
       showAlert('error', 'Failed to update tournament', err.message);
@@ -418,7 +621,6 @@ const Dashboard = () => {
       await deleteTournament(tournamentId);
       setShowTournamentModal(false);
       setEditingTournament(null);
-      setSelectedMembers([]);
       showAlert('success', 'Tournament deleted!', 'Tournament has been successfully deleted');
     } catch (err) {
       showAlert('error', 'Failed to delete tournament', err.message);
@@ -427,7 +629,7 @@ const Dashboard = () => {
     }
   };
 
-  // League functions
+  // League functions (unchanged)
   const handleCreateLeague = async (leagueData) => {
     setFormLoading(true);
     try {
@@ -494,7 +696,7 @@ const Dashboard = () => {
     }
   };
 
-  // Member functions
+  // Member functions (unchanged)
   const handleCreateMember = async (memberData) => {
     setFormLoading(true);
     try {
@@ -541,7 +743,7 @@ const Dashboard = () => {
     }
   };
 
-  // Payment tracking calculations
+  // UPDATED: Payment tracking calculations
   const getPaymentSummary = () => {
     return calculateOverallPaymentSummary(tournaments, leagues);
   };
@@ -558,7 +760,7 @@ const Dashboard = () => {
     );
   }
 
-  // Authentication UI
+  // Authentication UI (unchanged)
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -678,8 +880,8 @@ const Dashboard = () => {
           </Button>
         </div>
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        {/* UPDATED: Stats Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
           <div className="bg-white rounded-lg border shadow-sm p-6 text-center">
             <h3 className="text-sm font-medium text-gray-500 mb-2">Total Tournaments</h3>
             <div className="flex items-center justify-center">
@@ -691,9 +893,19 @@ const Dashboard = () => {
           </div>
 
           <div className="bg-white rounded-lg border shadow-sm p-6 text-center">
+            <h3 className="text-sm font-medium text-gray-500 mb-2">Total Divisions</h3>
+            <div className="flex items-center justify-center">
+              <Layers className="h-8 w-8 text-blue-600 mr-3" />
+              <span className="text-3xl font-bold text-gray-900">
+                {tournaments.reduce((sum, t) => sum + (t.divisions?.length || 0), 0)}
+              </span>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-lg border shadow-sm p-6 text-center">
             <h3 className="text-sm font-medium text-gray-500 mb-2">Active Leagues</h3>
             <div className="flex items-center justify-center">
-              <Activity className="h-8 w-8 text-blue-600 mr-3" />
+              <Activity className="h-8 w-8 text-purple-600 mr-3" />
               <span className="text-3xl font-bold text-gray-900">
                 {leagues.filter(l => l.status === LEAGUE_STATUS.ACTIVE).length}
               </span>
@@ -703,7 +915,7 @@ const Dashboard = () => {
           <div className="bg-white rounded-lg border shadow-sm p-6 text-center">
             <h3 className="text-sm font-medium text-gray-500 mb-2">Active Members</h3>
             <div className="flex items-center justify-center">
-              <Users className="h-8 w-8 text-purple-600 mr-3" />
+              <Users className="h-8 w-8 text-indigo-600 mr-3" />
               <span className="text-3xl font-bold text-gray-900">
                 {members.length}
               </span>
@@ -711,7 +923,7 @@ const Dashboard = () => {
           </div>
         </div>
 
-        {/* Quick Actions */}
+        {/* Quick Actions (unchanged) */}
         <Card title="Quick Actions" className="mb-8">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <Button 
@@ -752,10 +964,10 @@ const Dashboard = () => {
           </div>
         </Card>
 
-        {/* Tournaments Section - REMOVED view mode toggles */}
+        {/* UPDATED: Tournaments Section */}
         <Card 
           title="Tournaments"
-          subtitle="Manage your pickleball tournaments (sorted chronologically)"
+          subtitle="Manage your pickleball tournaments with divisions (sorted chronologically)"
           actions={[
             <Button 
               key="add-tournament"
@@ -767,10 +979,10 @@ const Dashboard = () => {
           ]}
           className="mb-8"
         >
-          <EnhancedTable data={sortedTournaments} type="tournament" />
+          <EnhancedTournamentTable data={sortedTournaments} />
         </Card>
 
-        {/* Leagues Section - REMOVED view mode toggles */}
+        {/* Leagues Section (unchanged) */}
         <Card 
           title="Leagues"
           subtitle="Manage ongoing pickleball leagues (sorted chronologically)"
@@ -785,10 +997,10 @@ const Dashboard = () => {
           ]}
           className="mb-8"
         >
-          <EnhancedTable data={sortedLeagues} type="league" />
+          <EnhancedLeagueTable data={sortedLeagues} />
         </Card>
 
-        {/* Members Section */}
+        {/* Members Section (unchanged) */}
         <Card 
           title="Members"
           subtitle="Manage pickleball community members"
@@ -843,17 +1055,15 @@ const Dashboard = () => {
           </div>
         </Card>
 
-        {/* All existing modals remain the same... */}
-        {/* Tournament Modal */}
+        {/* UPDATED: Tournament Modal with Division Support */}
         <Modal
           isOpen={showTournamentModal}
           onClose={() => {
             setShowTournamentModal(false);
             setEditingTournament(null);
-            setSelectedMembers([]);
           }}
           title={editingTournament ? 'Edit Tournament' : 'Create New Tournament'}
-          size="lg"
+          size="xl" // Larger modal for division management
         >
           <div className="space-y-6">
             <TournamentForm
@@ -862,27 +1072,30 @@ const Dashboard = () => {
               onCancel={() => {
                 setShowTournamentModal(false);
                 setEditingTournament(null);
-                setSelectedMembers([]);
               }}
               onDelete={editingTournament ? handleDeleteTournament : null}
               loading={formLoading}
               deleteLoading={deleteLoading}
             />
             
-            <div className="border-t pt-6">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">
-                Select Participants
-              </h3>
-              <MemberSelector
-                members={members}
-                selectedMembers={selectedMembers}
-                onSelectionChange={setSelectedMembers}
-                loading={membersLoading}
-              />
-            </div>
+            {/* Division Participant Management - Only show when editing */}
+            {editingTournament && editingTournament.divisions && editingTournament.divisions.length > 0 && (
+              <div className="border-t pt-6">
+                <h3 className="text-lg font-medium text-gray-900 mb-4">
+                  Manage Division Participants
+                </h3>
+                <DivisionMemberSelector
+                  tournament={editingTournament}
+                  members={members}
+                  onDivisionParticipantsChange={handleDivisionParticipantsChange}
+                  loading={membersLoading}
+                />
+              </div>
+            )}
           </div>
         </Modal>
 
+        {/* Rest of the modals remain the same... */}
         {/* Tournament Detail Modal */}
         <Modal
           isOpen={showTournamentDetailModal}
@@ -930,12 +1143,12 @@ const Dashboard = () => {
                     </div>
                   </div>
                   <div>
-                    <span className="font-medium text-gray-700">Participants:</span>
-                    <p>{viewingTournament.participants?.length || 0}</p>
+                    <span className="font-medium text-gray-700">Divisions:</span>
+                    <p>{viewingTournament.divisions?.length || 0}</p>
                   </div>
                   <div>
-                    <span className="font-medium text-gray-700">Entry Fee:</span>
-                    <p>${viewingTournament.entryFee || 0}</p>
+                    <span className="font-medium text-gray-700">Total Participants:</span>
+                    <p>{getTournamentTotalParticipants(viewingTournament)}</p>
                   </div>
                 </div>
                 {viewingTournament.description && (
@@ -972,7 +1185,7 @@ const Dashboard = () => {
           )}
         </Modal>
 
-        {/* League Modal */}
+        {/* League Modal (unchanged) */}
         <Modal
           isOpen={showLeagueModal}
           onClose={() => {
@@ -1011,7 +1224,7 @@ const Dashboard = () => {
           </div>
         </Modal>
 
-        {/* League Detail Modal */}
+        {/* League Detail Modal (unchanged) */}
         <Modal
           isOpen={showLeagueDetailModal}
           onClose={() => {
@@ -1104,7 +1317,7 @@ const Dashboard = () => {
           )}
         </Modal>
 
-        {/* Member Modal */}
+        {/* Member Modal (unchanged) */}
         <Modal
           isOpen={showMemberModal}
           onClose={() => {
@@ -1127,7 +1340,7 @@ const Dashboard = () => {
           />
         </Modal>
 
-        {/* Payment Modal */}
+        {/* UPDATED: Payment Modal with Division Support */}
         <Modal
           isOpen={showPaymentModal}
           onClose={() => setShowPaymentModal(false)}
@@ -1140,7 +1353,7 @@ const Dashboard = () => {
                 <h4 className="font-medium text-blue-900">Total Expected</h4>
                 <p className="text-2xl font-bold text-blue-600">${paymentSummary.totalExpected}</p>
                 <p className="text-xs text-blue-700 mt-1">
-                  {paymentSummary.paidTournaments} tournaments • {paymentSummary.paidLeagues} leagues
+                  {paymentSummary.paidTournaments} tournaments • {paymentSummary.paidDivisions} divisions • {paymentSummary.paidLeagues} leagues
                 </p>
               </div>
               <div className="bg-green-50 p-4 rounded-lg border-2 border-green-200">
@@ -1163,33 +1376,60 @@ const Dashboard = () => {
               <div className="border-b border-gray-200 pb-4 mb-6">
                 <h3 className="text-xl font-semibold text-gray-900 flex items-center">
                   <Trophy className="h-6 w-6 text-green-600 mr-2" />
-                  Tournament Payments
+                  Tournament Division Payments
                 </h3>
-                <p className="text-sm text-gray-600 mt-1">Track entry fee payments for tournaments</p>
+                <p className="text-sm text-gray-600 mt-1">Track entry fee payments by division</p>
               </div>
               
               <div className="space-y-6">
-                {tournaments.filter(t => t.entryFee > 0).map(tournament => (
-                  <div key={tournament.id} className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-                    <div className="flex justify-between items-center mb-4">
-                      <h4 className="font-medium text-gray-900">{tournament.name}</h4>
-                      <span className="text-sm text-gray-500 bg-white px-2 py-1 rounded">
-                        ${tournament.entryFee} per person
-                      </span>
+                {tournaments.filter(t => 
+                  t.divisions && t.divisions.some(div => div.entryFee > 0)
+                ).map(tournament => {
+                  const paidDivisions = tournament.divisions.filter(div => div.entryFee > 0);
+                  
+                  return (
+                    <div key={tournament.id} className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                      <div className="mb-4">
+                        <h4 className="font-medium text-gray-900">{tournament.name}</h4>
+                        <p className="text-sm text-gray-600">
+                          {paidDivisions.length} paid division{paidDivisions.length !== 1 ? 's' : ''}
+                        </p>
+                      </div>
+                      
+                      <div className="space-y-4">
+                        {paidDivisions.map(division => (
+                          <div key={division.id} className="bg-white border border-gray-200 rounded p-3">
+                            <div className="flex justify-between items-center mb-3">
+                              <h5 className="font-medium text-gray-800">{division.name}</h5>
+                              <span className="text-sm text-gray-500 bg-gray-100 px-2 py-1 rounded">
+                                ${division.entryFee} per person
+                              </span>
+                            </div>
+                            <PaymentStatus
+                              event={{ ...tournament, ...division, participants: division.participants, paymentData: division.paymentData }}
+                              eventType="tournament"
+                              members={members}
+                              onPaymentUpdate={(eventId, updates) => {
+                                // Update the specific division
+                                const updatedDivisions = tournament.divisions.map(div => 
+                                  div.id === division.id ? { ...div, ...updates } : div
+                                );
+                                updateTournament(tournament.id, { divisions: updatedDivisions });
+                              }}
+                              currentUserId={user?.uid}
+                            />
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                    <PaymentStatus
-                      event={tournament}
-                      eventType="tournament"
-                      members={members}
-                      onPaymentUpdate={updateTournament}
-                      currentUserId={user?.uid}
-                    />
-                  </div>
-                ))}
+                  );
+                })}
                 
-                {tournaments.filter(t => t.entryFee > 0).length === 0 && (
+                {tournaments.filter(t => 
+                  t.divisions && t.divisions.some(div => div.entryFee > 0)
+                ).length === 0 && (
                   <p className="text-gray-500 text-center py-8 bg-gray-50 rounded-lg">
-                    No tournaments with entry fees found.
+                    No tournament divisions with entry fees found.
                   </p>
                 )}
               </div>
@@ -1227,7 +1467,7 @@ const Dashboard = () => {
                   <p className="text-gray-500 text-center py-8 bg-gray-50 rounded-lg">
                     No leagues with registration fees found.
                   </p>
-                  )}
+                )}
               </div>
             </div>
 
@@ -1235,8 +1475,8 @@ const Dashboard = () => {
               <div className="text-center py-12 bg-gray-50 rounded-lg border-2 border-gray-200">
                 <DollarSign className="h-16 w-16 mx-auto text-gray-300 mb-4" />
                 <h3 className="text-lg font-medium text-gray-700 mb-2">No Payment Tracking Needed</h3>
-                <p className="text-gray-500 mb-4">No tournaments or leagues with fees found.</p>
-                <p className="text-sm text-gray-400">Create a tournament or league with an entry/registration fee to start tracking payments.</p>
+                <p className="text-gray-500 mb-4">No tournaments, divisions, or leagues with fees found.</p>
+                <p className="text-sm text-gray-400">Create a tournament division or league with fees to start tracking payments.</p>
               </div>
             )}
           </div>

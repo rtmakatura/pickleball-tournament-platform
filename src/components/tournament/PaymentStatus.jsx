@@ -1,4 +1,4 @@
-// src/components/tournament/PaymentStatus.jsx (ENHANCED - Show Venmo handles)
+// src/components/tournament/PaymentStatus.jsx (UPDATED - Division Support)
 import React, { useState } from 'react';
 import { 
   DollarSign, 
@@ -12,45 +12,97 @@ import {
   Receipt,
   CheckCircle2,
   AlertTriangle,
-  ExternalLink
+  ExternalLink,
+  Layers,
+  Trophy
 } from 'lucide-react';
-import { Button, Alert, Select } from '../ui';
+import { Button, Alert, Select, Card } from '../ui';
 import { PAYMENT_MODES } from '../../services/models';
+import { 
+  calculateDivisionPaymentSummary, 
+  calculateTournamentPaymentSummary,
+  calculateLeaguePaymentSummary,
+  getParticipantPaymentStatus
+} from '../../utils/paymentUtils';
 
 /**
  * PaymentStatus Component - Track entry fee payments for tournaments and leagues
- * Now includes Venmo handle display for easy payment processing
+ * UPDATED: Now supports division-based payment tracking for tournaments
  * 
  * Props:
- * - event: object - Event data (tournament or league) with participants and fee
+ * - event: object - Event data (tournament with divisions or league)
  * - eventType: string - 'tournament' or 'league'
+ * - divisionId: string - Optional division ID for single division view
  * - members: array - All members data for participant lookup
  * - onPaymentUpdate: function - Called when payment status changes
  * - currentUserId: string - ID of current user (for highlighting)
  */
 const PaymentStatus = ({ 
   event, 
-  eventType = 'tournament', // 'tournament' or 'league'
+  eventType = 'tournament',
+  divisionId = null,
   members = [], 
   onPaymentUpdate,
   currentUserId 
 }) => {
-  const [paymentData, setPaymentData] = useState(
-    event.paymentData || {}
-  );
-  const [selectedGroupPayer, setSelectedGroupPayer] = useState('');
   const [errors, setErrors] = useState([]);
+  const [selectedDivision, setSelectedDivision] = useState(
+    divisionId || (event.divisions?.[0]?.id || '')
+  );
 
-  const paymentMode = event.paymentMode || PAYMENT_MODES.INDIVIDUAL;
+  // Determine if this is a division-based tournament
+  const isDivisionBased = eventType === 'tournament' && event.divisions && Array.isArray(event.divisions);
+  const isLegacyTournament = eventType === 'tournament' && !isDivisionBased;
+  const isLeague = eventType === 'league';
+
+  // Get current division for division-based tournaments
+  const currentDivision = isDivisionBased 
+    ? event.divisions.find(div => div.id === selectedDivision)
+    : null;
+
+  // Get payment data and fee based on event type and structure
+  const getPaymentContext = () => {
+    if (isDivisionBased && currentDivision) {
+      return {
+        fee: parseFloat(currentDivision.entryFee) || 0,
+        participants: currentDivision.participants || [],
+        paymentData: currentDivision.paymentData || {},
+        paymentMode: currentDivision.paymentMode || PAYMENT_MODES.INDIVIDUAL,
+        feeLabel: 'Entry Fee',
+        eventLabel: 'Division'
+      };
+    } else if (isLegacyTournament) {
+      return {
+        fee: parseFloat(event.entryFee) || 0,
+        participants: event.participants || [],
+        paymentData: event.paymentData || {},
+        paymentMode: event.paymentMode || PAYMENT_MODES.INDIVIDUAL,
+        feeLabel: 'Entry Fee',
+        eventLabel: 'Tournament'
+      };
+    } else if (isLeague) {
+      return {
+        fee: parseFloat(event.registrationFee) || 0,
+        participants: event.participants || [],
+        paymentData: event.paymentData || {},
+        paymentMode: event.paymentMode || PAYMENT_MODES.INDIVIDUAL,
+        feeLabel: 'Registration Fee',
+        eventLabel: 'League'
+      };
+    }
+    
+    return {
+      fee: 0,
+      participants: [],
+      paymentData: {},
+      paymentMode: PAYMENT_MODES.INDIVIDUAL,
+      feeLabel: 'Fee',
+      eventLabel: 'Event'
+    };
+  };
+
+  const { fee, participants, paymentData, paymentMode, feeLabel, eventLabel } = getPaymentContext();
   const isGroupPayment = paymentMode === PAYMENT_MODES.GROUP;
-  
-  // Get the appropriate fee field based on event type
-  const feeFieldName = eventType === 'league' ? 'registrationFee' : 'entryFee';
-  const fee = parseFloat(event[feeFieldName]) || 0;
-  
-  // Get appropriate terminology
-  const feeLabel = eventType === 'league' ? 'Registration Fee' : 'Entry Fee';
-  const eventLabel = eventType === 'league' ? 'League' : 'Tournament';
 
   // Validation helper
   const validatePaymentAmount = (amount) => {
@@ -60,76 +112,47 @@ const PaymentStatus = ({
 
   // Get participant details with payment info and venmo handles
   const getParticipantsWithPaymentInfo = () => {
-    if (!event.participants || event.participants.length === 0) {
-      return [];
-    }
+    if (participants.length === 0) return [];
 
-    return event.participants.map(participantId => {
+    return participants.map(participantId => {
       const member = members.find(m => m.id === participantId);
-      const payment = paymentData[participantId] || {};
-      
-      // Simplified payment status calculation
-      let status = 'unpaid';
-      let amountPaid = 0;
-      
-      if (payment.amount && validatePaymentAmount(payment.amount)) {
-        amountPaid = parseFloat(payment.amount);
-        if (amountPaid >= fee) {
-          status = amountPaid > fee ? 'overpaid' : 'paid';
-        } else if (amountPaid > 0) {
-          status = 'partial';
-        }
-      }
+      const paymentStatus = getParticipantPaymentStatus(participantId, paymentData, fee);
       
       return {
         id: participantId,
         member: member || { firstName: 'Unknown', lastName: 'Member', email: '', venmoHandle: '' },
-        status,
-        amountPaid,
-        amountOwed: Math.max(0, fee - amountPaid),
-        overpaidAmount: Math.max(0, amountPaid - fee),
-        paymentDate: payment.date || null,
-        notes: payment.notes || ''
+        ...paymentStatus,
+        paymentDate: paymentData[participantId]?.date || null,
+        notes: paymentData[participantId]?.notes || ''
       };
     });
   };
 
   const participantsWithPayment = getParticipantsWithPaymentInfo();
 
-  // Simplified payment summary calculation
+  // Calculate payment summary
   const getPaymentSummary = () => {
-    const totalParticipants = participantsWithPayment.length;
-    const totalExpected = fee * totalParticipants;
+    if (isDivisionBased && currentDivision) {
+      return calculateDivisionPaymentSummary(currentDivision);
+    } else if (isLegacyTournament) {
+      return calculateTournamentPaymentSummary(event);
+    } else if (isLeague) {
+      return calculateLeaguePaymentSummary(event);
+    }
     
-    // Calculate actual totals
-    const totalPaid = participantsWithPayment.reduce((sum, p) => sum + p.amountPaid, 0);
-    const totalOwed = participantsWithPayment.reduce((sum, p) => sum + p.amountOwed, 0);
-    const totalOverpaid = participantsWithPayment.reduce((sum, p) => sum + p.overpaidAmount, 0);
-    
-    // Count participants by status
-    const paidCount = participantsWithPayment.filter(p => p.status === 'paid').length;
-    const partialCount = participantsWithPayment.filter(p => p.status === 'partial').length;
-    const unpaidCount = participantsWithPayment.filter(p => p.status === 'unpaid').length;
-    const overpaidCount = participantsWithPayment.filter(p => p.status === 'overpaid').length;
-
-    // Find group payer (if any)
-    const groupPayer = participantsWithPayment.find(p => 
-      p.amountPaid >= totalExpected && isGroupPayment
-    );
-
     return {
-      totalParticipants,
-      totalExpected,
-      totalPaid: Math.round(totalPaid * 100) / 100,
-      totalOwed: Math.round(totalOwed * 100) / 100,
-      totalOverpaid: Math.round(totalOverpaid * 100) / 100,
-      paidCount,
-      partialCount,
-      unpaidCount,
-      overpaidCount,
-      groupPayer: groupPayer?.member || null,
-      isFullyPaid: totalOwed === 0,
-      paymentRate: totalParticipants > 0 ? ((paidCount / totalParticipants) * 100).toFixed(1) : 0
+      totalParticipants: 0,
+      totalExpected: 0,
+      totalPaid: 0,
+      totalOwed: 0,
+      totalOverpaid: 0,
+      paidCount: 0,
+      partialCount: 0,
+      unpaidCount: 0,
+      overpaidCount: 0,
+      isFullyPaid: true,
+      paymentRate: 100,
+      hasPaymentIssues: false
     };
   };
 
@@ -143,61 +166,87 @@ const PaymentStatus = ({
     }
 
     const paymentAmount = parseFloat(amount);
-    const newPaymentData = {
-      ...paymentData,
-      [participantId]: {
-        amount: paymentAmount,
-        date: new Date().toISOString(),
-        method: isGroupPayment ? 'group' : 'individual',
-        notes: notes || `Payment of $${paymentAmount}`,
-        recordedBy: currentUserId
-      }
+    const newPaymentRecord = {
+      amount: paymentAmount,
+      date: new Date().toISOString(),
+      method: isGroupPayment ? 'group' : 'individual',
+      notes: notes || `Payment of $${paymentAmount}`,
+      recordedBy: currentUserId
     };
-    
-    setPaymentData(newPaymentData);
-    setErrors([]);
-    
-    if (onPaymentUpdate) {
+
+    // Update payment data based on event structure
+    if (isDivisionBased && currentDivision) {
+      const updatedPaymentData = {
+        ...currentDivision.paymentData,
+        [participantId]: newPaymentRecord
+      };
+      
+      const updatedDivisions = event.divisions.map(div => 
+        div.id === selectedDivision 
+          ? { ...div, paymentData: updatedPaymentData }
+          : div
+      );
+      
+      onPaymentUpdate(event.id, { divisions: updatedDivisions });
+    } else {
+      const newPaymentData = {
+        ...paymentData,
+        [participantId]: newPaymentRecord
+      };
+      
       onPaymentUpdate(event.id, { paymentData: newPaymentData });
     }
+    
+    setErrors([]);
   };
 
-  // Handle group payment - one person pays for everyone
+  // Handle group payment
   const handleGroupPayment = (payerId) => {
-    const totalAmount = fee * participantsWithPayment.length;
-    const newPaymentData = { ...paymentData };
-    
-    // Clear existing payments
-    participantsWithPayment.forEach(p => {
-      delete newPaymentData[p.id];
-    });
+    const totalAmount = fee * participants.length;
+    let newPaymentData = {};
     
     // Set group payer payment
     newPaymentData[payerId] = {
       amount: totalAmount,
       date: new Date().toISOString(),
       method: 'group_payment',
-      notes: `Paid $${totalAmount} for entire group of ${participantsWithPayment.length}`,
+      notes: `Paid $${totalAmount} for entire group of ${participants.length}`,
       recordedBy: currentUserId
     };
 
-    setPaymentData(newPaymentData);
-    setSelectedGroupPayer('');
-    setErrors([]);
-    
-    if (onPaymentUpdate) {
+    // Update based on event structure
+    if (isDivisionBased && currentDivision) {
+      const updatedDivisions = event.divisions.map(div => 
+        div.id === selectedDivision 
+          ? { ...div, paymentData: newPaymentData }
+          : div
+      );
+      
+      onPaymentUpdate(event.id, { divisions: updatedDivisions });
+    } else {
       onPaymentUpdate(event.id, { paymentData: newPaymentData });
     }
+    
+    setErrors([]);
   };
 
   // Remove payment
   const removePayment = (participantId) => {
-    const newPaymentData = { ...paymentData };
-    delete newPaymentData[participantId];
-    
-    setPaymentData(newPaymentData);
-    
-    if (onPaymentUpdate) {
+    if (isDivisionBased && currentDivision) {
+      const updatedPaymentData = { ...currentDivision.paymentData };
+      delete updatedPaymentData[participantId];
+      
+      const updatedDivisions = event.divisions.map(div => 
+        div.id === selectedDivision 
+          ? { ...div, paymentData: updatedPaymentData }
+          : div
+      );
+      
+      onPaymentUpdate(event.id, { divisions: updatedDivisions });
+    } else {
+      const newPaymentData = { ...paymentData };
+      delete newPaymentData[participantId];
+      
       onPaymentUpdate(event.id, { paymentData: newPaymentData });
     }
   };
@@ -213,10 +262,10 @@ const PaymentStatus = ({
     return badges[status] || badges.unpaid;
   };
 
-  // NEW: Get Venmo link for easy payment
+  // Get Venmo link for easy payment
   const getVenmoLink = (venmoHandle, amount) => {
     if (!venmoHandle) return null;
-    const note = encodeURIComponent(`${eventLabel} ${feeLabel} - ${event.name}`);
+    const note = encodeURIComponent(`${eventLabel} ${feeLabel} - ${event.name}${currentDivision ? ` (${currentDivision.name})` : ''}`);
     return `https://venmo.com/${venmoHandle}?txn=pay&amount=${amount}&note=${note}`;
   };
 
@@ -242,12 +291,57 @@ const PaymentStatus = ({
         />
       )}
 
+      {/* Division Selector for Division-Based Tournaments */}
+      {isDivisionBased && event.divisions.length > 1 && (
+        <Card title="Select Division">
+          <Select
+            label="Division"
+            value={selectedDivision}
+            onChange={(e) => setSelectedDivision(e.target.value)}
+            options={event.divisions
+              .filter(div => div.entryFee > 0)
+              .map(div => ({
+                value: div.id,
+                label: `${div.name} - $${div.entryFee} (${div.participants?.length || 0} participants)`
+              }))
+            }
+            helperText="Select a division to manage payments"
+          />
+          
+          {currentDivision && (
+            <div className="mt-4 bg-gray-50 p-4 rounded-lg">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                <div>
+                  <span className="font-medium text-gray-700">Event Type:</span>
+                  <p className="capitalize">{currentDivision.eventType?.replace('_', ' ')}</p>
+                </div>
+                <div>
+                  <span className="font-medium text-gray-700">Skill Level:</span>
+                  <p className="capitalize">{currentDivision.skillLevel}</p>
+                </div>
+                <div>
+                  <span className="font-medium text-gray-700">Entry Fee:</span>
+                  <p>${currentDivision.entryFee}</p>
+                </div>
+                <div>
+                  <span className="font-medium text-gray-700">Participants:</span>
+                  <p>{currentDivision.participants?.length || 0}</p>
+                </div>
+              </div>
+            </div>
+          )}
+        </Card>
+      )}
+
       {/* Payment Mode Info */}
       <div className="bg-blue-50 p-4 rounded-lg">
         <div className="flex items-center justify-between">
           <div>
             <h4 className="font-medium text-blue-900">
               {isGroupPayment ? 'Group Payment Mode' : 'Individual Payment Mode'}
+              {isDivisionBased && currentDivision && (
+                <span className="ml-2 text-sm text-blue-700">({currentDivision.name})</span>
+              )}
             </h4>
             <p className="text-sm text-blue-700">
               {isGroupPayment 
@@ -357,8 +451,12 @@ const PaymentStatus = ({
           
           <div className="flex items-center space-x-4">
             <Select
-              value={selectedGroupPayer}
-              onChange={(e) => setSelectedGroupPayer(e.target.value)}
+              value=""
+              onChange={(e) => {
+                if (e.target.value) {
+                  handleGroupPayment(e.target.value);
+                }
+              }}
               options={[
                 { value: '', label: 'Select group payer...' },
                 ...participantsWithPayment.map(p => ({
@@ -368,17 +466,6 @@ const PaymentStatus = ({
               ]}
               className="flex-1"
             />
-            
-            <Button
-              onClick={() => {
-                if (selectedGroupPayer) {
-                  handleGroupPayment(selectedGroupPayer);
-                }
-              }}
-              disabled={!selectedGroupPayer}
-            >
-              Process Group Payment
-            </Button>
           </div>
         </div>
       )}
@@ -388,6 +475,9 @@ const PaymentStatus = ({
         <div className="p-4 border-b bg-gray-50">
           <h3 className="text-lg font-medium text-gray-900">
             Payment Status by Participant
+            {isDivisionBased && currentDivision && (
+              <span className="ml-2 text-sm text-gray-600">({currentDivision.name})</span>
+            )}
           </h3>
           <p className="text-sm text-gray-600">
             {summary.paidCount} of {summary.totalParticipants} participants have paid in full
@@ -397,9 +487,6 @@ const PaymentStatus = ({
         <div className="divide-y">
           {participantsWithPayment.map((participant) => {
             const isCurrentUser = participant.id === currentUserId;
-            const isGroupPayer = summary.groupPayer && 
-              summary.groupPayer.firstName === participant.member.firstName &&
-              summary.groupPayer.lastName === participant.member.lastName;
             const statusBadge = getStatusBadge(participant.status);
             const hasVenmo = participant.member.venmoHandle;
             const venmoLink = hasVenmo ? getVenmoLink(participant.member.venmoHandle, fee) : null;
@@ -425,17 +512,12 @@ const PaymentStatus = ({
                             You
                           </span>
                         )}
-                        {isGroupPayer && (
-                          <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">
-                            Group Payer
-                          </span>
-                        )}
                       </div>
                       <p className="text-sm text-gray-500">
                         {participant.member.email}
                       </p>
                       
-                      {/* NEW: Venmo Handle Display */}
+                      {/* Venmo Handle Display */}
                       {hasVenmo && (
                         <div className="flex items-center space-x-2 mt-1">
                           <DollarSign className="h-3 w-3 text-green-600" />
@@ -482,7 +564,6 @@ const PaymentStatus = ({
                   {/* Payment Actions */}
                   <div className="flex items-center space-x-3">
                     {!isGroupPayment ? (
-                      // Individual payment mode
                       <>
                         {participant.status === 'unpaid' && (
                           <div className="flex items-center space-x-2">
@@ -522,32 +603,11 @@ const PaymentStatus = ({
                         )}
                       </>
                     ) : (
-                      // Group payment mode
-                      <>
-                        {isGroupPayer ? (
-                          <div className="text-center">
-                            <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
-                              <CreditCard className="h-4 w-4 mr-1" />
-                              Paid ${participant.amountPaid}
-                            </span>
-                          </div>
-                        ) : participant.amountPaid > 0 ? (
-                          <span className="text-sm text-gray-500">
-                            Covered by group payment
-                          </span>
-                        ) : (
-                          <div className="text-center">
-                            <span className="text-sm text-gray-500">
-                              Waiting for group payment
-                            </span>
-                            {hasVenmo && summary.groupPayer && (
-                              <p className="text-xs text-green-600 mt-1">
-                                Reimburse @{summary.groupPayer.venmoHandle || 'group payer'}
-                              </p>
-                            )}
-                          </div>
-                        )}
-                      </>
+                      <div className="text-center">
+                        <span className="text-sm text-gray-500">
+                          {summary.isFullyPaid ? 'Covered by group payment' : 'Waiting for group payment'}
+                        </span>
+                      </div>
                     )}
                   </div>
                 </div>
@@ -573,31 +633,45 @@ const PaymentStatus = ({
         </div>
       )}
 
-      {/* Group Payment Summary */}
-      {isGroupPayment && summary.groupPayer && (
-        <div className="bg-green-50 p-4 rounded-lg">
-          <h4 className="font-medium text-green-900 mb-3 flex items-center">
-            <CreditCard className="h-5 w-5 mr-2" />
-            Group Payment Summary
-          </h4>
-          
-          <div className="space-y-2">
-            <p className="text-sm text-green-800">
-              <strong>{summary.groupPayer.firstName} {summary.groupPayer.lastName}</strong> paid ${summary.totalExpected} for the entire group of {summary.totalParticipants} participants.
-            </p>
+      {/* Tournament Overview for Division-Based Tournaments */}
+      {isDivisionBased && (
+        <Card title="Tournament Payment Overview">
+          <div className="space-y-4">
+            <div className="text-sm text-gray-600 mb-3">
+              Payment status across all divisions with entry fees
+            </div>
             
-            <div className="text-sm text-green-700">
-              <p>✓ {eventLabel} {feeLabel.toLowerCase()} are fully covered</p>
-              <p>💰 Participants can arrange reimbursement directly with the group payer</p>
-              {summary.groupPayer.venmoHandle && (
-                <p className="flex items-center">
-                  <DollarSign className="h-4 w-4 mr-1" />
-                  Others can reimburse via Venmo: @{summary.groupPayer.venmoHandle}
-                </p>
-              )}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {event.divisions
+                .filter(div => div.entryFee > 0)
+                .map(division => {
+                  const divSummary = calculateDivisionPaymentSummary(division);
+                  
+                  return (
+                    <div key={division.id} className="bg-gray-50 p-4 rounded border">
+                      <div className="flex items-center space-x-2 mb-2">
+                        <Trophy className="h-4 w-4 text-gray-600" />
+                        <h4 className="font-medium text-gray-900">{division.name}</h4>
+                      </div>
+                      <div className="text-sm space-y-1">
+                        <p className="text-gray-600">
+                          ${division.entryFee} × {divSummary.totalParticipants} = ${divSummary.totalExpected}
+                        </p>
+                        <p className={`font-medium ${
+                          divSummary.isFullyPaid ? 'text-green-600' : 'text-red-600'
+                        }`}>
+                          {divSummary.isFullyPaid ? '✓ Complete' : `$${divSummary.totalOwed} owed`}
+                        </p>
+                        <p className="text-gray-500">
+                          {divSummary.paidCount}/{divSummary.totalParticipants} paid ({divSummary.paymentRate}%)
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })}
             </div>
           </div>
-        </div>
+        </Card>
       )}
     </div>
   );

@@ -1,4 +1,4 @@
-// src/services/models.js (SIMPLIFIED - Comments Without Voting)
+// src/services/models.js (UPDATED - Division Support)
 // Data models and validation schemas for the pickleball app
 
 // Member roles
@@ -95,18 +95,46 @@ export const AWARD_CATEGORIES = {
   VETERAN: 'veteran'
 };
 
-// SIMPLIFIED: Comment types (no voting)
+// Comment types
 export const COMMENT_TYPES = {
   COMMENT: 'comment',
   REPLY: 'reply'
 };
 
-// SIMPLIFIED: Comment statuses (no voting-related statuses)
+// Comment statuses
 export const COMMENT_STATUS = {
   ACTIVE: 'active',
   EDITED: 'edited',
   DELETED: 'deleted',
   HIDDEN: 'hidden'
+};
+
+// NEW: Division status
+export const DIVISION_STATUS = {
+  OPEN: 'open',
+  CLOSED: 'closed',
+  IN_PROGRESS: 'in_progress',
+  COMPLETED: 'completed'
+};
+
+// NEW: Create a tournament division
+export const createTournamentDivision = (divisionData) => {
+  return {
+    id: divisionData.id || `div_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+    name: divisionData.name || '',
+    description: divisionData.description || '',
+    eventType: divisionData.eventType || EVENT_TYPES.MIXED_DOUBLES,
+    skillLevel: divisionData.skillLevel || '',
+    status: divisionData.status || DIVISION_STATUS.OPEN,
+    entryFee: divisionData.entryFee || 0,
+    maxParticipants: divisionData.maxParticipants || null,
+    paymentMode: divisionData.paymentMode || PAYMENT_MODES.INDIVIDUAL,
+    participants: divisionData.participants || [],
+    paymentData: divisionData.paymentData || {},
+    commentsEnabled: divisionData.commentsEnabled !== false,
+    commentCount: 0,
+    order: divisionData.order || 0 // For sorting divisions
+  };
 };
 
 // Create a new member
@@ -127,32 +155,45 @@ export const createMember = (memberData) => {
   };
 };
 
-// Create a new tournament
+// UPDATED: Create a new tournament with divisions support
 export const createTournament = (tournamentData) => {
   const now = new Date();
+  
+  // Create initial division if legacy data provided
+  let divisions = [];
+  if (tournamentData.divisions && Array.isArray(tournamentData.divisions)) {
+    divisions = tournamentData.divisions.map(div => createTournamentDivision(div));
+  } else if (tournamentData.skillLevel || tournamentData.eventType || tournamentData.entryFee) {
+    // Legacy support: create single division from tournament-level data
+    divisions = [createTournamentDivision({
+      name: `${tournamentData.eventType || 'Mixed Doubles'} - ${tournamentData.skillLevel || 'Open'}`,
+      eventType: tournamentData.eventType || EVENT_TYPES.MIXED_DOUBLES,
+      skillLevel: tournamentData.skillLevel || '',
+      entryFee: tournamentData.entryFee || 0,
+      maxParticipants: tournamentData.maxParticipants || null,
+      paymentMode: tournamentData.paymentMode || PAYMENT_MODES.INDIVIDUAL,
+      participants: tournamentData.participants || [],
+      paymentData: tournamentData.paymentData || {}
+    })];
+  }
   
   return {
     name: tournamentData.name || '',
     description: tournamentData.description || '',
-    skillLevel: tournamentData.skillLevel || '',
-    eventType: tournamentData.eventType || EVENT_TYPES.MIXED_DOUBLES,
     status: tournamentData.status || TOURNAMENT_STATUS.DRAFT,
     eventDate: tournamentData.eventDate || null,
     registrationDeadline: tournamentData.registrationDeadline || null,
     location: tournamentData.location || '',
-    entryFee: tournamentData.entryFee || 0,
-    maxParticipants: tournamentData.maxParticipants || null,
-    paymentMode: tournamentData.paymentMode || PAYMENT_MODES.INDIVIDUAL,
-    participants: [],
-    paymentData: {},
-    commentCount: 0, // Track number of comments
+    website: tournamentData.website || '',
+    divisions: divisions,
     commentsEnabled: tournamentData.commentsEnabled !== false,
+    commentCount: 0,
     createdAt: now,
     updatedAt: now
   };
 };
 
-// Create a new league
+// Create a new league (unchanged)
 export const createLeague = (leagueData) => {
   const now = new Date();
   
@@ -170,20 +211,21 @@ export const createLeague = (leagueData) => {
     participants: [],
     paymentData: {},
     isActive: leagueData.isActive !== false,
-    commentCount: 0, // Track number of comments
+    commentCount: 0,
     commentsEnabled: leagueData.commentsEnabled !== false,
     createdAt: now,
     updatedAt: now
   };
 };
 
-// SIMPLIFIED: Create a new comment (no voting fields)
+// Create a new comment
 export const createComment = (commentData) => {
   const now = new Date();
   
   return {
     eventId: commentData.eventId || '',
     eventType: commentData.eventType || 'tournament',
+    divisionId: commentData.divisionId || null, // NEW: Division-specific comments
     authorId: commentData.authorId || '',
     authorName: commentData.authorName || '',
     content: commentData.content || '',
@@ -199,13 +241,15 @@ export const createComment = (commentData) => {
   };
 };
 
-// Create results entry
+// UPDATED: Create results entry with division support
 export const createResults = (resultsData) => {
   const now = new Date();
   
   return {
     eventId: resultsData.eventId || '',
     eventType: resultsData.eventType || 'tournament',
+    divisionId: resultsData.divisionId || null, // NEW: Division-specific results
+    divisionName: resultsData.divisionName || '', // NEW: For display purposes
     status: resultsData.status || RESULT_STATUS.DRAFT,
     participantResults: resultsData.participantResults || [],
     notes: resultsData.notes || '',
@@ -226,6 +270,7 @@ export const createAward = (awardData) => {
   return {
     eventId: awardData.eventId || '',
     eventType: awardData.eventType || 'tournament',
+    divisionId: awardData.divisionId || null, // NEW: Division-specific awards
     recipientId: awardData.recipientId || '',
     recipientName: awardData.recipientName || '',
     awardType: awardData.awardType || AWARD_TYPES.PLACEMENT,
@@ -248,24 +293,116 @@ export const createParticipantResult = (resultData) => {
     participantId: resultData.participantId || '',
     participantName: resultData.participantName || '',
     placement: resultData.placement || null,
-    wins: resultData.wins || 0,
-    losses: resultData.losses || 0,
+    gamesWon: resultData.gamesWon || 0,
+    gamesLost: resultData.gamesLost || 0,
     pointsFor: resultData.pointsFor || 0,
     pointsAgainst: resultData.pointsAgainst || 0,
-    confirmed: false,
-    notes: resultData.notes || ''
+    prizeAmount: resultData.prizeAmount || 0,
+    awards: resultData.awards || [],
+    notes: resultData.notes || '',
+    confirmed: false
   };
 };
 
-// Validation helpers
+// NEW: Tournament helper functions
+export const getTournamentTotalParticipants = (tournament) => {
+  if (!tournament.divisions) return 0;
+  return tournament.divisions.reduce((total, division) => {
+    return total + (division.participants?.length || 0);
+  }, 0);
+};
+
+export const getTournamentTotalExpected = (tournament) => {
+  if (!tournament.divisions) return 0;
+  return tournament.divisions.reduce((total, division) => {
+    const participants = division.participants?.length || 0;
+    const fee = division.entryFee || 0;
+    return total + (participants * fee);
+  }, 0);
+};
+
+export const getTournamentDivisionById = (tournament, divisionId) => {
+  return tournament.divisions?.find(div => div.id === divisionId) || null;
+};
+
+export const getUserDivisionsInTournament = (tournament, userId) => {
+  if (!tournament.divisions) return [];
+  return tournament.divisions.filter(division => 
+    division.participants?.includes(userId)
+  );
+};
+
+export const addParticipantToDivision = (tournament, divisionId, participantId) => {
+  const division = getTournamentDivisionById(tournament, divisionId);
+  if (!division) return tournament;
+  
+  if (!division.participants.includes(participantId)) {
+    division.participants.push(participantId);
+  }
+  
+  return { ...tournament };
+};
+
+export const removeParticipantFromDivision = (tournament, divisionId, participantId) => {
+  const division = getTournamentDivisionById(tournament, divisionId);
+  if (!division) return tournament;
+  
+  division.participants = division.participants.filter(id => id !== participantId);
+  
+  // Clean up payment data
+  if (division.paymentData && division.paymentData[participantId]) {
+    delete division.paymentData[participantId];
+  }
+  
+  return { ...tournament };
+};
+
+// NEW: Division validation
+export const validateDivision = (divisionData) => {
+  const errors = [];
+  
+  if (!divisionData.name?.trim()) {
+    errors.push('Division name is required');
+  }
+  
+  if (!divisionData.eventType) {
+    errors.push('Event type is required');
+  } else if (!validateEventType(divisionData.eventType)) {
+    errors.push('Invalid event type');
+  }
+  
+  if (!divisionData.skillLevel) {
+    errors.push('Skill level is required');
+  } else if (!validateSkillLevel(divisionData.skillLevel)) {
+    errors.push('Invalid skill level');
+  }
+  
+  if (divisionData.entryFee < 0) {
+    errors.push('Entry fee cannot be negative');
+  }
+  
+  if (divisionData.maxParticipants && divisionData.maxParticipants < 1) {
+    errors.push('Max participants must be at least 1');
+  }
+  
+  if (divisionData.paymentMode && !validatePaymentMode(divisionData.paymentMode)) {
+    errors.push('Invalid payment mode');
+  }
+  
+  return {
+    isValid: errors.length === 0,
+    errors
+  };
+};
+
+// Validation helpers (unchanged)
 export const validateEmail = (email) => {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   return emailRegex.test(email);
 };
 
 export const validateVenmoHandle = (handle) => {
-  if (!handle) return true; // Optional field
-  // Venmo handles: alphanumeric, hyphens, underscores, 5-30 chars
+  if (!handle) return true;
   const venmoRegex = /^[a-zA-Z0-9_-]{5,30}$/;
   return venmoRegex.test(handle);
 };
@@ -318,7 +455,6 @@ export const validateAwardCategory = (category) => {
   return Object.values(AWARD_CATEGORIES).includes(category);
 };
 
-// SIMPLIFIED: Comment validation (no voting fields)
 export const validateCommentStatus = (status) => {
   return Object.values(COMMENT_STATUS).includes(status);
 };
@@ -331,6 +467,10 @@ export const validateCommentContent = (content, maxLength = 2000) => {
   if (!content || typeof content !== 'string') return false;
   const trimmed = content.trim();
   return trimmed.length > 0 && trimmed.length <= maxLength;
+};
+
+export const validateDivisionStatus = (status) => {
+  return Object.values(DIVISION_STATUS).includes(status);
 };
 
 // Model validation functions
@@ -369,6 +509,7 @@ export const validateMember = (memberData) => {
   };
 };
 
+// UPDATED: Tournament validation with divisions
 export const validateTournament = (tournamentData) => {
   const errors = [];
   
@@ -376,36 +517,28 @@ export const validateTournament = (tournamentData) => {
     errors.push('Tournament name is required');
   }
   
-  if (!tournamentData.skillLevel) {
-    errors.push('Skill level is required');
-  } else if (!validateSkillLevel(tournamentData.skillLevel)) {
-    errors.push('Invalid skill level');
-  }
-  
-  if (!tournamentData.eventType) {
-    errors.push('Event type is required');
-  } else if (!validateEventType(tournamentData.eventType)) {
-    errors.push('Invalid event type');
-  }
-  
   if (!tournamentData.location?.trim()) {
     errors.push('Location is required');
-  }
-  
-  if (tournamentData.entryFee < 0) {
-    errors.push('Entry fee cannot be negative');
-  }
-  
-  if (tournamentData.maxParticipants && tournamentData.maxParticipants < 1) {
-    errors.push('Max participants must be at least 1');
   }
   
   if (tournamentData.status && !validateTournamentStatus(tournamentData.status)) {
     errors.push('Invalid tournament status');
   }
   
-  if (tournamentData.paymentMode && !validatePaymentMode(tournamentData.paymentMode)) {
-    errors.push('Invalid payment mode');
+  // Validate divisions
+  if (!tournamentData.divisions || !Array.isArray(tournamentData.divisions)) {
+    errors.push('Tournament must have at least one division');
+  } else {
+    if (tournamentData.divisions.length === 0) {
+      errors.push('Tournament must have at least one division');
+    } else {
+      tournamentData.divisions.forEach((division, index) => {
+        const divisionValidation = validateDivision(division);
+        if (!divisionValidation.isValid) {
+          errors.push(`Division ${index + 1}: ${divisionValidation.errors.join(', ')}`);
+        }
+      });
+    }
   }
   
   return {
@@ -455,7 +588,6 @@ export const validateLeague = (leagueData) => {
   };
 };
 
-// SIMPLIFIED: Comment validation (no voting)
 export const validateComment = (commentData) => {
   const errors = [];
   
@@ -570,16 +702,26 @@ export default {
   AWARD_CATEGORIES,
   COMMENT_TYPES,
   COMMENT_STATUS,
+  DIVISION_STATUS,
   
   // Creators
   createMember,
   createTournament,
+  createTournamentDivision,
   createLeague,
   createComment,
   createResults,
   createEventResults,
   createParticipantResult,
   createAward,
+  
+  // Tournament helpers
+  getTournamentTotalParticipants,
+  getTournamentTotalExpected,
+  getTournamentDivisionById,
+  getUserDivisionsInTournament,
+  addParticipantToDivision,
+  removeParticipantFromDivision,
   
   // Validators
   validateEmail,
@@ -599,8 +741,10 @@ export default {
   validateCommentStatus,
   validateCommentType,
   validateCommentContent,
+  validateDivisionStatus,
   validateMember,
   validateTournament,
+  validateDivision,
   validateLeague,
   validateComment,
   validateResults,

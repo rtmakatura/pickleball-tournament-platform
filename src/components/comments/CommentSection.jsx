@@ -1,271 +1,668 @@
-// src/components/comments/CommentSection.jsx (SIMPLIFIED - Message Board Style)
-import React, { useState } from 'react';
+// src/components/comments/CommentSection.jsx (UPDATED - Division Support)
+import React, { useState, useEffect } from 'react';
 import { 
   MessageSquare, 
-  Plus, 
-  Search,
-  Clock,
-  Filter,
-  AlertCircle
+  Send, 
+  Reply, 
+  MoreVertical, 
+  Edit3, 
+  Trash2, 
+  User,
+  Users,
+  Layers,
+  Trophy
 } from 'lucide-react';
-import { Button, Input, Select, Alert } from '../ui';
+import { Button, Input, Select, Card, Alert } from '../ui';
 import { useAuth } from '../../hooks/useAuth';
 import { useMembers } from '../../hooks/useMembers';
 import { useComments } from '../../hooks/useComments';
-import { canPostComments, canModerateComments } from '../../utils/roleUtils';
-import CommentForm from './CommentForm';
-import CommentThread from './CommentThread';
-import CommentStats from './CommentStats';
+import { 
+  canPostComments, 
+  canEditComment, 
+  canDeleteComment, 
+  canModerateComments 
+} from '../../utils/roleUtils';
 
 /**
- * CommentSection Component - Team message board interface for events
- * Simplified without voting functionality
+ * CommentSection Component - Display and manage comments for events
+ * UPDATED: Now supports division-specific comments for tournaments
  * 
  * Props:
- * - eventId: string - ID of the event
+ * - eventId: string - ID of the event (tournament or league)
  * - eventType: string - 'tournament' or 'league'
- * - event: object - Event data for permission checking
- * - className: string - Additional CSS classes
+ * - divisionId: string - Optional division ID for division-specific comments
+ * - event: object - Event data for context
  */
 const CommentSection = ({ 
   eventId, 
-  eventType = 'tournament', 
-  event,
-  className = '' 
+  eventType = 'tournament',
+  divisionId = null,
+  event = null
 }) => {
   const { user } = useAuth();
   const { members } = useMembers();
   const { 
     comments, 
     loading, 
-    error, 
-    postComment, 
-    stats,
-    searchComments,
-    clearError 
-  } = useComments(eventId, eventType);
+    addComment, 
+    updateComment, 
+    deleteComment 
+  } = useComments(eventId, eventType, divisionId);
 
-  const [showCommentForm, setShowCommentForm] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [sortBy, setSortBy] = useState('newest'); // 'newest', 'oldest', 'replies'
-  const [filterBy, setFilterBy] = useState('all'); // 'all', 'recent'
-  const [expandedComments, setExpandedComments] = useState(new Set());
+  const [newComment, setNewComment] = useState('');
+  const [replyingTo, setReplyingTo] = useState(null);
+  const [editingComment, setEditingComment] = useState(null);
+  const [editText, setEditText] = useState('');
+  const [selectedDivision, setSelectedDivision] = useState(divisionId || '');
+  const [viewMode, setViewMode] = useState('all'); // 'all', 'general', 'division'
+  const [submitting, setSubmitting] = useState(false);
+  const [alert, setAlert] = useState(null);
 
-  // Get current user's member record
+  // Check if this is a division-based tournament
+  const isDivisionBased = eventType === 'tournament' && event?.divisions && Array.isArray(event.divisions);
+  
+  // Get current user member
   const currentMember = members.find(m => m.authUid === user?.uid);
   
-  // Check permissions
-  const canPost = canPostComments(user?.uid, members) && event?.commentsEnabled !== false;
+  // Permission checks
+  const canPost = canPostComments(user?.uid, members);
   const canModerate = canModerateComments(user?.uid, members);
 
+  // Show alert
+  const showAlert = (type, message) => {
+    setAlert({ type, message });
+    setTimeout(() => setAlert(null), 5000);
+  };
+
+  // Get member name by ID
+  const getMemberName = (memberId) => {
+    const member = members.find(m => m.id === memberId);
+    return member ? `${member.firstName} ${member.lastName}` : 'Unknown User';
+  };
+
+  // Filter comments based on view mode and selected division
+  const getFilteredComments = () => {
+    if (!comments) return [];
+    
+    if (viewMode === 'general') {
+      return comments.filter(comment => !comment.divisionId);
+    } else if (viewMode === 'division' && selectedDivision) {
+      return comments.filter(comment => comment.divisionId === selectedDivision);
+    }
+    
+    return comments; // 'all' mode
+  };
+
+  const filteredComments = getFilteredComments();
+
   // Handle comment submission
-  const handleCommentSubmit = async (content) => {
-    if (!currentMember) return;
-    
+  const handleSubmitComment = async (content, parentId = null, targetDivisionId = null) => {
+    if (!content.trim() || !currentMember) return;
+
+    setSubmitting(true);
     try {
-      await postComment(
-        content, 
-        currentMember.id, 
-        `${currentMember.firstName} ${currentMember.lastName}`
-      );
-      setShowCommentForm(false);
-    } catch (err) {
-      // Error is handled by the hook
+      await addComment({
+        content: content.trim(),
+        parentId,
+        divisionId: targetDivisionId || (viewMode === 'division' ? selectedDivision : null)
+      });
+      
+      setNewComment('');
+      setReplyingTo(null);
+      showAlert('success', 'Comment posted successfully');
+    } catch (error) {
+      showAlert('error', error.message);
+    } finally {
+      setSubmitting(false);
     }
   };
 
-  // Get sorted and filtered comments
-  const getDisplayComments = () => {
-    let displayComments = searchTerm ? searchComments(searchTerm) : comments;
-    
-    // Apply filters
-    if (filterBy === 'recent') {
-      const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
-      displayComments = displayComments.filter(comment => 
-        new Date(comment.createdAt) > oneDayAgo
-      );
+  // Handle comment edit
+  const handleEditComment = async (commentId, newContent) => {
+    if (!newContent.trim()) return;
+
+    try {
+      await updateComment(commentId, { content: newContent.trim() });
+      setEditingComment(null);
+      setEditText('');
+      showAlert('success', 'Comment updated successfully');
+    } catch (error) {
+      showAlert('error', error.message);
     }
-    
-    // Apply sorting
-    displayComments = [...displayComments].sort((a, b) => {
-      switch (sortBy) {
-        case 'oldest':
-          return new Date(a.createdAt) - new Date(b.createdAt);
-        case 'replies':
-          if (a.replyCount !== b.replyCount) {
-            return b.replyCount - a.replyCount;
-          }
-          return new Date(b.createdAt) - new Date(a.createdAt);
-        case 'newest':
-        default:
-          return new Date(b.createdAt) - new Date(a.createdAt);
-      }
-    });
-    
-    return displayComments;
   };
 
-  const displayComments = getDisplayComments();
+  // Handle comment deletion
+  const handleDeleteComment = async (commentId) => {
+    if (!window.confirm('Are you sure you want to delete this comment?')) return;
 
-  // Check if comments are disabled
-  if (event?.commentsEnabled === false) {
+    try {
+      await deleteComment(commentId);
+      showAlert('success', 'Comment deleted successfully');
+    } catch (error) {
+      showAlert('error', error.message);
+    }
+  };
+
+  // Start editing a comment
+  const startEditing = (comment) => {
+    setEditingComment(comment.id);
+    setEditText(comment.content);
+  };
+
+  // Cancel editing
+  const cancelEditing = () => {
+    setEditingComment(null);
+    setEditText('');
+  };
+
+  // Start replying to a comment
+  const startReply = (comment) => {
+    setReplyingTo(comment.id);
+  };
+
+  // Cancel reply
+  const cancelReply = () => {
+    setReplyingTo(null);
+  };
+
+  // Get division name by ID
+  const getDivisionName = (divisionId) => {
+    if (!isDivisionBased || !divisionId) return null;
+    const division = event.divisions.find(div => div.id === divisionId);
+    return division?.name || 'Unknown Division';
+  };
+
+  // Get comment statistics
+  const getCommentStats = () => {
+    if (!comments) return { total: 0, general: 0, byDivision: {} };
+    
+    const stats = {
+      total: comments.length,
+      general: comments.filter(c => !c.divisionId).length,
+      byDivision: {}
+    };
+    
+    if (isDivisionBased) {
+      event.divisions.forEach(division => {
+        stats.byDivision[division.id] = comments.filter(c => c.divisionId === division.id).length;
+      });
+    }
+    
+    return stats;
+  };
+
+  const commentStats = getCommentStats();
+
+  if (!canPost) {
     return (
-      <div className={`bg-gray-50 rounded-lg p-6 text-center ${className}`}>
-        <MessageSquare className="h-12 w-12 text-gray-300 mx-auto mb-2" />
-        <p className="text-gray-500">Team discussion is disabled for this {eventType}</p>
-      </div>
+      <Card title="Comments">
+        <Alert 
+          type="info" 
+          message="You need to be a member to view and post comments." 
+        />
+      </Card>
     );
   }
 
   return (
-    <div className={`space-y-6 ${className}`}>
-      {/* Section Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-3">
-          <MessageSquare className="h-6 w-6 text-blue-600" />
-          <div>
-            <h2 className="text-xl font-semibold text-gray-900">Team Discussion</h2>
-            <p className="text-sm text-gray-500">
-              {stats.totalComments + stats.totalReplies} message{stats.totalComments + stats.totalReplies !== 1 ? 's' : ''}
-            </p>
-          </div>
+    <Card 
+      title={
+        <div className="flex items-center space-x-2">
+          <MessageSquare className="h-5 w-5" />
+          <span>Comments ({commentStats.total})</span>
         </div>
-        
-        {canPost && (
-          <Button
-            onClick={() => setShowCommentForm(!showCommentForm)}
-            disabled={loading}
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            Add Message
-          </Button>
+      }
+    >
+      <div className="space-y-6">
+        {/* Alert */}
+        {alert && (
+          <Alert
+            type={alert.type}
+            message={alert.message}
+            onClose={() => setAlert(null)}
+          />
         )}
-      </div>
 
-      {/* Error Alert */}
-      {error && (
-        <Alert
-          type="error"
-          title="Message Error"
-          message={error}
-          onClose={clearError}
-        />
-      )}
-
-      {/* Comment Stats */}
-      <CommentStats stats={stats} />
-
-      {/* Comment Form */}
-      {showCommentForm && canPost && (
-        <CommentForm
-          onSubmit={handleCommentSubmit}
-          onCancel={() => setShowCommentForm(false)}
-          placeholder={`Share updates or questions about this ${eventType}...`}
-          submitText="Post Message"
-          loading={loading}
-        />
-      )}
-
-      {/* Search and Filters */}
-      <div className="flex flex-col sm:flex-row gap-4">
-        <div className="flex-1">
-          <div className="relative">
-            <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-            <Input
-              placeholder="Search messages..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10"
-            />
-          </div>
-        </div>
-        
-        <div className="flex gap-2">
-          <Select
-            value={sortBy}
-            onChange={(e) => setSortBy(e.target.value)}
-            options={[
-              { value: 'newest', label: 'Newest First' },
-              { value: 'oldest', label: 'Oldest First' },
-              { value: 'replies', label: 'Most Replies' }
-            ]}
-            className="min-w-[140px]"
-          />
-          
-          <Select
-            value={filterBy}
-            onChange={(e) => setFilterBy(e.target.value)}
-            options={[
-              { value: 'all', label: 'All Messages' },
-              { value: 'recent', label: 'Last 24 Hours' }
-            ]}
-            className="min-w-[140px]"
-          />
-        </div>
-      </div>
-
-      {/* Messages List */}
-      <div className="space-y-4">
-        {loading && comments.length === 0 ? (
-          <div className="text-center py-8">
-            <div className="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
-            <p className="mt-2 text-gray-500">Loading messages...</p>
-          </div>
-        ) : displayComments.length === 0 ? (
-          <div className="text-center py-12 bg-gray-50 rounded-lg">
-            <MessageSquare className="h-12 w-12 text-gray-300 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-700 mb-2">
-              {searchTerm ? 'No matching messages' : 'No messages yet'}
-            </h3>
-            <p className="text-gray-500 mb-4">
-              {searchTerm 
-                ? 'Try adjusting your search terms or filters'
-                : `Start the team discussion for this ${eventType}!`
-              }
-            </p>
-            {!searchTerm && canPost && !showCommentForm && (
-              <Button
-                onClick={() => setShowCommentForm(true)}
-                variant="outline"
+        {/* View Mode Selector for Division-Based Tournaments */}
+        {isDivisionBased && (
+          <div className="bg-gray-50 p-4 rounded-lg">
+            <div className="flex items-center justify-between mb-4">
+              <h4 className="font-medium text-gray-900">Comment View</h4>
+              <div className="text-sm text-gray-600">
+                {commentStats.general} general • {Object.values(commentStats.byDivision).reduce((sum, count) => sum + count, 0)} division-specific
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <button
+                onClick={() => setViewMode('all')}
+                className={`p-3 rounded-lg border text-left transition-colors ${
+                  viewMode === 'all' 
+                    ? 'bg-blue-50 border-blue-200 text-blue-900' 
+                    : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'
+                }`}
               >
-                <Plus className="h-4 w-4 mr-2" />
-                Post First Message
-              </Button>
+                <div className="flex items-center space-x-2">
+                  <Users className="h-4 w-4" />
+                  <span className="font-medium">All Comments</span>
+                </div>
+                <p className="text-xs mt-1 opacity-75">{commentStats.total} total comments</p>
+              </button>
+              
+              <button
+                onClick={() => setViewMode('general')}
+                className={`p-3 rounded-lg border text-left transition-colors ${
+                  viewMode === 'general' 
+                    ? 'bg-green-50 border-green-200 text-green-900' 
+                    : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'
+                }`}
+              >
+                <div className="flex items-center space-x-2">
+                  <MessageSquare className="h-4 w-4" />
+                  <span className="font-medium">General</span>
+                </div>
+                <p className="text-xs mt-1 opacity-75">{commentStats.general} tournament-wide comments</p>
+              </button>
+              
+              <button
+                onClick={() => setViewMode('division')}
+                className={`p-3 rounded-lg border text-left transition-colors ${
+                  viewMode === 'division' 
+                    ? 'bg-purple-50 border-purple-200 text-purple-900' 
+                    : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'
+                }`}
+              >
+                <div className="flex items-center space-x-2">
+                  <Layers className="h-4 w-4" />
+                  <span className="font-medium">Division-Specific</span>
+                </div>
+                <p className="text-xs mt-1 opacity-75">
+                  {Object.values(commentStats.byDivision).reduce((sum, count) => sum + count, 0)} division comments
+                </p>
+              </button>
+            </div>
+            
+            {/* Division Selector for Division Mode */}
+            {viewMode === 'division' && (
+              <div className="mt-4">
+                <Select
+                  label="Select Division"
+                  value={selectedDivision}
+                  onChange={(e) => setSelectedDivision(e.target.value)}
+                  options={[
+                    { value: '', label: 'Select a division...' },
+                    ...event.divisions.map(div => ({
+                      value: div.id,
+                      label: `${div.name} (${commentStats.byDivision[div.id] || 0} comments)`
+                    }))
+                  ]}
+                />
+              </div>
             )}
           </div>
-        ) : (
-          displayComments.map((comment) => (
-            <CommentThread
-              key={comment.id}
-              comment={comment}
-              eventId={eventId}
-              eventType={eventType}
-              currentUserId={currentMember?.id}
-              canModerate={canModerate}
-              expandedComments={expandedComments}
-              onToggleExpand={(commentId) => {
-                const newExpanded = new Set(expandedComments);
-                if (newExpanded.has(commentId)) {
-                  newExpanded.delete(commentId);
-                } else {
-                  newExpanded.add(commentId);
+        )}
+
+        {/* Comment Form */}
+        <div className="space-y-4">
+          <div className="flex items-start space-x-3">
+            <div className="h-8 w-8 bg-gray-100 rounded-full flex items-center justify-center">
+              <User className="h-4 w-4 text-gray-400" />
+            </div>
+            
+            <div className="flex-1">
+              <textarea
+                value={newComment}
+                onChange={(e) => setNewComment(e.target.value)}
+                placeholder={
+                  viewMode === 'general' 
+                    ? 'Add a general comment about the tournament...'
+                    : viewMode === 'division' && selectedDivision
+                      ? `Add a comment about ${getDivisionName(selectedDivision)}...`
+                      : 'Add a comment...'
                 }
-                setExpandedComments(newExpanded);
-              }}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
+                rows={3}
+                disabled={!canPost || (viewMode === 'division' && !selectedDivision)}
+              />
+              
+              <div className="flex items-center justify-between mt-2">
+                <div className="text-xs text-gray-500">
+                  {viewMode === 'general' && 'This comment will be visible to all tournament participants'}
+                  {viewMode === 'division' && selectedDivision && `This comment will be specific to ${getDivisionName(selectedDivision)}`}
+                  {viewMode === 'all' && 'This comment will be general (not division-specific)'}
+                </div>
+                
+                <Button
+                  onClick={() => handleSubmitComment(
+                    newComment, 
+                    null, 
+                    viewMode === 'division' ? selectedDivision : null
+                  )}
+                  disabled={
+                    !newComment.trim() || 
+                    submitting || 
+                    (viewMode === 'division' && !selectedDivision)
+                  }
+                  loading={submitting}
+                  size="sm"
+                >
+                  <Send className="h-4 w-4 mr-1" />
+                  Post Comment
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Comments List */}
+        <div className="space-y-4">
+          {loading ? (
+            <div className="text-center py-8 text-gray-500">
+              <div className="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-gray-300"></div>
+              <p className="mt-2">Loading comments...</p>
+            </div>
+          ) : filteredComments.length === 0 ? (
+            <div className="text-center py-8 text-gray-500">
+              <MessageSquare className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+              <p>
+                {viewMode === 'general' 
+                  ? 'No general comments yet. Be the first to comment!'
+                  : viewMode === 'division' && selectedDivision
+                    ? `No comments for ${getDivisionName(selectedDivision)} yet.`
+                    : 'No comments yet. Be the first to comment!'
+                }
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {filteredComments
+                .filter(comment => comment.parentId === null) // Only show top-level comments
+                .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+                .map(comment => (
+                  <CommentItem
+                    key={comment.id}
+                    comment={comment}
+                    replies={filteredComments.filter(c => c.parentId === comment.id)}
+                    currentMember={currentMember}
+                    members={members}
+                    canEdit={canEditComment(user?.uid, comment, members)}
+                    canDelete={canDeleteComment(user?.uid, comment, members)}
+                    canModerate={canModerate}
+                    onEdit={handleEditComment}
+                    onDelete={handleDeleteComment}
+                    onReply={handleSubmitComment}
+                    isEditing={editingComment === comment.id}
+                    editText={editText}
+                    setEditText={setEditText}
+                    startEditing={startEditing}
+                    cancelEditing={cancelEditing}
+                    replyingTo={replyingTo}
+                    startReply={startReply}
+                    cancelReply={cancelReply}
+                    getDivisionName={getDivisionName}
+                    isDivisionBased={isDivisionBased}
+                  />
+                ))}
+            </div>
+          )}
+        </div>
+
+        {/* Division Comment Summary for All View */}
+        {isDivisionBased && viewMode === 'all' && commentStats.total > 0 && (
+          <div className="bg-gray-50 p-4 rounded-lg">
+            <h4 className="font-medium text-gray-900 mb-3">Comment Distribution</h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="flex items-center justify-between p-2 bg-white rounded">
+                <span className="text-sm text-gray-700">General Comments</span>
+                <span className="text-sm font-medium text-gray-900">{commentStats.general}</span>
+              </div>
+              
+              {event.divisions.map(division => {
+                const divisionCommentCount = commentStats.byDivision[division.id] || 0;
+                if (divisionCommentCount === 0) return null;
+                
+                return (
+                  <div key={division.id} className="flex items-center justify-between p-2 bg-white rounded">
+                    <div className="flex items-center space-x-2">
+                      <Trophy className="h-3 w-3 text-gray-400" />
+                      <span className="text-sm text-gray-700">{division.name}</span>
+                    </div>
+                    <span className="text-sm font-medium text-gray-900">{divisionCommentCount}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </div>
+    </Card>
+  );
+};
+
+/**
+ * CommentItem Component - Individual comment display with threading
+ */
+const CommentItem = ({
+  comment,
+  replies = [],
+  currentMember,
+  members,
+  canEdit,
+  canDelete,
+  canModerate,
+  onEdit,
+  onDelete,
+  onReply,
+  isEditing,
+  editText,
+  setEditText,
+  startEditing,
+  cancelEditing,
+  replyingTo,
+  startReply,
+  cancelReply,
+  getDivisionName,
+  isDivisionBased
+}) => {
+  const [replyText, setReplyText] = useState('');
+  const [showActions, setShowActions] = useState(false);
+
+  const getMemberName = (memberId) => {
+    const member = members.find(m => m.id === memberId);
+    return member ? `${member.firstName} ${member.lastName}` : 'Unknown User';
+  };
+
+  const formatDate = (date) => {
+    return new Date(date).toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit'
+    });
+  };
+
+  const handleReplySubmit = () => {
+    if (replyText.trim()) {
+      onReply(replyText, comment.id, comment.divisionId);
+      setReplyText('');
+      cancelReply();
+    }
+  };
+
+  return (
+    <div className={`${comment.depth > 0 ? 'ml-6 border-l-2 border-gray-200 pl-4' : ''}`}>
+      <div className="bg-white border border-gray-200 rounded-lg p-4">
+        {/* Comment Header */}
+        <div className="flex items-start justify-between mb-2">
+          <div className="flex items-center space-x-2">
+            <div className="h-6 w-6 bg-gray-100 rounded-full flex items-center justify-center">
+              <User className="h-3 w-3 text-gray-400" />
+            </div>
+            <span className="font-medium text-gray-900">{getMemberName(comment.authorId)}</span>
+            <span className="text-xs text-gray-500">{formatDate(comment.createdAt)}</span>
+            {comment.isEdited && (
+              <span className="text-xs text-gray-400">(edited)</span>
+            )}
+            {isDivisionBased && comment.divisionId && (
+              <span className="inline-flex items-center px-2 py-1 bg-purple-100 text-purple-800 text-xs rounded">
+                <Trophy className="h-3 w-3 mr-1" />
+                {getDivisionName(comment.divisionId)}
+              </span>
+            )}
+          </div>
+          
+          {(canEdit || canDelete || canModerate) && (
+            <div className="relative">
+              <button
+                onClick={() => setShowActions(!showActions)}
+                className="p-1 text-gray-400 hover:text-gray-600"
+              >
+                <MoreVertical className="h-4 w-4" />
+              </button>
+              
+              {showActions && (
+                <div className="absolute right-0 mt-1 w-32 bg-white border border-gray-200 rounded-lg shadow-lg z-10">
+                  {canEdit && (
+                    <button
+                      onClick={() => {
+                        startEditing(comment);
+                        setShowActions(false);
+                      }}
+                      className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center"
+                    >
+                      <Edit3 className="h-3 w-3 mr-2" />
+                      Edit
+                    </button>
+                  )}
+                  {(canDelete || canModerate) && (
+                    <button
+                      onClick={() => {
+                        onDelete(comment.id);
+                        setShowActions(false);
+                      }}
+                      className="w-full px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center"
+                    >
+                      <Trash2 className="h-3 w-3 mr-2" />
+                      Delete
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Comment Content */}
+        {isEditing ? (
+          <div className="space-y-2">
+            <textarea
+              value={editText}
+              onChange={(e) => setEditText(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+              rows={3}
             />
-          ))
+            <div className="flex space-x-2">
+              <Button
+                size="sm"
+                onClick={() => onEdit(comment.id, editText)}
+                disabled={!editText.trim()}
+              >
+                Save
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={cancelEditing}
+              >
+                Cancel
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <div>
+            <p className="text-gray-700 mb-3">{comment.content}</p>
+            
+            {/* Comment Actions */}
+            <div className="flex items-center space-x-4 text-sm">
+              <button
+                onClick={() => startReply(comment)}
+                className="text-gray-500 hover:text-gray-700 flex items-center"
+              >
+                <Reply className="h-3 w-3 mr-1" />
+                Reply
+              </button>
+              
+              {replies.length > 0 && (
+                <span className="text-gray-400">
+                  {replies.length} {replies.length === 1 ? 'reply' : 'replies'}
+                </span>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Reply Form */}
+        {replyingTo === comment.id && (
+          <div className="mt-4 pl-6 border-l-2 border-gray-200">
+            <div className="space-y-2">
+              <textarea
+                value={replyText}
+                onChange={(e) => setReplyText(e.target.value)}
+                placeholder={`Reply to ${getMemberName(comment.authorId)}...`}
+                className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                rows={2}
+              />
+              <div className="flex space-x-2">
+                <Button
+                  size="sm"
+                  onClick={handleReplySubmit}
+                  disabled={!replyText.trim()}
+                >
+                  Reply
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={cancelReply}
+                >
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          </div>
         )}
       </div>
 
-      {/* Message Count */}
-      {comments.length > 0 && (
-        <div className="text-center pt-4 border-t">
-          <p className="text-sm text-gray-500 flex items-center justify-center space-x-2">
-            <Clock className="h-4 w-4" />
-            <span>
-              Showing {displayComments.length} of {stats.totalComments + stats.totalReplies} messages
-            </span>
-          </p>
+      {/* Replies */}
+      {replies.length > 0 && (
+        <div className="mt-3 space-y-3">
+          {replies
+            .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt))
+            .map(reply => (
+              <CommentItem
+                key={reply.id}
+                comment={{ ...reply, depth: (comment.depth || 0) + 1 }}
+                replies={[]}
+                currentMember={currentMember}
+                members={members}
+                canEdit={canEdit}
+                canDelete={canDelete}
+                canModerate={canModerate}
+                onEdit={onEdit}
+                onDelete={onDelete}
+                onReply={onReply}
+                isEditing={false}
+                editText=""
+                setEditText={() => {}}
+                startEditing={startEditing}
+                cancelEditing={cancelEditing}
+                replyingTo={replyingTo}
+                startReply={startReply}
+                cancelReply={cancelReply}
+                getDivisionName={getDivisionName}
+                isDivisionBased={isDivisionBased}
+              />
+            ))}
         </div>
       )}
     </div>
