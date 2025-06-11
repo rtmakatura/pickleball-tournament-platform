@@ -1,7 +1,7 @@
 // src/hooks/useResults.js
 import { useState, useEffect } from 'react';
 import firebaseOps from '../services/firebaseOperations';
-import { createEventsResults, createParticipantResult, RESULT_STATUS } from '../services/models';
+import { createEventResults, createParticipantResult, RESULT_STATUS } from '../services/models';
 
 /**
  * useResults Hook - Manages results data for tournaments and leagues
