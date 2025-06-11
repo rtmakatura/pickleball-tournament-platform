@@ -1,4 +1,4 @@
-// src/components/tournament/TournamentCard.jsx
+// src/components/tournament/TournamentCard.jsx (COMPLETE - Added Link Buttons)
 import React from 'react';
 import { 
   Calendar, 
@@ -8,13 +8,17 @@ import {
   Trophy,
   Clock,
   CheckCircle,
-  AlertCircle
+  AlertCircle,
+  ExternalLink,
+  Navigation
 } from 'lucide-react';
 import { Button } from '../ui';
 import { TOURNAMENT_STATUS } from '../../services/models';
+import { generateGoogleMapsLink, generateDirectionsLink, openLinkSafely, extractDomain } from '../../utils/linkUtils';
 
 /**
  * TournamentCard Component - Display tournament information in card format
+ * UPDATED: Added Google Maps and website link buttons
  * 
  * Props:
  * - tournament: object - Tournament data
@@ -165,10 +169,42 @@ const TournamentCard = ({
           )}
         </div>
 
+        {/* UPDATED: Location with action buttons */}
         {tournament.location && (
-          <div className="flex items-center text-gray-600">
-            <MapPin className="h-4 w-4 mr-2 flex-shrink-0" />
-            <span>{tournament.location}</span>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center text-gray-600">
+              <MapPin className="h-4 w-4 mr-2 flex-shrink-0" />
+              <span>{tournament.location}</span>
+            </div>
+            {/* NEW: Location action buttons */}
+            <div className="flex space-x-1">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const mapsUrl = generateGoogleMapsLink(tournament.location);
+                  openLinkSafely(mapsUrl);
+                }}
+                title="View on Google Maps"
+                className="px-2 py-1"
+              >
+                <MapPin className="h-3 w-3" />
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const directionsUrl = generateDirectionsLink(tournament.location);
+                  openLinkSafely(directionsUrl);
+                }}
+                title="Get Directions"
+                className="px-2 py-1"
+              >
+                <Navigation className="h-3 w-3" />
+              </Button>
+            </div>
           </div>
         )}
 
@@ -217,6 +253,28 @@ const TournamentCard = ({
           <Trophy className="h-4 w-4 mr-2 flex-shrink-0" />
           <span className="capitalize">{tournament.skillLevel}</span>
         </div>
+
+        {/* NEW: Website Link */}
+        {tournament.website && (
+          <div className="flex items-center justify-between">
+            <div className="flex items-center text-gray-600">
+              <ExternalLink className="h-4 w-4 mr-2 flex-shrink-0" />
+              <span className="truncate">{extractDomain(tournament.website)}</span>
+            </div>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={(e) => {
+                e.stopPropagation();
+                openLinkSafely(tournament.website);
+              }}
+              title="Visit Tournament Website"
+              className="px-2 py-1"
+            >
+              <ExternalLink className="h-3 w-3" />
+            </Button>
+          </div>
+        )}
       </div>
 
       {/* Participants Preview (non-compact) */}

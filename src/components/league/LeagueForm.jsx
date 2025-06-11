@@ -1,11 +1,13 @@
-// src/components/league/LeagueForm.jsx (FIXED - Date handling and event type)
+// src/components/league/LeagueForm.jsx (UPDATED - Added Website Field)
 import React, { useState } from 'react';
-import { Trash2 } from 'lucide-react';
+import { Trash2, ExternalLink, MapPin } from 'lucide-react';
 import { Input, Select, Button, ConfirmDialog } from '../ui';
 import { SKILL_LEVELS, LEAGUE_STATUS, PAYMENT_MODES, EVENT_TYPES } from '../../services/models';
+import { formatWebsiteUrl, isValidUrl, generateGoogleMapsLink, openLinkSafely } from '../../utils/linkUtils';
 
 /**
  * LeagueForm Component - For creating/editing leagues
+ * UPDATED: Added website field and link preview functionality
  * 
  * Props:
  * - league: object - Existing league data (for editing)
@@ -70,11 +72,13 @@ const LeagueForm = ({
     name: league?.name || '',
     description: league?.description || '',
     skillLevel: league?.skillLevel || '',
-    eventType: league?.eventType || EVENT_TYPES.MIXED_DOUBLES, // NEW: Event type
+    eventType: league?.eventType || EVENT_TYPES.MIXED_DOUBLES,
     status: league?.status || LEAGUE_STATUS.ACTIVE,
     startDate: formatDateForInput(league?.startDate),
     endDate: formatDateForInput(league?.endDate),
-    maxParticipants: league?.maxParticipants || 2, // UPDATED: Default to 2
+    location: league?.location || '', // NEW: Location field for leagues
+    website: league?.website || '', // NEW: Website field
+    maxParticipants: league?.maxParticipants || 2,
     registrationFee: league?.registrationFee || 0,
     paymentMode: league?.paymentMode || PAYMENT_MODES.INDIVIDUAL,
     isActive: league?.isActive !== false
@@ -124,6 +128,11 @@ const LeagueForm = ({
       newErrors.endDate = 'End date is required';
     }
 
+    // NEW: Website validation
+    if (formData.website && !isValidUrl(formData.website)) {
+      newErrors.website = 'Please enter a valid website URL';
+    }
+
     if (formData.registrationFee < 0) {
       newErrors.registrationFee = 'Registration fee cannot be negative';
     }
@@ -142,8 +151,6 @@ const LeagueForm = ({
       }
     }
 
-    // REMOVED: Future date validation to allow backdating
-
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -156,11 +163,12 @@ const LeagueForm = ({
       return;
     }
 
-    // Convert date strings to Date objects
+    // Convert date strings to Date objects and format website URL
     const submissionData = {
       ...formData,
       startDate: new Date(formData.startDate),
       endDate: new Date(formData.endDate),
+      website: formData.website ? formatWebsiteUrl(formData.website) : '', // NEW: Format website URL
       registrationFee: parseFloat(formData.registrationFee),
       maxParticipants: parseInt(formData.maxParticipants)
     };
@@ -174,6 +182,21 @@ const LeagueForm = ({
       onDelete(league.id);
     }
     setShowDeleteConfirm(false);
+  };
+
+  // NEW: Handle link testing
+  const handleTestWebsite = () => {
+    if (formData.website) {
+      const formattedUrl = formatWebsiteUrl(formData.website);
+      openLinkSafely(formattedUrl, 'Please enter a valid website URL first');
+    }
+  };
+
+  const handleTestLocation = () => {
+    if (formData.location) {
+      const mapsUrl = generateGoogleMapsLink(formData.location);
+      openLinkSafely(mapsUrl, 'Please enter a location first');
+    }
   };
 
   // Skill level options for dropdown
@@ -265,7 +288,7 @@ const LeagueForm = ({
             options={eventTypeOptions}
             error={errors.eventType}
             required
-            helperText="Tournament format"
+            helperText="League format"
           />
 
           <Select
@@ -314,6 +337,63 @@ const LeagueForm = ({
             </p>
           </div>
         )}
+      </div>
+
+      {/* NEW: League Location & Website */}
+      <div className="space-y-4">
+        <h3 className="text-lg font-medium text-gray-900">
+          League Details
+        </h3>
+
+        {/* NEW: Location field with test button */}
+        <div className="space-y-2">
+          <Input
+            label="Primary Location"
+            type="text"
+            value={formData.location}
+            onChange={handleChange('location')}
+            error={errors.location}
+            placeholder="Main venue, facility, or area for league play"
+            helperText="Optional - Enter primary venue or area where league games are played"
+          />
+          {formData.location && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleTestLocation}
+              className="mt-2"
+            >
+              <MapPin className="h-4 w-4 mr-1" />
+              Preview Location on Map
+            </Button>
+          )}
+        </div>
+
+        {/* NEW: Website field */}
+        <div className="space-y-2">
+          <Input
+            label="League Website"
+            type="url"
+            value={formData.website}
+            onChange={handleChange('website')}
+            error={errors.website}
+            placeholder="https://example.com/league-info"
+            helperText="Optional - Link to league rules, schedule, standings, or information page"
+          />
+          {formData.website && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleTestWebsite}
+              className="mt-2"
+            >
+              <ExternalLink className="h-4 w-4 mr-1" />
+              Test Website Link
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* League Settings */}
@@ -402,6 +482,43 @@ const LeagueForm = ({
           </p>
         </div>
       </div>
+
+      {/* NEW: Link Preview Section */}
+      {(formData.location || formData.website) && (
+        <div className="bg-gray-50 p-4 rounded-lg">
+          <h4 className="text-sm font-medium text-gray-900 mb-3">Quick Links Preview</h4>
+          <div className="space-y-2">
+            {formData.location && (
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-gray-600">📍 Location: {formData.location}</span>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleTestLocation}
+                >
+                  <MapPin className="h-3 w-3 mr-1" />
+                  Maps
+                </Button>
+              </div>
+            )}
+            {formData.website && (
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-gray-600">🌐 Website: {formData.website}</span>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleTestWebsite}
+                >
+                  <ExternalLink className="h-3 w-3 mr-1" />
+                  Visit
+                </Button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* League Features Info */}
       <div className="bg-gray-50 p-4 rounded-lg">

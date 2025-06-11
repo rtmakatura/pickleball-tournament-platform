@@ -1,9 +1,10 @@
-// src/components/Dashboard.jsx (UPDATED - Added Comment Integration)
+// src/components/Dashboard.jsx (COMPLETE - Added Comment Integration and Link Support)
 import React, { useState } from 'react';
-import { Plus, Calendar, Users, Trophy, DollarSign, Activity, MessageSquare } from 'lucide-react';
+import { Plus, Calendar, Users, Trophy, DollarSign, Activity, MessageSquare, MapPin, ExternalLink, Navigation } from 'lucide-react';
 import { useMembers, useLeagues, useTournaments, useAuth } from '../hooks';
 import { SKILL_LEVELS, TOURNAMENT_STATUS, LEAGUE_STATUS } from '../services/models';
 import { calculateOverallPaymentSummary } from '../utils/paymentUtils';
+import { generateGoogleMapsLink, generateDirectionsLink, openLinkSafely, extractDomain } from '../utils/linkUtils';
 
 // Import our UI components
 import { 
@@ -336,7 +337,7 @@ const Dashboard = () => {
   const sortedTournaments = getSortedTournaments();
   const sortedLeagues = getSortedLeagues();
 
-  // UPDATED: Table columns for tournaments with comments support
+  // UPDATED: Table columns for tournaments with comments support and links
   const tournamentColumns = [
     {
       key: 'name',
@@ -349,7 +350,34 @@ const Dashboard = () => {
     },
     {
       key: 'location',
-      label: 'Location'
+      label: 'Location',
+      render: (location, tournament) => (
+        <div className="flex items-center space-x-2">
+          <span className="truncate max-w-32">{location}</span>
+          {location && (
+            <div className="flex space-x-1">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => openLinkSafely(generateGoogleMapsLink(location))}
+                title="View on Maps"
+                className="px-1 py-0.5"
+              >
+                <MapPin className="h-3 w-3" />
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => openLinkSafely(generateDirectionsLink(location))}
+                title="Get Directions"
+                className="px-1 py-0.5"
+              >
+                <Navigation className="h-3 w-3" />
+              </Button>
+            </div>
+          )}
+        </div>
+      )
     },
     {
       key: 'skillLevel',
@@ -360,6 +388,26 @@ const Dashboard = () => {
       key: 'eventType',
       label: 'Type',
       render: (type) => <span className="capitalize">{type?.replace('_', ' ')}</span>
+    },
+    {
+      key: 'website',
+      label: 'Website',
+      render: (website) => (
+        website ? (
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => openLinkSafely(website)}
+            title={`Visit ${extractDomain(website)}`}
+            className="px-2 py-1"
+          >
+            <ExternalLink className="h-3 w-3 mr-1" />
+            {extractDomain(website)}
+          </Button>
+        ) : (
+          <span className="text-gray-400">—</span>
+        )
+      )
     },
     {
       key: 'status',
@@ -425,7 +473,7 @@ const Dashboard = () => {
     }
   ];
 
-  // UPDATED: Table columns for leagues with comments support
+  // UPDATED: Table columns for leagues with comments support and links
   const leagueColumns = [
     {
       key: 'name',
@@ -442,6 +490,39 @@ const Dashboard = () => {
       render: (date) => date ? new Date(date.seconds * 1000).toLocaleDateString() : 'TBD'
     },
     {
+      key: 'location',
+      label: 'Location',
+      render: (location, league) => (
+        location ? (
+          <div className="flex items-center space-x-2">
+            <span className="truncate max-w-32">{location}</span>
+            <div className="flex space-x-1">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => openLinkSafely(generateGoogleMapsLink(location))}
+                title="View on Maps"
+                className="px-1 py-0.5"
+              >
+                <MapPin className="h-3 w-3" />
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => openLinkSafely(generateDirectionsLink(location))}
+                title="Get Directions"
+                className="px-1 py-0.5"
+              >
+                <Navigation className="h-3 w-3" />
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <span className="text-gray-400">—</span>
+        )
+      )
+    },
+    {
       key: 'skillLevel',
       label: 'Skill Level',
       render: (level) => <span className="capitalize">{level}</span>
@@ -450,6 +531,26 @@ const Dashboard = () => {
       key: 'eventType',
       label: 'Type',
       render: (type) => <span className="capitalize">{type?.replace('_', ' ')}</span>
+    },
+    {
+      key: 'website',
+      label: 'Website',
+      render: (website) => (
+        website ? (
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => openLinkSafely(website)}
+            title={`Visit ${extractDomain(website)}`}
+            className="px-2 py-1"
+          >
+            <ExternalLink className="h-3 w-3 mr-1" />
+            {extractDomain(website)}
+          </Button>
+        ) : (
+          <span className="text-gray-400">—</span>
+        )
+      )
     },
     {
       key: 'status',
@@ -799,7 +900,31 @@ const Dashboard = () => {
                   </div>
                   <div>
                     <span className="font-medium text-gray-700">Location:</span>
-                    <p>{viewingTournament.location}</p>
+                    <div className="flex items-center space-x-2">
+                      <p>{viewingTournament.location}</p>
+                      {viewingTournament.location && (
+                        <div className="flex space-x-1">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => openLinkSafely(generateGoogleMapsLink(viewingTournament.location))}
+                            title="View on Maps"
+                            className="px-1 py-0.5"
+                          >
+                            <MapPin className="h-3 w-3" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => openLinkSafely(generateDirectionsLink(viewingTournament.location))}
+                            title="Get Directions"
+                            className="px-1 py-0.5"
+                          >
+                            <Navigation className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      )}
+                    </div>
                   </div>
                   <div>
                     <span className="font-medium text-gray-700">Participants:</span>
@@ -814,6 +939,23 @@ const Dashboard = () => {
                   <div className="mt-4">
                     <span className="font-medium text-gray-700">Description:</span>
                     <p className="mt-1">{viewingTournament.description}</p>
+                  </div>
+                )}
+                {viewingTournament.website && (
+                  <div className="mt-4">
+                    <span className="font-medium text-gray-700">Website:</span>
+                    <div className="mt-1 flex items-center space-x-2">
+                      <span className="text-blue-600">{extractDomain(viewingTournament.website)}</span>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => openLinkSafely(viewingTournament.website)}
+                        className="px-2 py-1"
+                      >
+                        <ExternalLink className="h-3 w-3 mr-1" />
+                        Visit Site
+                      </Button>
+                    </div>
                   </div>
                 )}
               </div>
@@ -899,10 +1041,55 @@ const Dashboard = () => {
                     <p>${viewingLeague.registrationFee || 0}</p>
                   </div>
                 </div>
+                {viewingLeague.location && (
+                  <div className="mt-4">
+                    <span className="font-medium text-gray-700">Location:</span>
+                    <div className="mt-1 flex items-center space-x-2">
+                      <span>{viewingLeague.location}</span>
+                      <div className="flex space-x-1">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => openLinkSafely(generateGoogleMapsLink(viewingLeague.location))}
+                          title="View on Maps"
+                          className="px-1 py-0.5"
+                        >
+                          <MapPin className="h-3 w-3" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => openLinkSafely(generateDirectionsLink(viewingLeague.location))}
+                          title="Get Directions"
+                          className="px-1 py-0.5"
+                        >
+                          <Navigation className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                )}
                 {viewingLeague.description && (
                   <div className="mt-4">
                     <span className="font-medium text-gray-700">Description:</span>
                     <p className="mt-1">{viewingLeague.description}</p>
+                  </div>
+                )}
+                {viewingLeague.website && (
+                  <div className="mt-4">
+                    <span className="font-medium text-gray-700">Website:</span>
+                    <div className="mt-1 flex items-center space-x-2">
+                      <span className="text-blue-600">{extractDomain(viewingLeague.website)}</span>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => openLinkSafely(viewingLeague.website)}
+                        className="px-2 py-1"
+                      >
+                        <ExternalLink className="h-3 w-3 mr-1" />
+                        Visit Site
+                      </Button>
+                    </div>
                   </div>
                 )}
               </div>

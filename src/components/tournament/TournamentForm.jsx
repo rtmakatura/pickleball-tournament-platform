@@ -1,11 +1,13 @@
-// src/components/tournament/TournamentForm.jsx (FIXED - Event type and date handling)
+// src/components/tournament/TournamentForm.jsx (UPDATED - Added Website Field)
 import React, { useState } from 'react';
-import { Trash2 } from 'lucide-react';
+import { Trash2, ExternalLink, MapPin } from 'lucide-react';
 import { Input, Select, Button, Alert, ConfirmDialog } from '../ui';
 import { SKILL_LEVELS, TOURNAMENT_STATUS, PAYMENT_MODES, EVENT_TYPES } from '../../services/models';
+import { formatWebsiteUrl, isValidUrl, generateGoogleMapsLink, openLinkSafely } from '../../utils/linkUtils';
 
 /**
  * TournamentForm Component - For creating/editing tournaments
+ * UPDATED: Added website field and link preview functionality
  * 
  * Props:
  * - tournament: object - Existing tournament data (for editing)
@@ -70,13 +72,14 @@ const TournamentForm = ({
     name: tournament?.name || '',
     description: tournament?.description || '',
     skillLevel: tournament?.skillLevel || '',
-    eventType: tournament?.eventType || EVENT_TYPES.MIXED_DOUBLES, // NEW: Event type
+    eventType: tournament?.eventType || EVENT_TYPES.MIXED_DOUBLES,
     status: tournament?.status || TOURNAMENT_STATUS.DRAFT,
     eventDate: formatDateForInput(tournament?.eventDate),
     registrationDeadline: formatDateForInput(tournament?.registrationDeadline),
     location: tournament?.location || '',
+    website: tournament?.website || '', // NEW: Website field
     entryFee: tournament?.entryFee || 0,
-    maxParticipants: tournament?.maxParticipants || 2, // UPDATED: Default to 2
+    maxParticipants: tournament?.maxParticipants || 2,
     paymentMode: tournament?.paymentMode || PAYMENT_MODES.INDIVIDUAL
   });
 
@@ -124,6 +127,11 @@ const TournamentForm = ({
       newErrors.location = 'Location is required';
     }
 
+    // NEW: Website validation
+    if (formData.website && !isValidUrl(formData.website)) {
+      newErrors.website = 'Please enter a valid website URL';
+    }
+
     if (formData.entryFee < 0) {
       newErrors.entryFee = 'Entry fee cannot be negative';
     }
@@ -131,8 +139,6 @@ const TournamentForm = ({
     if (formData.maxParticipants < 1) {
       newErrors.maxParticipants = 'Max participants must be at least 1';
     }
-
-    // REMOVED: Future date validation to allow backdating
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -146,13 +152,14 @@ const TournamentForm = ({
       return;
     }
 
-    // Convert date strings to Date objects
+    // Convert date strings to Date objects and format website URL
     const submissionData = {
       ...formData,
       eventDate: new Date(formData.eventDate),
       registrationDeadline: formData.registrationDeadline 
         ? new Date(formData.registrationDeadline) 
         : null,
+      website: formData.website ? formatWebsiteUrl(formData.website) : '', // NEW: Format website URL
       entryFee: parseFloat(formData.entryFee),
       maxParticipants: parseInt(formData.maxParticipants)
     };
@@ -166,6 +173,21 @@ const TournamentForm = ({
       onDelete(tournament.id);
     }
     setShowDeleteConfirm(false);
+  };
+
+  // NEW: Handle link testing
+  const handleTestWebsite = () => {
+    if (formData.website) {
+      const formattedUrl = formatWebsiteUrl(formData.website);
+      openLinkSafely(formattedUrl, 'Please enter a valid website URL first');
+    }
+  };
+
+  const handleTestLocation = () => {
+    if (formData.location) {
+      const mapsUrl = generateGoogleMapsLink(formData.location);
+      openLinkSafely(mapsUrl, 'Please enter a location first');
+    }
   };
 
   // Skill level options for dropdown
@@ -277,15 +299,56 @@ const TournamentForm = ({
           />
         </div>
 
-        <Input
-          label="Location"
-          type="text"
-          value={formData.location}
-          onChange={handleChange('location')}
-          error={errors.location}
-          required
-          placeholder="Tournament venue or location"
-        />
+        {/* UPDATED: Location with test button */}
+        <div className="space-y-2">
+          <Input
+            label="Location"
+            type="text"
+            value={formData.location}
+            onChange={handleChange('location')}
+            error={errors.location}
+            required
+            placeholder="Tournament venue or location"
+            helperText="Enter venue name or full address for best mapping results"
+          />
+          {formData.location && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleTestLocation}
+              className="mt-2"
+            >
+              <MapPin className="h-4 w-4 mr-1" />
+              Preview Location on Map
+            </Button>
+          )}
+        </div>
+
+        {/* NEW: Website field */}
+        <div className="space-y-2">
+          <Input
+            label="Tournament Website"
+            type="url"
+            value={formData.website}
+            onChange={handleChange('website')}
+            error={errors.website}
+            placeholder="https://example.com/tournament-info"
+            helperText="Optional - Link to tournament registration, rules, or information page"
+          />
+          {formData.website && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleTestWebsite}
+              className="mt-2"
+            >
+              <ExternalLink className="h-4 w-4 mr-1" />
+              Test Website Link
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Payment Settings */}
@@ -357,6 +420,43 @@ const TournamentForm = ({
           </div>
         )}
       </div>
+
+      {/* NEW: Link Preview Section */}
+      {(formData.location || formData.website) && (
+        <div className="bg-gray-50 p-4 rounded-lg">
+          <h4 className="text-sm font-medium text-gray-900 mb-3">Quick Links Preview</h4>
+          <div className="space-y-2">
+            {formData.location && (
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-gray-600">📍 Location: {formData.location}</span>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleTestLocation}
+                >
+                  <MapPin className="h-3 w-3 mr-1" />
+                  Maps
+                </Button>
+              </div>
+            )}
+            {formData.website && (
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-gray-600">🌐 Website: {formData.website}</span>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleTestWebsite}
+                >
+                  <ExternalLink className="h-3 w-3 mr-1" />
+                  Visit
+                </Button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Form Actions */}
       <div className="flex justify-between items-center pt-6 border-t">
