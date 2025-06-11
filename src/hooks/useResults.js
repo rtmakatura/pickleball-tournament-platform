@@ -1,7 +1,7 @@
 // src/hooks/useResults.js
 import { useState, useEffect } from 'react';
 import firebaseOps from '../services/firebaseOperations';
-import { createEventResults, createParticipantResult, RESULT_STATUS } from '../services/models';
+import { createEventsResults, createParticipantResult, RESULT_STATUS } from '../services/models';
 
 /**
  * useResults Hook - Manages results data for tournaments and leagues
@@ -63,7 +63,7 @@ export const useResults = (eventId, eventType = 'tournament', options = {}) => {
   /**
    * Create initial results structure for an event
    */
-  const createResults = async (event, participantIds = []) => {
+  const createResultsForEvent = async (event, participantIds = []) => {
     setLoading(true);
     setError(null);
     
@@ -84,8 +84,8 @@ export const useResults = (eventId, eventType = 'tournament', options = {}) => {
         })
       );
 
-      // Create event results
-      const eventResults = createEventResults({
+      // Create event results using the correct function name
+      const eventResults = createResults({
         eventId: event.id,
         eventType,
         status: RESULT_STATUS.DRAFT,
@@ -342,7 +342,7 @@ export const useResults = (eventId, eventType = 'tournament', options = {}) => {
     
     // CRUD operations
     loadResults,
-    createResults,
+    createResults: createResultsForEvent, // Renamed for clarity
     updateResults,
     deleteResults,
     
