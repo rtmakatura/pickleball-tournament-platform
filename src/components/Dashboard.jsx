@@ -1,6 +1,17 @@
-// src/components/Dashboard.jsx (COMPLETE - Added Comment Integration and Link Support)
+// src/components/Dashboard.jsx (FINAL - Enhanced Table Only with Fixes)
 import React, { useState } from 'react';
-import { Plus, Calendar, Users, Trophy, DollarSign, Activity, MessageSquare, MapPin, ExternalLink, Navigation } from 'lucide-react';
+import { 
+  Plus, 
+  Calendar, 
+  Users, 
+  Trophy, 
+  DollarSign, 
+  Activity, 
+  MessageSquare, 
+  MapPin, 
+  ExternalLink, 
+  Navigation
+} from 'lucide-react';
 import { useMembers, useLeagues, useTournaments, useAuth } from '../hooks';
 import { SKILL_LEVELS, TOURNAMENT_STATUS, LEAGUE_STATUS } from '../services/models';
 import { calculateOverallPaymentSummary } from '../utils/paymentUtils';
@@ -11,7 +22,6 @@ import {
   Button, 
   Modal, 
   Card, 
-  Table, 
   TableActions, 
   Alert 
 } from './ui';
@@ -23,7 +33,7 @@ import { LeagueForm, LeagueMemberSelector } from './league';
 import { SignUpForm } from './auth';
 import SignInForm from './auth/SignInForm';
 import { ResultsButton } from './results';
-import { CommentSection } from './comments'; // NEW: Import comment components
+import { CommentSection } from './comments';
 
 const Dashboard = () => {
   const { user, signIn, signUpWithProfile, logout, isAuthenticated, loading: authLoading } = useAuth();
@@ -36,13 +46,14 @@ const Dashboard = () => {
   const [showLeagueModal, setShowLeagueModal] = useState(false);
   const [showMemberModal, setShowMemberModal] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
-  const [showTournamentDetailModal, setShowTournamentDetailModal] = useState(false); // NEW: Tournament detail modal
-  const [showLeagueDetailModal, setShowLeagueDetailModal] = useState(false); // NEW: League detail modal
+  const [showTournamentDetailModal, setShowTournamentDetailModal] = useState(false);
+  const [showLeagueDetailModal, setShowLeagueDetailModal] = useState(false);
   const [editingTournament, setEditingTournament] = useState(null);
   const [editingLeague, setEditingLeague] = useState(null);
   const [editingMember, setEditingMember] = useState(null);
-  const [viewingTournament, setViewingTournament] = useState(null); // NEW: Tournament being viewed
-  const [viewingLeague, setViewingLeague] = useState(null); // NEW: League being viewed
+  const [viewingTournament, setViewingTournament] = useState(null);
+  const [viewingLeague, setViewingLeague] = useState(null);
+  
   const currentUserMember = members.find(m => m.authUid === user?.uid);
   
   // Auth UI state
@@ -55,7 +66,7 @@ const Dashboard = () => {
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [alert, setAlert] = useState(null);
 
-  // Helper function to sort tournaments by event date (chronologically)
+  // Helper function to sort tournaments by event date
   const getSortedTournaments = () => {
     return [...tournaments].sort((a, b) => {
       const dateA = a.eventDate ? (a.eventDate.seconds ? new Date(a.eventDate.seconds * 1000) : new Date(a.eventDate)) : new Date(0);
@@ -64,7 +75,7 @@ const Dashboard = () => {
     });
   };
 
-  // Helper function to sort leagues by start date (chronologically)
+  // Helper function to sort leagues by start date
   const getSortedLeagues = () => {
     return [...leagues].sort((a, b) => {
       const dateA = a.startDate ? (a.startDate.seconds ? new Date(a.startDate.seconds * 1000) : new Date(a.startDate)) : new Date(0);
@@ -79,6 +90,255 @@ const Dashboard = () => {
     setTimeout(() => setAlert(null), 5000);
   };
 
+  // Helper function to format event type for display
+  const formatEventType = (eventType) => {
+    if (!eventType) return '';
+    return eventType.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase());
+  };
+
+  // Helper function to get registration deadline text
+  const getRegistrationDeadlineText = (tournament) => {
+    if (tournament.registrationDeadline) {
+      const deadline = tournament.registrationDeadline.seconds 
+        ? new Date(tournament.registrationDeadline.seconds * 1000)
+        : new Date(tournament.registrationDeadline);
+      
+      return `Until ${deadline.toLocaleDateString('en-US', { 
+        month: 'short', 
+        day: 'numeric' 
+      })}`;
+    }
+    return 'Until event date';
+  };
+
+  // Enhanced table component with fixes
+  const EnhancedTable = ({ data, type = 'tournament' }) => {
+    if (!data || data.length === 0) {
+      return (
+        <div className="text-center py-12 text-gray-500">
+          <Trophy className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+          <p>No {type}s yet. Create your first {type}!</p>
+        </div>
+      );
+    }
+
+    return (
+      <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead>
+              <tr className="bg-gray-50 border-b border-gray-200">
+                <th className="text-left py-3 px-4 font-medium text-gray-700 text-sm uppercase tracking-wider w-[35%]">
+                  {type === 'tournament' ? 'Tournament' : 'League'}
+                </th>
+                <th className="text-left py-3 px-4 font-medium text-gray-700 text-sm uppercase tracking-wider w-[20%] hidden sm:table-cell">
+                  {type === 'tournament' ? 'Date & Details' : 'Duration & Details'}
+                </th>
+                <th className="text-left py-3 px-4 font-medium text-gray-700 text-sm uppercase tracking-wider w-[25%] hidden md:table-cell">
+                  Location
+                </th>
+                <th className="text-left py-3 px-4 font-medium text-gray-700 text-sm uppercase tracking-wider w-[15%] hidden lg:table-cell">
+                  Status
+                </th>
+                <th className="text-right py-3 px-4 font-medium text-gray-700 text-sm uppercase tracking-wider w-[5%]">
+                  Actions
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {data.map((item) => (
+                <tr key={item.id} className="hover:bg-gray-50 transition-colors">
+                  {/* Name Column - Allows wrapping, shows key info */}
+                  <td className="py-4 px-4 align-top">
+                    <div className="space-y-2">
+                      {/* Name - allows natural wrapping */}
+                      <div className="font-medium text-gray-900 leading-5 break-words">
+                        {item.name}
+                      </div>
+                      
+                      {/* Mobile-only: Date and key details */}
+                      <div className="sm:hidden space-y-1">
+                        <div className="flex items-center text-sm text-gray-600">
+                          <Calendar className="h-3.5 w-3.5 mr-1.5 flex-shrink-0" />
+                          <span>
+                            {type === 'tournament' 
+                              ? (item.eventDate ? new Date(item.eventDate.seconds * 1000).toLocaleDateString() : 'TBD')
+                              : `${item.startDate ? new Date(item.startDate.seconds * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'TBD'} to ${item.endDate ? new Date(item.endDate.seconds * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'TBD'}`
+                            }
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between text-sm">
+                          <div className="flex items-center text-gray-600">
+                            <Trophy className="h-3.5 w-3.5 mr-1.5" />
+                            <span className="capitalize">{item.skillLevel}</span>
+                          </div>
+                          {((type === 'tournament' && item.entryFee > 0) || (type === 'league' && item.registrationFee > 0)) && (
+                            <div className="flex items-center text-green-600 font-medium">
+                              <span>${type === 'tournament' ? item.entryFee : item.registrationFee}</span>
+                            </div>
+                          )}
+                        </div>
+                        {item.location && (
+                          <div className="text-sm text-gray-500 truncate">
+                            📍 {item.location}
+                          </div>
+                        )}
+                      </div>
+                      
+                      {/* Quick indicators - FIXED: Removed duplicate dollar sign */}
+                      <div className="flex items-center space-x-4 text-xs">
+                        <div className="flex items-center text-gray-500">
+                          <span>Type: {formatEventType(item.eventType)}</span>
+                        </div>
+                        {((type === 'tournament' && item.entryFee > 0) || (type === 'league' && item.registrationFee > 0)) && (
+                          <div className="hidden sm:flex items-center text-green-600 font-medium">
+                            <span>${type === 'tournament' ? item.entryFee : item.registrationFee}</span>
+                          </div>
+                        )}
+                        {item.commentCount > 0 && (
+                          <div className="flex items-center text-gray-400">
+                            <MessageSquare className="h-3 w-3 mr-1" />
+                            <span>{item.commentCount}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </td>
+
+                  {/* Date & Details Column */}
+                  <td className="py-4 px-4 align-top hidden sm:table-cell">
+                    <div className="space-y-2">
+                      <div className="flex items-center text-sm text-gray-900">
+                        <Calendar className="h-4 w-4 mr-2 text-gray-400" />
+                        <span className="font-medium">
+                          {type === 'tournament' 
+                            ? (item.eventDate 
+                                ? new Date(item.eventDate.seconds * 1000).toLocaleDateString('en-US', {
+                                    month: 'short',
+                                    day: 'numeric',
+                                    year: 'numeric'
+                                  })
+                                : 'TBD'
+                              )
+                            : (item.startDate && item.endDate
+                                ? `${new Date(item.startDate.seconds * 1000).toLocaleDateString('en-US', {
+                                    month: 'short',
+                                    day: 'numeric'
+                                  })} to ${new Date(item.endDate.seconds * 1000).toLocaleDateString('en-US', {
+                                    month: 'short',
+                                    day: 'numeric'
+                                  })}`
+                                : 'TBD'
+                              )
+                          }
+                        </span>
+                      </div>
+                      <div className="flex items-center text-sm text-gray-600">
+                        <Trophy className="h-4 w-4 mr-2 text-gray-400" />
+                        <span className="capitalize">{item.skillLevel}</span>
+                      </div>
+                      <div className="flex items-center text-sm text-gray-600">
+                        <Users className="h-4 w-4 mr-2 text-gray-400" />
+                        <span>{item.participants?.length || 0} {type === 'tournament' ? 'registered' : 'members'}</span>
+                      </div>
+                    </div>
+                  </td>
+
+                  {/* Location Column */}
+                  <td className="py-4 px-4 align-top hidden md:table-cell">
+                    <div className="space-y-2">
+                      {item.location ? (
+                        <>
+                          <div className="text-sm text-gray-900 leading-5 break-words">
+                            {item.location}
+                          </div>
+                          <div className="flex items-center space-x-1">
+                            <button 
+                              className="inline-flex items-center px-2 py-1 text-xs bg-blue-50 text-blue-700 rounded-md hover:bg-blue-100 transition-colors"
+                              onClick={() => openLinkSafely(generateGoogleMapsLink(item.location))}
+                              title="View on Maps"
+                            >
+                              <MapPin className="h-3 w-3 mr-1" />
+                              Maps
+                            </button>
+                            {item.website && (
+                              <button 
+                                className="inline-flex items-center px-2 py-1 text-xs bg-gray-50 text-gray-700 rounded-md hover:bg-gray-100 transition-colors"
+                                onClick={() => openLinkSafely(item.website)}
+                                title="Visit Website"
+                              >
+                                <ExternalLink className="h-3 w-3 mr-1" />
+                                Site
+                              </button>
+                            )}
+                          </div>
+                        </>
+                      ) : (
+                        <span className="text-gray-400 text-sm">No location</span>
+                      )}
+                    </div>
+                  </td>
+
+                  {/* Status Column - FIXED: Registration deadline logic */}
+                  <td className="py-4 px-4 align-top hidden lg:table-cell">
+                    <div className="space-y-2">
+                      <span className={`
+                        inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium
+                        ${item.status === TOURNAMENT_STATUS.DRAFT ? 'bg-gray-100 text-gray-800' :
+                          item.status === TOURNAMENT_STATUS.REGISTRATION_OPEN ? 'bg-green-100 text-green-800' :
+                          item.status === TOURNAMENT_STATUS.IN_PROGRESS ? 'bg-blue-100 text-blue-800' :
+                          item.status === TOURNAMENT_STATUS.COMPLETED ? 'bg-purple-100 text-purple-800' :
+                          item.status === LEAGUE_STATUS.ACTIVE ? 'bg-green-100 text-green-800' :
+                          item.status === LEAGUE_STATUS.COMPLETED ? 'bg-purple-100 text-purple-800' :
+                          'bg-gray-100 text-gray-800'
+                        }
+                      `}>
+                        <div className={`
+                          w-1.5 h-1.5 rounded-full mr-1.5
+                          ${item.status === TOURNAMENT_STATUS.REGISTRATION_OPEN || item.status === LEAGUE_STATUS.ACTIVE ? 'bg-green-400' :
+                            item.status === TOURNAMENT_STATUS.IN_PROGRESS ? 'bg-blue-400' :
+                            item.status === TOURNAMENT_STATUS.COMPLETED || item.status === LEAGUE_STATUS.COMPLETED ? 'bg-purple-400' :
+                            'bg-gray-400'
+                          }
+                        `}></div>
+                        {item.status.replace('_', ' ')}
+                      </span>
+                      <div className="text-xs text-gray-500">
+                        {type === 'tournament' 
+                          ? (item.status === TOURNAMENT_STATUS.REGISTRATION_OPEN ? getRegistrationDeadlineText(item) : '')
+                          : (item.status === LEAGUE_STATUS.ACTIVE ? 'Ongoing' : '')
+                        }
+                      </div>
+                    </div>
+                  </td>
+
+                  {/* Actions Column - FIXED: Both buttons same width, "Comment" instead of "View" */}
+                  <td className="py-4 px-4 align-top">
+                    <div className="flex flex-col space-y-1">
+                      <button 
+                        className="inline-flex items-center justify-center px-3 py-1.5 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors w-20"
+                        onClick={() => type === 'tournament' ? handleViewTournament(item) : handleViewLeague(item)}
+                      >
+                        Comment
+                      </button>
+                      <button 
+                        className="inline-flex items-center justify-center px-3 py-1.5 text-sm bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors w-20"
+                        onClick={() => type === 'tournament' ? handleEditTournament(item) : handleEditLeague(item)}
+                      >
+                        Edit
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    );
+  };
+
+  // [All existing handler functions remain the same...]
   // Auth functions
   const handleSignIn = async (credentials) => {
     try {
@@ -128,7 +388,6 @@ const Dashboard = () => {
     setShowTournamentModal(true);
   };
 
-  // NEW: Handle viewing tournament details with comments
   const handleViewTournament = (tournament) => {
     setViewingTournament(tournament);
     setShowTournamentDetailModal(true);
@@ -153,7 +412,6 @@ const Dashboard = () => {
     }
   };
 
-  // Delete handlers
   const handleDeleteTournament = async (tournamentId) => {
     setDeleteLoading(true);
     try {
@@ -197,7 +455,6 @@ const Dashboard = () => {
     setShowLeagueModal(true);
   };
 
-  // NEW: Handle viewing league details with comments
   const handleViewLeague = (league) => {
     setViewingLeague(league);
     setShowLeagueDetailModal(true);
@@ -337,284 +594,7 @@ const Dashboard = () => {
   const sortedTournaments = getSortedTournaments();
   const sortedLeagues = getSortedLeagues();
 
-  // UPDATED: Table columns for tournaments with comments support and links
-  const tournamentColumns = [
-    {
-      key: 'name',
-      label: 'Tournament Name'
-    },
-    {
-      key: 'eventDate',
-      label: 'Date',
-      render: (date) => date ? new Date(date.seconds * 1000).toLocaleDateString() : 'TBD'
-    },
-    {
-      key: 'location',
-      label: 'Location',
-      render: (location, tournament) => (
-        <div className="flex items-center space-x-2">
-          <span className="truncate max-w-32">{location}</span>
-          {location && (
-            <div className="flex space-x-1">
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => openLinkSafely(generateGoogleMapsLink(location))}
-                title="View on Maps"
-                className="px-1 py-0.5"
-              >
-                <MapPin className="h-3 w-3" />
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => openLinkSafely(generateDirectionsLink(location))}
-                title="Get Directions"
-                className="px-1 py-0.5"
-              >
-                <Navigation className="h-3 w-3" />
-              </Button>
-            </div>
-          )}
-        </div>
-      )
-    },
-    {
-      key: 'skillLevel',
-      label: 'Skill Level',
-      render: (level) => <span className="capitalize">{level}</span>
-    },
-    {
-      key: 'eventType',
-      label: 'Type',
-      render: (type) => <span className="capitalize">{type?.replace('_', ' ')}</span>
-    },
-    {
-      key: 'website',
-      label: 'Website',
-      render: (website) => (
-        website ? (
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => openLinkSafely(website)}
-            title={`Visit ${extractDomain(website)}`}
-            className="px-2 py-1"
-          >
-            <ExternalLink className="h-3 w-3 mr-1" />
-            {extractDomain(website)}
-          </Button>
-        ) : (
-          <span className="text-gray-400">—</span>
-        )
-      )
-    },
-    {
-      key: 'status',
-      label: 'Status',
-      render: (status) => (
-        <span className={`
-          px-2 py-1 text-xs rounded-full
-          ${status === TOURNAMENT_STATUS.DRAFT ? 'bg-gray-100 text-gray-800' :
-            status === TOURNAMENT_STATUS.REGISTRATION_OPEN ? 'bg-green-100 text-green-800' :
-            status === TOURNAMENT_STATUS.IN_PROGRESS ? 'bg-blue-100 text-blue-800' :
-            status === TOURNAMENT_STATUS.COMPLETED ? 'bg-purple-100 text-purple-800' :
-            'bg-red-100 text-red-800'
-          }
-        `}>
-          {status.replace('_', ' ')}
-        </span>
-      )
-    },
-    {
-      key: 'participants',
-      label: 'Participants',
-      render: (participants) => participants?.length || 0
-    },
-    {
-      key: 'commentCount', // NEW: Comment count column
-      label: 'Comments',
-      render: (_, tournament) => (
-        <div className="flex items-center space-x-1">
-          <MessageSquare className="h-4 w-4 text-gray-400" />
-          <span className="text-sm text-gray-600">{tournament.commentCount || 0}</span>
-        </div>
-      )
-    },
-    {
-      key: 'actions',
-      label: 'Actions',
-      render: (_, tournament) => (
-        <div className="flex items-center space-x-2">
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => handleViewTournament(tournament)} // NEW: View button
-          >
-            View
-          </Button>
-          
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => handleEditTournament(tournament)}
-          >
-            Edit
-          </Button>
-          
-          <ResultsButton
-            event={tournament}
-            eventType="tournament"
-            variant="auto"
-            size="sm"
-          />
-        </div>
-      )
-    }
-  ];
-
-  // UPDATED: Table columns for leagues with comments support and links
-  const leagueColumns = [
-    {
-      key: 'name',
-      label: 'League Name'
-    },
-    {
-      key: 'startDate',
-      label: 'Start Date',
-      render: (date) => date ? new Date(date.seconds * 1000).toLocaleDateString() : 'TBD'
-    },
-    {
-      key: 'endDate',
-      label: 'End Date',
-      render: (date) => date ? new Date(date.seconds * 1000).toLocaleDateString() : 'TBD'
-    },
-    {
-      key: 'location',
-      label: 'Location',
-      render: (location, league) => (
-        location ? (
-          <div className="flex items-center space-x-2">
-            <span className="truncate max-w-32">{location}</span>
-            <div className="flex space-x-1">
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => openLinkSafely(generateGoogleMapsLink(location))}
-                title="View on Maps"
-                className="px-1 py-0.5"
-              >
-                <MapPin className="h-3 w-3" />
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => openLinkSafely(generateDirectionsLink(location))}
-                title="Get Directions"
-                className="px-1 py-0.5"
-              >
-                <Navigation className="h-3 w-3" />
-              </Button>
-            </div>
-          </div>
-        ) : (
-          <span className="text-gray-400">—</span>
-        )
-      )
-    },
-    {
-      key: 'skillLevel',
-      label: 'Skill Level',
-      render: (level) => <span className="capitalize">{level}</span>
-    },
-    {
-      key: 'eventType',
-      label: 'Type',
-      render: (type) => <span className="capitalize">{type?.replace('_', ' ')}</span>
-    },
-    {
-      key: 'website',
-      label: 'Website',
-      render: (website) => (
-        website ? (
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => openLinkSafely(website)}
-            title={`Visit ${extractDomain(website)}`}
-            className="px-2 py-1"
-          >
-            <ExternalLink className="h-3 w-3 mr-1" />
-            {extractDomain(website)}
-          </Button>
-        ) : (
-          <span className="text-gray-400">—</span>
-        )
-      )
-    },
-    {
-      key: 'status',
-      label: 'Status',
-      render: (status) => (
-        <span className={`
-          px-2 py-1 text-xs rounded-full
-          ${status === LEAGUE_STATUS.ACTIVE ? 'bg-green-100 text-green-800' :
-            status === LEAGUE_STATUS.COMPLETED ? 'bg-purple-100 text-purple-800' :
-            'bg-gray-100 text-gray-800'
-          }
-        `}>
-          {status}
-        </span>
-      )
-    },
-    {
-      key: 'participants',
-      label: 'Participants',
-      render: (participants) => participants?.length || 0
-    },
-    {
-      key: 'commentCount', // NEW: Comment count column
-      label: 'Comments',
-      render: (_, league) => (
-        <div className="flex items-center space-x-1">
-          <MessageSquare className="h-4 w-4 text-gray-400" />
-          <span className="text-sm text-gray-600">{league.commentCount || 0}</span>
-        </div>
-      )
-    },
-    {
-      key: 'actions',
-      label: 'Actions',
-      render: (_, league) => (
-        <div className="flex items-center space-x-2">
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => handleViewLeague(league)} // NEW: View button
-          >
-            View
-          </Button>
-          
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => handleEditLeague(league)}
-          >
-            Edit
-          </Button>
-          
-          <ResultsButton
-            event={league}
-            eventType="league"
-            variant="auto"
-            size="sm"
-          />
-        </div>
-      )
-    }
-  ];
-
-  // Table columns for members
+  // Member table columns (unchanged)
   const memberColumns = [
     {
       key: 'displayName',
@@ -687,14 +667,15 @@ const Dashboard = () => {
 
         {/* Header */}
         <div className="flex justify-between items-center mb-8">
-        <div>
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
             <p className="text-gray-600">
-            Welcome back, {currentUserMember?.firstName || user.email}!
+              Welcome back, {currentUserMember?.firstName || user.email}!
             </p>
-        </div>
-        <Button variant="outline" onClick={logout}>
+          </div>
+          <Button variant="outline" onClick={logout}>
             Logout
-        </Button>
+          </Button>
         </div>
 
         {/* Stats Cards */}
@@ -771,7 +752,7 @@ const Dashboard = () => {
           </div>
         </Card>
 
-        {/* Tournaments Section */}
+        {/* Tournaments Section - REMOVED view mode toggles */}
         <Card 
           title="Tournaments"
           subtitle="Manage your pickleball tournaments (sorted chronologically)"
@@ -786,15 +767,10 @@ const Dashboard = () => {
           ]}
           className="mb-8"
         >
-          <Table
-            columns={tournamentColumns}
-            data={sortedTournaments}
-            loading={tournamentsLoading}
-            emptyMessage="No tournaments yet. Create your first tournament!"
-          />
+          <EnhancedTable data={sortedTournaments} type="tournament" />
         </Card>
 
-        {/* Leagues Section */}
+        {/* Leagues Section - REMOVED view mode toggles */}
         <Card 
           title="Leagues"
           subtitle="Manage ongoing pickleball leagues (sorted chronologically)"
@@ -809,12 +785,7 @@ const Dashboard = () => {
           ]}
           className="mb-8"
         >
-          <Table
-            columns={leagueColumns}
-            data={sortedLeagues}
-            loading={leaguesLoading}
-            emptyMessage="No leagues yet. Create your first league!"
-          />
+          <EnhancedTable data={sortedLeagues} type="league" />
         </Card>
 
         {/* Members Section */}
@@ -832,14 +803,47 @@ const Dashboard = () => {
           ]}
           className="mb-8"
         >
-          <Table
-            columns={memberColumns}
-            data={members}
-            loading={membersLoading}
-            emptyMessage="No members yet. Add your first member!"
-          />
+          <div className="border rounded-lg overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    {memberColumns.map((column) => (
+                      <th
+                        key={column.key}
+                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                      >
+                        {column.label}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {members.map((row, rowIndex) => (
+                    <tr
+                      key={row.id || rowIndex}
+                      className="hover:bg-gray-50 transition-colors duration-150"
+                    >
+                      {memberColumns.map((column) => (
+                        <td
+                          key={column.key}
+                          className="px-6 py-4 whitespace-nowrap text-sm text-gray-900"
+                        >
+                          {column.render 
+                            ? column.render(row[column.key], row)
+                            : row[column.key]
+                          }
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
         </Card>
 
+        {/* All existing modals remain the same... */}
         {/* Tournament Modal */}
         <Modal
           isOpen={showTournamentModal}
@@ -879,7 +883,7 @@ const Dashboard = () => {
           </div>
         </Modal>
 
-        {/* NEW: Tournament Detail Modal with Comments */}
+        {/* Tournament Detail Modal */}
         <Modal
           isOpen={showTournamentDetailModal}
           onClose={() => {
@@ -891,7 +895,6 @@ const Dashboard = () => {
         >
           {viewingTournament && (
             <div className="space-y-6">
-              {/* Tournament Info */}
               <div className="bg-gray-50 p-4 rounded-lg">
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                   <div>
@@ -960,7 +963,6 @@ const Dashboard = () => {
                 )}
               </div>
 
-              {/* Comments Section */}
               <CommentSection
                 eventId={viewingTournament.id}
                 eventType="tournament"
@@ -1009,7 +1011,7 @@ const Dashboard = () => {
           </div>
         </Modal>
 
-        {/* NEW: League Detail Modal with Comments */}
+        {/* League Detail Modal */}
         <Modal
           isOpen={showLeagueDetailModal}
           onClose={() => {
@@ -1021,7 +1023,6 @@ const Dashboard = () => {
         >
           {viewingLeague && (
             <div className="space-y-6">
-              {/* League Info */}
               <div className="bg-gray-50 p-4 rounded-lg">
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                   <div>
@@ -1094,7 +1095,6 @@ const Dashboard = () => {
                 )}
               </div>
 
-              {/* Comments Section */}
               <CommentSection
                 eventId={viewingLeague.id}
                 eventType="league"
@@ -1127,7 +1127,7 @@ const Dashboard = () => {
           />
         </Modal>
 
-        {/* Enhanced Payment Tracking Modal */}
+        {/* Payment Modal */}
         <Modal
           isOpen={showPaymentModal}
           onClose={() => setShowPaymentModal(false)}
@@ -1135,7 +1135,6 @@ const Dashboard = () => {
           size="xl"
         >
           <div className="space-y-8">
-            {/* Payment Summary */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="bg-blue-50 p-4 rounded-lg border-2 border-blue-200">
                 <h4 className="font-medium text-blue-900">Total Expected</h4>
@@ -1160,7 +1159,6 @@ const Dashboard = () => {
               </div>
             </div>
 
-            {/* Tournament Payments Section */}
             <div className="bg-white border-2 border-gray-200 rounded-lg p-6">
               <div className="border-b border-gray-200 pb-4 mb-6">
                 <h3 className="text-xl font-semibold text-gray-900 flex items-center">
@@ -1197,7 +1195,6 @@ const Dashboard = () => {
               </div>
             </div>
 
-            {/* League Payments Section */}
             <div className="bg-white border-2 border-gray-200 rounded-lg p-6">
               <div className="border-b border-gray-200 pb-4 mb-6">
                 <h3 className="text-xl font-semibold text-gray-900 flex items-center">
@@ -1230,11 +1227,10 @@ const Dashboard = () => {
                   <p className="text-gray-500 text-center py-8 bg-gray-50 rounded-lg">
                     No leagues with registration fees found.
                   </p>
-                )}
+                  )}
               </div>
             </div>
 
-            {/* No paid events message */}
             {paymentSummary.paidEvents === 0 && (
               <div className="text-center py-12 bg-gray-50 rounded-lg border-2 border-gray-200">
                 <DollarSign className="h-16 w-16 mx-auto text-gray-300 mb-4" />
