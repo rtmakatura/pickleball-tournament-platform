@@ -2,7 +2,7 @@
 // Export all league-specific components
 
 export { default as LeagueForm } from './LeagueForm';
-export { default as LeagueMemberSelector } from './LeagueMemberSelector';git 
+export { default as LeagueMemberSelector } from './LeagueMemberSelector';
 
 // Future league components can be added here:
 // export { default as LeagueCard } from './LeagueCard';
