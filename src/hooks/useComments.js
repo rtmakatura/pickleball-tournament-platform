@@ -1,20 +1,43 @@
-// src/hooks/useComments.js (SIMPLIFIED - No Voting)
+// src/hooks/useComments.js (FIXED - Handle divisionId properly)
 import { useState, useEffect } from 'react';
 import firebaseOps from '../services/firebaseOperations';
 import { createComment, COMMENT_STATUS, COMMENT_TYPES } from '../services/models';
-import { formatDistanceToNow } from 'date-fns';
+
+/**
+ * Helper function for formatting relative time - simplified implementation
+ * If you want to use date-fns, make sure it's installed: npm install date-fns
+ */
+const formatDistanceToNow = (date) => {
+  const now = new Date();
+  const diffMs = now - date;
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMins / 60);
+  const diffDays = Math.floor(diffHours / 24);
+  
+  if (diffMins < 1) return 'just now';
+  if (diffMins < 60) return `${diffMins} minute${diffMins !== 1 ? 's' : ''} ago`;
+  if (diffHours < 24) return `${diffHours} hour${diffHours !== 1 ? 's' : ''} ago`;
+  if (diffDays < 7) return `${diffDays} day${diffDays !== 1 ? 's' : ''} ago`;
+  return date.toLocaleDateString();
+};
 
 /**
  * useComments Hook - Manages team messages for tournaments and leagues
- * Simplified version without voting functionality
+ * FIXED: Properly handles divisionId in options parameter
  * 
- * Props:
+ * Params:
  * - eventId: string - ID of the event (tournament or league)
  * - eventType: string - 'tournament' or 'league'
- * - realTime: boolean - Whether to use real-time updates
+ * - options: object - Options including divisionId, realTime, limit, sortBy
  */
 export const useComments = (eventId, eventType = 'tournament', options = {}) => {
-  const { realTime = true, limit = 50, sortBy = 'createdAt' } = options;
+  // FIXED: Provide default empty object and safely destructure
+  const { 
+    divisionId = null,
+    realTime = true, 
+    limit = 50, 
+    sortBy = 'createdAt' 
+  } = options || {};
   
   const [comments, setComments] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -24,10 +47,10 @@ export const useComments = (eventId, eventType = 'tournament', options = {}) => 
     if (eventId) {
       loadComments();
     }
-  }, [eventId, eventType]);
+  }, [eventId, eventType, divisionId]);
 
   /**
-   * Load comments for an event
+   * Load comments for an event (optionally filtered by division)
    */
   const loadComments = async () => {
     setLoading(true);
@@ -39,6 +62,11 @@ export const useComments = (eventId, eventType = 'tournament', options = {}) => 
         eventType,
         status: COMMENT_STATUS.ACTIVE
       };
+      
+      // Add division filter if specified
+      if (divisionId) {
+        filters.divisionId = divisionId;
+      }
       
       if (realTime) {
         const unsubscribe = firebaseOps.subscribe(
@@ -107,8 +135,59 @@ export const useComments = (eventId, eventType = 'tournament', options = {}) => 
       const comment = createComment({
         eventId,
         eventType,
+        divisionId, // Use the divisionId from options
         authorId,
         authorName,
+        content: content.trim(),
+        parentId,
+        type: parentId ? COMMENT_TYPES.REPLY : COMMENT_TYPES.COMMENT,
+        depth,
+        status: COMMENT_STATUS.ACTIVE
+      });
+
+      const commentId = await firebaseOps.create('comments', comment);
+      
+      // Update event comment count
+      await updateEventCommentCount(1);
+      
+      // Update parent comment reply count if this is a reply
+      if (parentId) {
+        await updateCommentReplyCount(parentId, 1);
+      }
+      
+      return commentId;
+    } catch (err) {
+      setError(err.message);
+      throw err;
+    }
+  };
+
+  /**
+   * Add a comment with flexible parameters (for the UI components)
+   */
+  const addComment = async (commentData) => {
+    if (!commentData.content?.trim()) {
+      throw new Error('Comment content is required');
+    }
+
+    // Get current user info (you'll need to import useAuth or pass this in)
+    // For now, we'll assume the caller provides authorId and authorName
+    const { content, parentId = null, divisionId: targetDivisionId = null } = commentData;
+    
+    // Use the target division ID if provided, otherwise use the hook's divisionId
+    const effectiveDivisionId = targetDivisionId || divisionId;
+    
+    setError(null);
+    
+    try {
+      const depth = parentId ? await getCommentDepth(parentId) + 1 : 0;
+      
+      const comment = createComment({
+        eventId,
+        eventType,
+        divisionId: effectiveDivisionId,
+        authorId: commentData.authorId || 'unknown', // This should come from the calling component
+        authorName: commentData.authorName || 'Unknown User',
         content: content.trim(),
         parentId,
         type: parentId ? COMMENT_TYPES.REPLY : COMMENT_TYPES.COMMENT,
@@ -147,6 +226,27 @@ export const useComments = (eventId, eventType = 'tournament', options = {}) => 
         status: COMMENT_STATUS.ACTIVE // Keep active status after edit
       });
       
+      return true;
+    } catch (err) {
+      setError(err.message);
+      throw err;
+    }
+  };
+
+  /**
+   * Update a comment (alias for editComment with more flexible parameters)
+   */
+  const updateComment = async (commentId, updates) => {
+    setError(null);
+    
+    try {
+      const updateData = {
+        ...updates,
+        isEdited: true,
+        editedAt: new Date()
+      };
+      
+      await firebaseOps.update('comments', commentId, updateData);
       return true;
     } catch (err) {
       setError(err.message);
@@ -343,7 +443,9 @@ export const useComments = (eventId, eventType = 'tournament', options = {}) => 
     // CRUD operations
     loadComments,
     postComment,
+    addComment, // NEW: More flexible comment adding
     editComment,
+    updateComment, // NEW: More flexible comment updating
     deleteComment,
     
     // Moderation

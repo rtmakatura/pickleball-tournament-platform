@@ -1,5 +1,5 @@
-// src/components/comments/CommentSection.jsx (UPDATED - Division Support)
-import React, { useState, useEffect } from 'react';
+// src/components/comments/CommentSection.jsx (UPDATED - Simplified Communication Channel)
+import React, { useState, useRef } from 'react';
 import { 
   MessageSquare, 
   Send, 
@@ -8,11 +8,11 @@ import {
   Edit3, 
   Trash2, 
   User,
-  Users,
   Layers,
-  Trophy
+  Trophy,
+  AtSign
 } from 'lucide-react';
-import { Button, Input, Select, Card, Alert } from '../ui';
+import { Button, Card, Alert } from '../ui';
 import { useAuth } from '../../hooks/useAuth';
 import { useMembers } from '../../hooks/useMembers';
 import { useComments } from '../../hooks/useComments';
@@ -22,16 +22,12 @@ import {
   canDeleteComment, 
   canModerateComments 
 } from '../../utils/roleUtils';
+import { parseMentions, formatMentionText } from '../../utils/mentionUtils';
 
 /**
- * CommentSection Component - Display and manage comments for events
- * UPDATED: Now supports division-specific comments for tournaments
- * 
- * Props:
- * - eventId: string - ID of the event (tournament or league)
- * - eventType: string - 'tournament' or 'league'
- * - divisionId: string - Optional division ID for division-specific comments
- * - event: object - Event data for context
+ * CommentSection Component - Simplified communication channel
+ * UPDATED: Removed unnecessary header info, focus on communication
+ * Added @mention support for notifications
  */
 const CommentSection = ({ 
   eventId, 
@@ -54,9 +50,14 @@ const CommentSection = ({
   const [editingComment, setEditingComment] = useState(null);
   const [editText, setEditText] = useState('');
   const [selectedDivision, setSelectedDivision] = useState(divisionId || '');
-  const [viewMode, setViewMode] = useState('all'); // 'all', 'general', 'division'
+  const [viewMode, setViewMode] = useState('all');
   const [submitting, setSubmitting] = useState(false);
   const [alert, setAlert] = useState(null);
+  const [showMentionSuggestions, setShowMentionSuggestions] = useState(false);
+  const [mentionSuggestions, setMentionSuggestions] = useState([]);
+  const [mentionPosition, setMentionPosition] = useState(0);
+  
+  const textareaRef = useRef(null);
 
   // Check if this is a division-based tournament
   const isDivisionBased = eventType === 'tournament' && event?.divisions && Array.isArray(event.divisions);
@@ -72,6 +73,60 @@ const CommentSection = ({
   const showAlert = (type, message) => {
     setAlert({ type, message });
     setTimeout(() => setAlert(null), 5000);
+  };
+
+  // Handle @mention detection and suggestions
+  const handleTextChange = (text, textareaElement) => {
+    setNewComment(text);
+    
+    // Check for @mentions
+    const cursorPosition = textareaElement.selectionStart;
+    const textBeforeCursor = text.substring(0, cursorPosition);
+    const lastAtSymbol = textBeforeCursor.lastIndexOf('@');
+    
+    if (lastAtSymbol !== -1) {
+      const searchTerm = textBeforeCursor.substring(lastAtSymbol + 1);
+      
+      // Only show suggestions if we have a partial search and no spaces after @
+      if (searchTerm.length > 0 && !searchTerm.includes(' ')) {
+        const suggestions = members
+          .filter(member => {
+            const fullName = `${member.firstName} ${member.lastName}`.toLowerCase();
+            return fullName.includes(searchTerm.toLowerCase());
+          })
+          .slice(0, 5); // Limit to 5 suggestions
+        
+        if (suggestions.length > 0) {
+          setMentionSuggestions(suggestions);
+          setMentionPosition(lastAtSymbol);
+          setShowMentionSuggestions(true);
+        } else {
+          setShowMentionSuggestions(false);
+        }
+      } else {
+        setShowMentionSuggestions(false);
+      }
+    } else {
+      setShowMentionSuggestions(false);
+    }
+  };
+
+  // Handle mention selection
+  const selectMention = (member) => {
+    const beforeMention = newComment.substring(0, mentionPosition);
+    const afterCursor = newComment.substring(textareaRef.current.selectionStart);
+    const mentionText = `@${member.firstName} ${member.lastName}`;
+    
+    const newText = beforeMention + mentionText + ' ' + afterCursor;
+    setNewComment(newText);
+    setShowMentionSuggestions(false);
+    
+    // Focus back to textarea
+    setTimeout(() => {
+      textareaRef.current.focus();
+      const newCursorPosition = beforeMention.length + mentionText.length + 1;
+      textareaRef.current.setSelectionRange(newCursorPosition, newCursorPosition);
+    }, 100);
   };
 
   // Get member name by ID
@@ -101,11 +156,15 @@ const CommentSection = ({
 
     setSubmitting(true);
     try {
+      // Parse mentions from the comment
+      const mentions = parseMentions(content, members);
+      
       await addComment({
         content: content.trim(),
         parentId,
-        divisionId: targetDivisionId || (viewMode === 'division' ? selectedDivision : null)
-      });
+        divisionId: targetDivisionId || (viewMode === 'division' ? selectedDivision : null),
+        mentions: mentions.map(m => m.id) // Store mentioned member IDs
+      }, currentMember.id, `${currentMember.firstName} ${currentMember.lastName}`);
       
       setNewComment('');
       setReplyingTo(null);
@@ -122,7 +181,13 @@ const CommentSection = ({
     if (!newContent.trim()) return;
 
     try {
-      await updateComment(commentId, { content: newContent.trim() });
+      const mentions = parseMentions(newContent, members);
+      
+      await updateComment(commentId, { 
+        content: newContent.trim(),
+        mentions: mentions.map(m => m.id)
+      });
+      
       setEditingComment(null);
       setEditText('');
       showAlert('success', 'Comment updated successfully');
@@ -195,10 +260,10 @@ const CommentSection = ({
 
   if (!canPost) {
     return (
-      <Card title="Comments">
+      <Card title="Discussion">
         <Alert 
           type="info" 
-          message="You need to be a member to view and post comments." 
+          message="You need to be a member to view and post messages." 
         />
       </Card>
     );
@@ -209,7 +274,7 @@ const CommentSection = ({
       title={
         <div className="flex items-center space-x-2">
           <MessageSquare className="h-5 w-5" />
-          <span>Comments ({commentStats.total})</span>
+          <span>Discussion ({commentStats.total})</span>
         </div>
       }
     >
@@ -223,11 +288,11 @@ const CommentSection = ({
           />
         )}
 
-        {/* View Mode Selector for Division-Based Tournaments */}
+        {/* Division Selector for Division-Based Tournaments */}
         {isDivisionBased && (
           <div className="bg-gray-50 p-4 rounded-lg">
             <div className="flex items-center justify-between mb-4">
-              <h4 className="font-medium text-gray-900">Comment View</h4>
+              <h4 className="font-medium text-gray-900">Choose Discussion Channel</h4>
               <div className="text-sm text-gray-600">
                 {commentStats.general} general • {Object.values(commentStats.byDivision).reduce((sum, count) => sum + count, 0)} division-specific
               </div>
@@ -243,10 +308,10 @@ const CommentSection = ({
                 }`}
               >
                 <div className="flex items-center space-x-2">
-                  <Users className="h-4 w-4" />
-                  <span className="font-medium">All Comments</span>
+                  <MessageSquare className="h-4 w-4" />
+                  <span className="font-medium">All Messages</span>
                 </div>
-                <p className="text-xs mt-1 opacity-75">{commentStats.total} total comments</p>
+                <p className="text-xs mt-1 opacity-75">{commentStats.total} total messages</p>
               </button>
               
               <button
@@ -258,10 +323,10 @@ const CommentSection = ({
                 }`}
               >
                 <div className="flex items-center space-x-2">
-                  <MessageSquare className="h-4 w-4" />
+                  <Trophy className="h-4 w-4" />
                   <span className="font-medium">General</span>
                 </div>
-                <p className="text-xs mt-1 opacity-75">{commentStats.general} tournament-wide comments</p>
+                <p className="text-xs mt-1 opacity-75">{commentStats.general} tournament messages</p>
               </button>
               
               <button
@@ -274,10 +339,10 @@ const CommentSection = ({
               >
                 <div className="flex items-center space-x-2">
                   <Layers className="h-4 w-4" />
-                  <span className="font-medium">Division-Specific</span>
+                  <span className="font-medium">Division Chat</span>
                 </div>
                 <p className="text-xs mt-1 opacity-75">
-                  {Object.values(commentStats.byDivision).reduce((sum, count) => sum + count, 0)} division comments
+                  {Object.values(commentStats.byDivision).reduce((sum, count) => sum + count, 0)} division messages
                 </p>
               </button>
             </div>
@@ -285,18 +350,18 @@ const CommentSection = ({
             {/* Division Selector for Division Mode */}
             {viewMode === 'division' && (
               <div className="mt-4">
-                <Select
-                  label="Select Division"
+                <select
                   value={selectedDivision}
                   onChange={(e) => setSelectedDivision(e.target.value)}
-                  options={[
-                    { value: '', label: 'Select a division...' },
-                    ...event.divisions.map(div => ({
-                      value: div.id,
-                      label: `${div.name} (${commentStats.byDivision[div.id] || 0} comments)`
-                    }))
-                  ]}
-                />
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">Select a division...</option>
+                  {event.divisions.map(div => (
+                    <option key={div.id} value={div.id}>
+                      {div.name} ({commentStats.byDivision[div.id] || 0} messages)
+                    </option>
+                  ))}
+                </select>
               </div>
             )}
           </div>
@@ -309,27 +374,47 @@ const CommentSection = ({
               <User className="h-4 w-4 text-gray-400" />
             </div>
             
-            <div className="flex-1">
+            <div className="flex-1 relative">
               <textarea
+                ref={textareaRef}
                 value={newComment}
-                onChange={(e) => setNewComment(e.target.value)}
+                onChange={(e) => handleTextChange(e.target.value, e.target)}
                 placeholder={
                   viewMode === 'general' 
-                    ? 'Add a general comment about the tournament...'
+                    ? 'Share a message with everyone...'
                     : viewMode === 'division' && selectedDivision
-                      ? `Add a comment about ${getDivisionName(selectedDivision)}...`
-                      : 'Add a comment...'
+                      ? `Message your ${getDivisionName(selectedDivision)} division...`
+                      : 'Share a message... (Use @name to mention someone)'
                 }
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
                 rows={3}
                 disabled={!canPost || (viewMode === 'division' && !selectedDivision)}
               />
               
+              {/* Mention Suggestions */}
+              {showMentionSuggestions && (
+                <div className="absolute z-10 mt-1 w-full bg-white border border-gray-300 rounded-lg shadow-lg max-h-40 overflow-y-auto">
+                  {mentionSuggestions.map((member) => (
+                    <button
+                      key={member.id}
+                      onClick={() => selectMention(member)}
+                      className="w-full px-3 py-2 text-left hover:bg-gray-50 flex items-center space-x-2"
+                    >
+                      <AtSign className="h-3 w-3 text-gray-400" />
+                      <span>{member.firstName} {member.lastName}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+              
               <div className="flex items-center justify-between mt-2">
                 <div className="text-xs text-gray-500">
-                  {viewMode === 'general' && 'This comment will be visible to all tournament participants'}
-                  {viewMode === 'division' && selectedDivision && `This comment will be specific to ${getDivisionName(selectedDivision)}`}
-                  {viewMode === 'all' && 'This comment will be general (not division-specific)'}
+                  {viewMode === 'general' && 'This message will be visible to all participants'}
+                  {viewMode === 'division' && selectedDivision && `This message will be visible to ${getDivisionName(selectedDivision)} participants`}
+                  {viewMode === 'all' && 'This message will be general (not division-specific)'}
+                  {newComment.includes('@') && (
+                    <span className="ml-2 text-blue-600">• Use @name to notify someone</span>
+                  )}
                 </div>
                 
                 <Button
@@ -347,7 +432,7 @@ const CommentSection = ({
                   size="sm"
                 >
                   <Send className="h-4 w-4 mr-1" />
-                  Post Comment
+                  Send
                 </Button>
               </div>
             </div>
@@ -359,24 +444,24 @@ const CommentSection = ({
           {loading ? (
             <div className="text-center py-8 text-gray-500">
               <div className="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-gray-300"></div>
-              <p className="mt-2">Loading comments...</p>
+              <p className="mt-2">Loading messages...</p>
             </div>
           ) : filteredComments.length === 0 ? (
             <div className="text-center py-8 text-gray-500">
               <MessageSquare className="h-12 w-12 mx-auto mb-4 text-gray-300" />
               <p>
                 {viewMode === 'general' 
-                  ? 'No general comments yet. Be the first to comment!'
+                  ? 'No general messages yet. Start the conversation!'
                   : viewMode === 'division' && selectedDivision
-                    ? `No comments for ${getDivisionName(selectedDivision)} yet.`
-                    : 'No comments yet. Be the first to comment!'
+                    ? `No messages for ${getDivisionName(selectedDivision)} yet.`
+                    : 'No messages yet. Start the conversation!'
                 }
               </p>
             </div>
           ) : (
             <div className="space-y-4">
               {filteredComments
-                .filter(comment => comment.parentId === null) // Only show top-level comments
+                .filter(comment => comment.parentId === null)
                 .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
                 .map(comment => (
                   <CommentItem
@@ -406,41 +491,13 @@ const CommentSection = ({
             </div>
           )}
         </div>
-
-        {/* Division Comment Summary for All View */}
-        {isDivisionBased && viewMode === 'all' && commentStats.total > 0 && (
-          <div className="bg-gray-50 p-4 rounded-lg">
-            <h4 className="font-medium text-gray-900 mb-3">Comment Distribution</h4>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <div className="flex items-center justify-between p-2 bg-white rounded">
-                <span className="text-sm text-gray-700">General Comments</span>
-                <span className="text-sm font-medium text-gray-900">{commentStats.general}</span>
-              </div>
-              
-              {event.divisions.map(division => {
-                const divisionCommentCount = commentStats.byDivision[division.id] || 0;
-                if (divisionCommentCount === 0) return null;
-                
-                return (
-                  <div key={division.id} className="flex items-center justify-between p-2 bg-white rounded">
-                    <div className="flex items-center space-x-2">
-                      <Trophy className="h-3 w-3 text-gray-400" />
-                      <span className="text-sm text-gray-700">{division.name}</span>
-                    </div>
-                    <span className="text-sm font-medium text-gray-900">{divisionCommentCount}</span>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
       </div>
     </Card>
   );
 };
 
 /**
- * CommentItem Component - Individual comment display with threading
+ * CommentItem Component - Individual comment display with @mention highlighting
  */
 const CommentItem = ({
   comment,
@@ -487,6 +544,11 @@ const CommentItem = ({
       setReplyText('');
       cancelReply();
     }
+  };
+
+  // Format comment content with @mention highlighting
+  const formatCommentContent = (content) => {
+    return formatMentionText(content, members);
   };
 
   return (
@@ -580,7 +642,7 @@ const CommentItem = ({
           </div>
         ) : (
           <div>
-            <p className="text-gray-700 mb-3">{comment.content}</p>
+            <div className="text-gray-700 mb-3" dangerouslySetInnerHTML={{ __html: formatCommentContent(comment.content) }} />
             
             {/* Comment Actions */}
             <div className="flex items-center space-x-4 text-sm">
