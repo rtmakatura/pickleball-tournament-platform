@@ -1,4 +1,4 @@
-// src/components/comments/CommentSection.jsx (FIXED - Working replies with debugging)
+// src/components/comments/CommentSection.jsx (FIXED - Working replies with proper thread structure)
 import React, { useState, useRef } from 'react';
 import { 
   MessageSquare, 
@@ -87,7 +87,7 @@ const formatDate = (timestamp) => {
 };
 
 /**
- * CommentSection Component - FIXED: Working replies
+ * CommentSection Component - FIXED: Working replies with proper thread structure
  */
 const CommentSection = ({ 
   eventId, 
@@ -103,7 +103,7 @@ const CommentSection = ({
     addComment, 
     updateComment, 
     deleteComment 
-  } = useComments(eventId, eventType, divisionId);
+  } = useComments(eventId, eventType, null); // Don't pass divisionId to hook - let it fetch all comments
 
   const [newComment, setNewComment] = useState('');
   const [replyingTo, setReplyingTo] = useState(null);
@@ -192,7 +192,7 @@ const CommentSection = ({
     return member ? `${member.firstName} ${member.lastName}` : 'Unknown User';
   };
 
-  // FIXED: Better comment filtering logic
+  // FIXED: Better comment filtering logic that preserves thread structure
   const getFilteredComments = () => {
     if (!comments || !Array.isArray(comments)) {
       console.log('📝 No comments or comments not an array:', comments);
@@ -205,11 +205,29 @@ const CommentSection = ({
     let filtered = [];
     
     if (viewMode === 'general') {
-      filtered = comments.filter(comment => !comment.divisionId);
-      console.log('📝 General comments:', filtered.length);
+      // Show general comments and their replies (regardless of reply division)
+      filtered = comments.filter(comment => {
+        // Include if it's a general comment OR if it's a reply to a general comment
+        if (!comment.divisionId) return true;
+        if (comment.parentId) {
+          const parent = comments.find(c => c.id === comment.parentId);
+          return parent && !parent.divisionId;
+        }
+        return false;
+      });
+      console.log('📝 General comments (with replies):', filtered.length);
     } else if (viewMode === 'division' && selectedDivision) {
-      filtered = comments.filter(comment => comment.divisionId === selectedDivision);
-      console.log('📝 Division comments for', selectedDivision, ':', filtered.length);
+      // Show division comments and their replies (regardless of reply division)
+      filtered = comments.filter(comment => {
+        // Include if it's a division comment OR if it's a reply to a division comment
+        if (comment.divisionId === selectedDivision) return true;
+        if (comment.parentId) {
+          const parent = comments.find(c => c.id === comment.parentId);
+          return parent && parent.divisionId === selectedDivision;
+        }
+        return false;
+      });
+      console.log('📝 Division comments (with replies) for', selectedDivision, ':', filtered.length);
     } else {
       filtered = comments; // 'all' mode
       console.log('📝 All comments:', filtered.length);
@@ -623,7 +641,7 @@ const CommentSection = ({
 };
 
 /**
- * CommentItem Component - FIXED: Better reply handling
+ * CommentItem Component - FIXED: Better reply handling with preserved thread structure
  */
 const CommentItem = ({
   comment,

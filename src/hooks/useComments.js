@@ -1,13 +1,12 @@
-// src/hooks/useComments.js (FIXED - Now creates notifications for mentions)
+// src/hooks/useComments.js (FIXED - Now properly fetches and displays replies)
 import { useState, useEffect } from 'react';
 import firebaseOps from '../services/firebaseOperations';
-import notificationService from '../services/notificationService'; // ADD THIS IMPORT
+import notificationService from '../services/notificationService';
 import { createComment, COMMENT_STATUS, COMMENT_TYPES } from '../services/models';
-import { parseMentions } from '../utils/mentionUtils'; // ADD THIS IMPORT
+import { parseMentions } from '../utils/mentionUtils';
 
 /**
  * Helper function for formatting relative time - simplified implementation
- * If you want to use date-fns, make sure it's installed: npm install date-fns
  */
 const formatDistanceToNow = (date) => {
   const now = new Date();
@@ -24,8 +23,7 @@ const formatDistanceToNow = (date) => {
 };
 
 /**
- * useComments Hook - Manages team messages for tournaments and leagues
- * FIXED: Now properly creates notifications for mentions and replies
+ * useComments Hook - FIXED: Now properly fetches all comments including replies
  * 
  * Params:
  * - eventId: string - ID of the event (tournament or league)
@@ -33,11 +31,10 @@ const formatDistanceToNow = (date) => {
  * - options: object - Options including divisionId, realTime, limit, sortBy
  */
 export const useComments = (eventId, eventType = 'tournament', options = {}) => {
-  // FIXED: Provide default empty object and safely destructure
+  // FIXED: Don't filter by divisionId in the hook - let the UI handle filtering
   const { 
-    divisionId = null,
     realTime = true, 
-    limit = 50, 
+    limit = 100, // Increased limit to catch all comments and replies
     sortBy = 'createdAt' 
   } = options || {};
   
@@ -49,80 +46,53 @@ export const useComments = (eventId, eventType = 'tournament', options = {}) => 
     if (eventId) {
       loadComments();
     }
-  }, [eventId, eventType, divisionId]);
+  }, [eventId, eventType]);
 
   /**
-   * Load comments for an event (optionally filtered by division)
+   * FIXED: Load ALL comments for an event (no division filtering in hook)
    */
   const loadComments = async () => {
     setLoading(true);
     setError(null);
     
     try {
+      // FIXED: Only filter by eventId, eventType, and status - NO division filtering
       const filters = { 
         eventId, 
         eventType,
         status: COMMENT_STATUS.ACTIVE
       };
       
-      // Add division filter if specified
-      if (divisionId) {
-        filters.divisionId = divisionId;
-      }
+      console.log('🔄 Loading comments with filters:', filters);
       
       if (realTime) {
         const unsubscribe = firebaseOps.subscribe(
           'comments', 
           (commentsData) => {
-            const organizedComments = organizeComments(commentsData);
-            setComments(organizedComments);
+            console.log('📡 Real-time comments received:', commentsData.length);
+            commentsData.forEach(comment => {
+              console.log(`🔍 Comment ${comment.id}: parentId=${comment.parentId}, content="${comment.content.substring(0, 30)}..."`);
+            });
+            
+            // FIXED: Set comments as flat array - let UI organize them
+            setComments(commentsData || []);
           }, 
           filters,
-          sortBy
+          sortBy,
+          limit
         );
         return () => unsubscribe();
       } else {
         const commentsData = await firebaseOps.getAll('comments', filters, sortBy, limit);
-        const organizedComments = organizeComments(commentsData);
-        setComments(organizedComments);
+        console.log('📚 One-time comments loaded:', commentsData.length);
+        setComments(commentsData || []);
       }
     } catch (err) {
+      console.error('❌ Error loading comments:', err);
       setError(err.message);
     } finally {
       setLoading(false);
     }
-  };
-
-  /**
-   * Organize flat comments into threaded structure
-   */
-  const organizeComments = (flatComments) => {
-    const commentMap = {};
-    const topLevelComments = [];
-
-    // First pass: create comment map
-    flatComments.forEach(comment => {
-      commentMap[comment.id] = { ...comment, replies: [] };
-    });
-
-    // Second pass: organize into tree structure
-    flatComments.forEach(comment => {
-      if (comment.parentId) {
-        // This is a reply
-        const parent = commentMap[comment.parentId];
-        if (parent) {
-          parent.replies.push(commentMap[comment.id]);
-        }
-      } else {
-        // This is a top-level comment
-        topLevelComments.push(commentMap[comment.id]);
-      }
-    });
-
-    // Sort top-level comments by date (newest first by default)
-    return topLevelComments.sort((a, b) => {
-      return new Date(b.createdAt) - new Date(a.createdAt);
-    });
   };
 
   /**
@@ -138,9 +108,6 @@ export const useComments = (eventId, eventType = 'tournament', options = {}) => 
     console.log('Author:', { authorId, authorName });
     console.log('Members available:', members.length);
 
-    // Get the target division ID if provided, otherwise use the hook's divisionId
-    const effectiveDivisionId = commentData.divisionId || divisionId;
-    
     setError(null);
     
     try {
@@ -153,7 +120,7 @@ export const useComments = (eventId, eventType = 'tournament', options = {}) => 
       const comment = createComment({
         eventId,
         eventType,
-        divisionId: effectiveDivisionId,
+        divisionId: commentData.divisionId || null,
         authorId,
         authorName,
         content: commentData.content.trim(),
@@ -161,7 +128,7 @@ export const useComments = (eventId, eventType = 'tournament', options = {}) => 
         type: commentData.parentId ? COMMENT_TYPES.REPLY : COMMENT_TYPES.COMMENT,
         depth,
         status: COMMENT_STATUS.ACTIVE,
-        mentions: mentions.map(m => m.id) // Store mention IDs
+        mentions: mentions.map(m => m.id)
       });
 
       console.log('💾 Creating comment document:', comment);
@@ -170,17 +137,14 @@ export const useComments = (eventId, eventType = 'tournament', options = {}) => 
       
       // 🚨 CRITICAL FIX: Create notifications for mentions and replies
       try {
-        // Get the full comment object with ID for notifications
         const fullComment = { ...comment, id: commentId };
         
-        // Get parent comment if this is a reply
         let parentComment = null;
         if (commentData.parentId) {
           parentComment = await firebaseOps.read('comments', commentData.parentId);
           console.log('📝 Retrieved parent comment for reply notification:', parentComment);
         }
 
-        // Get event data if not provided
         let eventData = event;
         if (!eventData) {
           const collection = eventType === 'tournament' ? 'tournaments' : 'leagues';
@@ -188,7 +152,6 @@ export const useComments = (eventId, eventType = 'tournament', options = {}) => 
           console.log('📅 Retrieved event data:', eventData);
         }
 
-        // 🔔 Create notifications
         console.log('🔔 Creating notifications...');
         await notificationService.processCommentNotifications(
           fullComment, 
@@ -200,7 +163,6 @@ export const useComments = (eventId, eventType = 'tournament', options = {}) => 
 
       } catch (notificationError) {
         console.error('❌ Error creating notifications (comment still saved):', notificationError);
-        // Don't throw here - comment was saved successfully
       }
       
       // Update event comment count
@@ -209,6 +171,11 @@ export const useComments = (eventId, eventType = 'tournament', options = {}) => 
       // Update parent comment reply count if this is a reply
       if (commentData.parentId) {
         await updateCommentReplyCount(commentData.parentId, 1);
+      }
+      
+      // FIXED: Force reload comments to ensure UI updates
+      if (!realTime) {
+        await loadComments();
       }
       
       return commentId;
@@ -241,7 +208,7 @@ export const useComments = (eventId, eventType = 'tournament', options = {}) => 
         content: newContent.trim(),
         isEdited: true,
         editedAt: new Date(),
-        status: COMMENT_STATUS.ACTIVE // Keep active status after edit
+        status: COMMENT_STATUS.ACTIVE
       });
       
       return true;
@@ -373,7 +340,7 @@ export const useComments = (eventId, eventType = 'tournament', options = {}) => 
    * Get simplified comment statistics (no voting data)
    */
   const getCommentStats = () => {
-    const flatComments = flattenComments(comments);
+    const flatComments = comments || [];
     
     // Count authors and their message counts
     const authorCounts = {};
@@ -410,58 +377,27 @@ export const useComments = (eventId, eventType = 'tournament', options = {}) => 
   };
 
   /**
-   * Flatten nested comments for statistics
-   */
-  const flattenComments = (nestedComments) => {
-    const flat = [];
-    
-    const flatten = (commentList) => {
-      commentList.forEach(comment => {
-        flat.push(comment);
-        if (comment.replies && comment.replies.length > 0) {
-          flatten(comment.replies);
-        }
-      });
-    };
-    
-    flatten(nestedComments);
-    return flat;
-  };
-
-  /**
    * Search comments
    */
   const searchComments = (searchTerm) => {
-    if (!searchTerm) return comments;
+    if (!searchTerm || !comments) return comments;
     
     const search = searchTerm.toLowerCase();
-    const filtered = [];
-    
-    const searchInComments = (commentList) => {
-      commentList.forEach(comment => {
-        if (comment.content.toLowerCase().includes(search) ||
-            comment.authorName.toLowerCase().includes(search)) {
-          filtered.push(comment);
-        }
-        if (comment.replies && comment.replies.length > 0) {
-          searchInComments(comment.replies);
-        }
-      });
-    };
-    
-    searchInComments(comments);
-    return filtered;
+    return comments.filter(comment => 
+      comment.content.toLowerCase().includes(search) ||
+      comment.authorName.toLowerCase().includes(search)
+    );
   };
 
   return {
-    comments,
+    comments: comments || [], // FIXED: Always return array
     loading,
     error,
     
     // CRUD operations
     loadComments,
     postComment,
-    addComment, // FIXED: Now creates notifications for mentions
+    addComment,
     editComment,
     updateComment,
     deleteComment,
@@ -475,8 +411,8 @@ export const useComments = (eventId, eventType = 'tournament', options = {}) => 
     clearError: () => setError(null),
     
     // Computed properties
-    hasComments: comments.length > 0,
-    commentCount: flattenComments(comments).length,
+    hasComments: (comments || []).length > 0,
+    commentCount: (comments || []).length,
     stats: getCommentStats()
   };
 };
