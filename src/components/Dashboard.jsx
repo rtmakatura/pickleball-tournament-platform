@@ -765,78 +765,81 @@ const Dashboard = () => {
   };
 
   // League table with pagination
-  const EnhancedLeagueTable = ({ data, visibleCount, onLoadMore, hasMore }) => {
+  // Enhanced League Table Component - Fixed for No Horizontal Scroll
+    const EnhancedLeagueTable = ({ data, visibleCount, onLoadMore, hasMore }) => {
     const displayData = data.slice(0, visibleCount);
     
     if (!data || data.length === 0) {
-      return (
+        return (
         <div className="text-center py-12 text-gray-500">
-          <Activity className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-          <p>No leagues yet. Create your first league!</p>
+            <Activity className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+            <p>No leagues yet. Create your first league!</p>
         </div>
-      );
+        );
     }
 
     return (
-      <div className="space-y-4">
+        <div className="space-y-4">
         <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
-          <div className="overflow-x-auto">
+            <div className="overflow-x-auto">
             <table className="w-full enhanced-table">
-              <thead>
+                <thead>
                 <tr className="bg-gray-50 border-b border-gray-200">
-                  <th className="text-left py-3 px-4 font-medium text-gray-700 text-sm uppercase tracking-wider w-[35%]">
+                    {/* FIXED: Changed from w-[35%] to w-[30%] to match tournaments */}
+                    <th className="text-left py-3 px-4 font-medium text-gray-700 text-sm uppercase tracking-wider w-[30%]">
                     League
-                  </th>
-                  <th className="text-left py-3 px-4 font-medium text-gray-700 text-sm uppercase tracking-wider w-[20%] hidden sm:table-cell">
+                    </th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-700 text-sm uppercase tracking-wider w-[20%] hidden sm:table-cell">
                     Duration & Details
-                  </th>
-                  <th className="text-left py-3 px-4 font-medium text-gray-700 text-sm uppercase tracking-wider w-[25%] hidden md:table-cell">
+                    </th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-700 text-sm uppercase tracking-wider w-[25%] hidden md:table-cell">
                     Location
-                  </th>
-                  <th className="text-left py-3 px-4 font-medium text-gray-700 text-sm uppercase tracking-wider w-[15%] hidden lg:table-cell">
+                    </th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-700 text-sm uppercase tracking-wider w-[15%] hidden lg:table-cell">
                     Status
-                  </th>
-                  <th className="text-right py-3 px-4 font-medium text-gray-700 text-sm uppercase tracking-wider w-[5%]">
+                    </th>
+                    {/* FIXED: Changed from w-[5%] to w-[10%] to match tournaments and give enough space for buttons */}
+                    <th className="text-right py-3 px-4 font-medium text-gray-700 text-sm uppercase tracking-wider w-[10%]">
                     Actions
-                  </th>
+                    </th>
                 </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
+                </thead>
+                <tbody className="divide-y divide-gray-100">
                 {displayData.map((league) => (
-                  <LeagueRow 
+                    <LeagueRow 
                     key={league.id}
                     league={league}
                     onView={handleViewLeague}
                     onEdit={handleEditLeague}
-                  />
+                    />
                 ))}
-              </tbody>
+                </tbody>
             </table>
-          </div>
+            </div>
         </div>
         
         {/* Load More Button */}
         {hasMore && (
-          <div className="text-center">
+            <div className="text-center">
             <Button
-              variant="outline"
-              onClick={onLoadMore}
-              className="px-6 py-2"
+                variant="outline"
+                onClick={onLoadMore}
+                className="px-6 py-2"
             >
-              Load More Leagues ({Math.min(4, data.length - visibleCount)} more)
+                Load More Leagues ({Math.min(4, data.length - visibleCount)} more)
             </Button>
-          </div>
+            </div>
         )}
         
         {/* Showing X of Y indicator */}
         {data.length > 4 && (
-          <div className="text-center text-sm text-gray-500">
+            <div className="text-center text-sm text-gray-500">
             Showing {Math.min(visibleCount, data.length)} of {data.length} leagues
-          </div>
+            </div>
         )}
-      </div>
+        </div>
     );
-  };
+    };
 
   // Handle division participant changes
   const handleDivisionParticipantsChange = (divisionId, participants) => {
