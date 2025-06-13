@@ -1,4 +1,4 @@
-// src/hooks/index.js (UPDATED - Added useComments and useNotifications)
+// src/hooks/index.js (UPDATED - Added notification badge hooks)
 
 // Export all hooks
 export { useAuth } from './useAuth';
@@ -6,5 +6,12 @@ export { useMembers } from './useMembers';
 export { useLeagues } from './useLeagues';
 export { useTournaments } from './useTournaments';
 export { useResults } from './useResults';
-export { useComments } from './useComments'; // Comment management hook
-export { useNotifications } from './useNotifications'; // NEW: Notification management hook
+export { useComments } from './useComments';
+export { useNotifications } from './useNotifications';
+
+// NEW: Notification badge hooks
+export { 
+  default as useNotificationBadge, 
+  useNotificationCount, 
+  useNotificationStatus 
+} from './useNotificationBadge';

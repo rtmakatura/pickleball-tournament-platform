@@ -1,4 +1,4 @@
-// src/components/Dashboard.jsx (FULLY UPDATED - WITH PERFORMANCE FIXES)
+// src/components/Dashboard.jsx (FULLY UPDATED - WITH WORKING NOTIFICATION SYSTEM)
 import React, { useState, useMemo, useCallback } from 'react';
 import { 
   Plus, 
@@ -13,7 +13,13 @@ import {
   Navigation,
   Layers
 } from 'lucide-react';
-import { useMembers, useLeagues, useTournaments, useAuth, useNotifications } from '../hooks';
+import { 
+  useMembers, 
+  useLeagues, 
+  useTournaments, 
+  useAuth, 
+  useNotificationBadge 
+} from '../hooks';
 import { 
   SKILL_LEVELS, 
   TOURNAMENT_STATUS, 
@@ -76,35 +82,6 @@ const dashboardStyles = `
 const DashboardStyles = () => (
   <style dangerouslySetInnerHTML={{ __html: dashboardStyles }} />
 );
-
-// Stable notifications hook with debouncing
-const useStableNotifications = (userId, options = {}) => {
-  const { debounceMs = 500, ...otherOptions } = options;
-  const [stableState, setStableState] = useState({ unreadCount: 0, hasNew: false, notifications: [] });
-  
-  const notifications = useNotifications(userId, otherOptions);
-  
-  // Debounce updates to prevent rapid re-renders
-  React.useEffect(() => {
-    const timer = setTimeout(() => {
-      if (
-        notifications.unreadCount !== stableState.unreadCount ||
-        notifications.hasNew !== stableState.hasNew ||
-        notifications.notifications?.length !== stableState.notifications?.length
-      ) {
-        setStableState({
-          unreadCount: notifications.unreadCount,
-          hasNew: notifications.hasNew,
-          notifications: notifications.notifications || []
-        });
-      }
-    }, debounceMs);
-    
-    return () => clearTimeout(timer);
-  }, [notifications.unreadCount, notifications.hasNew, notifications.notifications, debounceMs, stableState]);
-  
-  return stableState;
-};
 
 // Memoized Tournament Row Component
 const TournamentRow = React.memo(({ tournament, onView, onEdit }) => {
@@ -504,29 +481,43 @@ const LeagueRow = React.memo(({ league, onView, onEdit }) => {
   );
 });
 
-// Memoized Header Component
-const DashboardHeader = React.memo(({ currentUserMember, user, unreadCount, hasNew, onNotificationClick, onLogout }) => (
-  <div className="flex justify-between items-center mb-8">
-    <div>
-      <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
-      <p className="text-gray-600">
-        Welcome back, {currentUserMember?.firstName || user.email}!
-      </p>
+// UPDATED Dashboard Header Component with Real Notification System
+const DashboardHeader = React.memo(({ currentUserMember, user, onNotificationClick, onLogout }) => {
+  // Use the real notification badge hook
+  const {
+    count,
+    hasHighPriority,
+    shouldAnimate,
+    ariaLabel
+  } = useNotificationBadge({
+    debounceMs: 500,
+    enableSound: false
+  });
+
+  return (
+    <div className="flex justify-between items-center mb-8">
+      <div>
+        <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
+        <p className="text-gray-600">
+          Welcome back, {currentUserMember?.firstName || user.email}!
+        </p>
+      </div>
+      <div className="flex items-center space-x-4">
+        <NotificationBadge
+          count={count}
+          hasHighPriority={hasHighPriority}
+          onClick={onNotificationClick}
+          animate={shouldAnimate}
+          aria-label={ariaLabel}
+        />
+        
+        <Button variant="outline" onClick={onLogout}>
+          Logout
+        </Button>
+      </div>
     </div>
-    <div className="flex items-center space-x-4">
-      <NotificationBadge
-        count={unreadCount}
-        hasHighPriority={hasNew}
-        onClick={onNotificationClick}
-        animate={hasNew}
-      />
-      
-      <Button variant="outline" onClick={onLogout}>
-        Logout
-      </Button>
-    </div>
-  </div>
-));
+  );
+});
 
 const Dashboard = () => {
   const { user, signIn, signUpWithProfile, logout, isAuthenticated, loading: authLoading } = useAuth();
@@ -552,10 +543,6 @@ const Dashboard = () => {
     members.find(m => m.authUid === user?.uid), 
     [members, user?.uid]
   );
-
-  // Stable notifications hook with debouncing
-  // Replace your current line with this:
-  const { unreadCount, hasNew } = { unreadCount: 0, hasNew: false };
 
   // Auth UI state
   const [authMode, setAuthMode] = useState('signin');
@@ -1150,12 +1137,10 @@ const Dashboard = () => {
           </div>
         )}
 
-        {/* Header with Notifications */}
+        {/* Header with Real Notifications */}
         <DashboardHeader 
           currentUserMember={currentUserMember}
           user={user}
-          unreadCount={unreadCount}
-          hasNew={hasNew}
           onNotificationClick={() => setShowNotificationModal(true)}
           onLogout={logout}
         />

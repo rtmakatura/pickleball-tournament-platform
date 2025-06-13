@@ -1,6 +1,4 @@
-// src/utils/notificationUtils.js - Utilities for formatting and managing notifications
-
-import { formatDistanceToNow } from 'date-fns';
+// src/utils/notificationUtils.js - FIXED: Proper date handling and newest-first sorting
 
 /**
  * Notification types
@@ -22,6 +20,40 @@ export const NOTIFICATION_PRIORITIES = {
   MEDIUM: 'medium',
   HIGH: 'high',
   URGENT: 'urgent'
+};
+
+/**
+ * Convert Firebase timestamp to JavaScript Date
+ * @param {*} timestamp - Firebase timestamp or date string
+ * @returns {Date} JavaScript Date object
+ */
+const toJSDate = (timestamp) => {
+  if (!timestamp) return new Date();
+  
+  // Handle Firebase Timestamp objects
+  if (timestamp && typeof timestamp === 'object' && timestamp.seconds) {
+    return new Date(timestamp.seconds * 1000);
+  }
+  
+  // Handle Firestore server timestamp (may come as object with nanoseconds)
+  if (timestamp && typeof timestamp === 'object' && timestamp.nanoseconds) {
+    const seconds = timestamp.seconds || Math.floor(timestamp.nanoseconds / 1000000000);
+    return new Date(seconds * 1000);
+  }
+  
+  // Handle string dates
+  if (typeof timestamp === 'string') {
+    return new Date(timestamp);
+  }
+  
+  // Handle numeric timestamps
+  if (typeof timestamp === 'number') {
+    // If it's in seconds (typical Firebase), convert to milliseconds
+    return timestamp > 1000000000000 ? new Date(timestamp) : new Date(timestamp * 1000);
+  }
+  
+  // Fallback: assume it's already a Date or try to convert
+  return new Date(timestamp);
 };
 
 /**
@@ -121,70 +153,112 @@ export const getNotificationPriority = (type) => {
 };
 
 /**
- * Format notification timestamp for display
- * @param {Date|string} timestamp - Notification timestamp
+ * Format notification timestamp for display - FIXED: Proper date handling
+ * @param {Date|string|Object} timestamp - Notification timestamp
  * @returns {string} Formatted time string
  */
 export const formatNotificationTime = (timestamp) => {
-  if (!timestamp) return '';
+  if (!timestamp) return 'Unknown time';
   
-  const date = new Date(timestamp);
-  const now = new Date();
-  const diffInHours = (now - date) / (1000 * 60 * 60);
-  
-  if (diffInHours < 1) {
-    return 'Just now';
-  } else if (diffInHours < 24) {
-    return formatDistanceToNow(date, { addSuffix: true });
-  } else if (diffInHours < 48) {
-    return 'Yesterday';
-  } else {
-    return date.toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      hour: 'numeric',
-      minute: '2-digit'
-    });
+  try {
+    const date = toJSDate(timestamp);
+    const now = new Date();
+    const diffInMs = now - date;
+    const diffInMinutes = Math.floor(diffInMs / (1000 * 60));
+    const diffInHours = Math.floor(diffInMinutes / 60);
+    const diffInDays = Math.floor(diffInHours / 24);
+    
+    if (diffInMinutes < 1) {
+      return 'Just now';
+    } else if (diffInMinutes < 60) {
+      return `${diffInMinutes}m ago`;
+    } else if (diffInHours < 24) {
+      return `${diffInHours}h ago`;
+    } else if (diffInDays === 1) {
+      return 'Yesterday';
+    } else if (diffInDays < 7) {
+      return `${diffInDays}d ago`;
+    } else {
+      return date.toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit'
+      });
+    }
+  } catch (error) {
+    console.error('Error formatting notification time:', error, timestamp);
+    return 'Invalid date';
   }
 };
 
 /**
- * Group notifications by date for display
+ * Group notifications by date for display - FIXED: Newest first sorting
  * @param {Array} notifications - Array of notification objects
- * @returns {Object} Grouped notifications by date
+ * @returns {Object} Grouped notifications by date (newest first)
  */
 export const groupNotificationsByDate = (notifications) => {
   if (!notifications || !Array.isArray(notifications)) return {};
+  
+  // FIXED: Sort notifications by date (newest first) before grouping
+  const sortedNotifications = [...notifications].sort((a, b) => {
+    try {
+      const dateA = toJSDate(a.createdAt);
+      const dateB = toJSDate(b.createdAt);
+      return dateB - dateA; // Newest first
+    } catch (error) {
+      console.error('Error sorting notifications:', error);
+      return 0;
+    }
+  });
   
   const groups = {};
   const now = new Date();
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const yesterday = new Date(today.getTime() - 24 * 60 * 60 * 1000);
+  const thisWeek = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
   
-  notifications.forEach(notification => {
-    const notificationDate = new Date(notification.createdAt);
-    const notificationDay = new Date(notificationDate.getFullYear(), notificationDate.getMonth(), notificationDate.getDate());
-    
-    let groupKey;
-    if (notificationDay.getTime() === today.getTime()) {
-      groupKey = 'Today';
-    } else if (notificationDay.getTime() === yesterday.getTime()) {
-      groupKey = 'Yesterday';
-    } else if (notificationDay.getTime() > yesterday.getTime() - 5 * 24 * 60 * 60 * 1000) {
-      groupKey = 'This Week';
-    } else {
-      groupKey = 'Earlier';
+  sortedNotifications.forEach(notification => {
+    try {
+      const notificationDate = toJSDate(notification.createdAt);
+      const notificationDay = new Date(notificationDate.getFullYear(), notificationDate.getMonth(), notificationDate.getDate());
+      
+      let groupKey;
+      if (notificationDay.getTime() >= today.getTime()) {
+        groupKey = 'Today';
+      } else if (notificationDay.getTime() >= yesterday.getTime()) {
+        groupKey = 'Yesterday';
+      } else if (notificationDay.getTime() >= thisWeek.getTime()) {
+        groupKey = 'This Week';
+      } else {
+        groupKey = 'Earlier';
+      }
+      
+      if (!groups[groupKey]) {
+        groups[groupKey] = [];
+      }
+      groups[groupKey].push(notification);
+    } catch (error) {
+      console.error('Error grouping notification:', error, notification);
+      // Add to "Earlier" group as fallback
+      if (!groups['Earlier']) {
+        groups['Earlier'] = [];
+      }
+      groups['Earlier'].push(notification);
     }
-    
-    if (!groups[groupKey]) {
-      groups[groupKey] = [];
-    }
-    groups[groupKey].push(notification);
   });
   
-  // Sort within each group by newest first
+  // Ensure each group is sorted newest first (double-check)
   Object.keys(groups).forEach(key => {
-    groups[key].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    groups[key].sort((a, b) => {
+      try {
+        const dateA = toJSDate(a.createdAt);
+        const dateB = toJSDate(b.createdAt);
+        return dateB - dateA; // Newest first
+      } catch (error) {
+        return 0;
+      }
+    });
   });
   
   return groups;
@@ -283,10 +357,16 @@ export const createNotificationSummary = (notifications) => {
     summary.byType[type] = (summary.byType[type] || 0) + 1;
   });
   
-  // Find most recent
+  // Find most recent - FIXED: Proper date comparison
   if (notifications.length > 0) {
     summary.mostRecent = notifications.reduce((latest, current) => {
-      return new Date(current.createdAt) > new Date(latest.createdAt) ? current : latest;
+      try {
+        const currentDate = toJSDate(current.createdAt);
+        const latestDate = toJSDate(latest.createdAt);
+        return currentDate > latestDate ? current : latest;
+      } catch (error) {
+        return latest;
+      }
     });
   }
   
@@ -297,7 +377,7 @@ export const createNotificationSummary = (notifications) => {
  * Filter notifications based on criteria
  * @param {Array} notifications - Array of notification objects
  * @param {Object} filters - Filter criteria
- * @returns {Array} Filtered notifications
+ * @returns {Array} Filtered notifications (newest first)
  */
 export const filterNotifications = (notifications, filters = {}) => {
   if (!notifications || !Array.isArray(notifications)) return [];
@@ -318,18 +398,30 @@ export const filterNotifications = (notifications, filters = {}) => {
   
   // Filter by event
   if (filters.eventId) {
-    filtered = filtered.filter(n => n.eventId === filters.eventId);
+    filtered = filtered.filter(n => n.data?.eventId === filters.eventId);
   }
   
   // Filter by date range
   if (filters.startDate) {
-    const startDate = new Date(filters.startDate);
-    filtered = filtered.filter(n => new Date(n.createdAt) >= startDate);
+    const startDate = toJSDate(filters.startDate);
+    filtered = filtered.filter(n => {
+      try {
+        return toJSDate(n.createdAt) >= startDate;
+      } catch (error) {
+        return false;
+      }
+    });
   }
   
   if (filters.endDate) {
-    const endDate = new Date(filters.endDate);
-    filtered = filtered.filter(n => new Date(n.createdAt) <= endDate);
+    const endDate = toJSDate(filters.endDate);
+    filtered = filtered.filter(n => {
+      try {
+        return toJSDate(n.createdAt) <= endDate;
+      } catch (error) {
+        return false;
+      }
+    });
   }
   
   // Filter by priority
@@ -337,7 +429,16 @@ export const filterNotifications = (notifications, filters = {}) => {
     filtered = filtered.filter(n => getNotificationPriority(n.type) === filters.priority);
   }
   
-  return filtered;
+  // FIXED: Sort filtered results newest first
+  return filtered.sort((a, b) => {
+    try {
+      const dateA = toJSDate(a.createdAt);
+      const dateB = toJSDate(b.createdAt);
+      return dateB - dateA; // Newest first
+    } catch (error) {
+      return 0;
+    }
+  });
 };
 
 /**

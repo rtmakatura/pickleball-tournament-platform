@@ -1,4 +1,4 @@
-// src/hooks/useNotifications.js - Hook for managing user notifications
+// src/hooks/useNotifications.js - FIXED: Proper sorting and date handling
 
 import { useState, useEffect, useCallback } from 'react';
 import firebaseOps from '../services/firebaseOperations';
@@ -10,7 +10,42 @@ import {
 } from '../utils/notificationUtils';
 
 /**
+ * Convert Firebase timestamp to JavaScript Date
+ * @param {*} timestamp - Firebase timestamp or date string
+ * @returns {Date} JavaScript Date object
+ */
+const toJSDate = (timestamp) => {
+  if (!timestamp) return new Date();
+  
+  // Handle Firebase Timestamp objects
+  if (timestamp && typeof timestamp === 'object' && timestamp.seconds) {
+    return new Date(timestamp.seconds * 1000);
+  }
+  
+  // Handle Firestore server timestamp (may come as object with nanoseconds)
+  if (timestamp && typeof timestamp === 'object' && timestamp.nanoseconds) {
+    const seconds = timestamp.seconds || Math.floor(timestamp.nanoseconds / 1000000000);
+    return new Date(seconds * 1000);
+  }
+  
+  // Handle string dates
+  if (typeof timestamp === 'string') {
+    return new Date(timestamp);
+  }
+  
+  // Handle numeric timestamps
+  if (typeof timestamp === 'number') {
+    // If it's in seconds (typical Firebase), convert to milliseconds
+    return timestamp > 1000000000000 ? new Date(timestamp) : new Date(timestamp * 1000);
+  }
+  
+  // Fallback: assume it's already a Date or try to convert
+  return new Date(timestamp);
+};
+
+/**
  * useNotifications Hook - Manages user notifications with real-time updates
+ * FIXED: Proper sorting (newest first) and date handling
  * 
  * @param {string} userId - The current user/member ID
  * @param {Object} options - Configuration options
@@ -29,7 +64,7 @@ export const useNotifications = (userId, options = {}) => {
   const [error, setError] = useState(null);
   const [lastChecked, setLastChecked] = useState(new Date());
 
-  // Load user notifications
+  // Load user notifications with proper sorting
   const loadNotifications = useCallback(async () => {
     if (!userId) return;
 
@@ -41,15 +76,30 @@ export const useNotifications = (userId, options = {}) => {
         const unsubscribe = firebaseOps.subscribe(
           'notifications',
           (notificationsData) => {
-            const sortedNotifications = notificationsData.sort(
-              (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
-            );
+            // FIXED: Sort notifications newest first
+            const sortedNotifications = notificationsData.sort((a, b) => {
+              try {
+                const dateA = toJSDate(a.createdAt);
+                const dateB = toJSDate(b.createdAt);
+                return dateB - dateA; // Newest first
+              } catch (error) {
+                console.error('Error sorting notifications:', error);
+                return 0;
+              }
+            });
+            
             setNotifications(sortedNotifications);
             
             // Check for new notifications since last check
             if (enableSound) {
               const newNotifications = sortedNotifications.filter(
-                n => new Date(n.createdAt) > lastChecked && !n.isRead
+                n => {
+                  try {
+                    return toJSDate(n.createdAt) > lastChecked && !n.isRead;
+                  } catch (error) {
+                    return false;
+                  }
+                }
               );
               if (newNotifications.length > 0) {
                 playNotificationSound();
@@ -59,7 +109,7 @@ export const useNotifications = (userId, options = {}) => {
             setLastChecked(new Date());
           },
           { recipientId: userId },
-          'createdAt'
+          'createdAt' // Firebase will sort by this field, but we'll re-sort in descending order
         );
         
         setLoading(false);
@@ -72,9 +122,17 @@ export const useNotifications = (userId, options = {}) => {
           limit
         );
         
-        const sortedNotifications = notificationsData.sort(
-          (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
-        );
+        // FIXED: Sort notifications newest first
+        const sortedNotifications = notificationsData.sort((a, b) => {
+          try {
+            const dateA = toJSDate(a.createdAt);
+            const dateB = toJSDate(b.createdAt);
+            return dateB - dateA; // Newest first
+          } catch (error) {
+            console.error('Error sorting notifications:', error);
+            return 0;
+          }
+        });
         
         setNotifications(sortedNotifications);
         setLastChecked(new Date());
@@ -180,12 +238,12 @@ export const useNotifications = (userId, options = {}) => {
     }
   }, []);
 
-  // Filter notifications
+  // Filter notifications (will maintain newest-first order)
   const getFilteredNotifications = useCallback((filters = {}) => {
     return filterNotifications(notifications, filters);
   }, [notifications]);
 
-  // Get notifications grouped by date
+  // Get notifications grouped by date (newest first within each group)
   const getGroupedNotifications = useCallback((filters = {}) => {
     const filtered = getFilteredNotifications(filters);
     return groupNotificationsByDate(filtered);
@@ -201,19 +259,39 @@ export const useNotifications = (userId, options = {}) => {
     return notifications.filter(n => !n.isRead).length;
   }, [notifications]);
 
-  // Get recent notifications (last 24 hours)
+  // Get recent notifications (last 24 hours, newest first)
   const getRecentNotifications = useCallback(() => {
     const oneDayAgo = new Date();
     oneDayAgo.setDate(oneDayAgo.getDate() - 1);
     
-    return notifications.filter(n => new Date(n.createdAt) > oneDayAgo);
+    return notifications
+      .filter(n => {
+        try {
+          return toJSDate(n.createdAt) > oneDayAgo;
+        } catch (error) {
+          return false;
+        }
+      })
+      .sort((a, b) => {
+        try {
+          const dateA = toJSDate(a.createdAt);
+          const dateB = toJSDate(b.createdAt);
+          return dateB - dateA; // Newest first
+        } catch (error) {
+          return 0;
+        }
+      });
   }, [notifications]);
 
   // Check if user has new notifications since last check
   const hasNewNotifications = useCallback(() => {
-    return notifications.some(n => 
-      new Date(n.createdAt) > lastChecked && !n.isRead
-    );
+    return notifications.some(n => {
+      try {
+        return toJSDate(n.createdAt) > lastChecked && !n.isRead;
+      } catch (error) {
+        return false;
+      }
+    });
   }, [notifications, lastChecked]);
 
   // Play notification sound (if enabled)
@@ -270,7 +348,7 @@ export const useNotifications = (userId, options = {}) => {
   }, [autoMarkAsRead, notifications, markAllAsRead]);
 
   return {
-    // State
+    // State (notifications are already sorted newest first)
     notifications,
     loading,
     error,

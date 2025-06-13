@@ -1,4 +1,4 @@
-// src/components/comments/CommentSection.jsx (UPDATED - Simplified Communication Channel)
+// src/components/comments/CommentSection.jsx (FIXED - Working replies with debugging)
 import React, { useState, useRef } from 'react';
 import { 
   MessageSquare, 
@@ -25,9 +25,69 @@ import {
 import { parseMentions, formatMentionText } from '../../utils/mentionUtils';
 
 /**
- * CommentSection Component - Simplified communication channel
- * UPDATED: Removed unnecessary header info, focus on communication
- * Added @mention support for notifications
+ * Convert Firebase timestamp to JavaScript Date
+ */
+const toJSDate = (timestamp) => {
+  if (!timestamp) return new Date();
+  
+  if (timestamp && typeof timestamp === 'object' && timestamp.seconds) {
+    return new Date(timestamp.seconds * 1000);
+  }
+  
+  if (timestamp && typeof timestamp === 'object' && timestamp.nanoseconds) {
+    const seconds = timestamp.seconds || Math.floor(timestamp.nanoseconds / 1000000000);
+    return new Date(seconds * 1000);
+  }
+  
+  if (typeof timestamp === 'string') {
+    return new Date(timestamp);
+  }
+  
+  if (typeof timestamp === 'number') {
+    return timestamp > 1000000000000 ? new Date(timestamp) : new Date(timestamp * 1000);
+  }
+  
+  return new Date(timestamp);
+};
+
+/**
+ * Format date for display
+ */
+const formatDate = (timestamp) => {
+  try {
+    const date = toJSDate(timestamp);
+    const now = new Date();
+    const diffInMs = now - date;
+    const diffInMinutes = Math.floor(diffInMs / (1000 * 60));
+    const diffInHours = Math.floor(diffInMinutes / 60);
+    const diffInDays = Math.floor(diffInHours / 24);
+    
+    if (diffInMinutes < 1) {
+      return 'Just now';
+    } else if (diffInMinutes < 60) {
+      return `${diffInMinutes}m ago`;
+    } else if (diffInHours < 24) {
+      return `${diffInHours}h ago`;
+    } else if (diffInDays === 1) {
+      return 'Yesterday';
+    } else if (diffInDays < 7) {
+      return `${diffInDays}d ago`;
+    } else {
+      return date.toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit'
+      });
+    }
+  } catch (error) {
+    console.error('Error formatting date:', error, timestamp);
+    return 'Unknown time';
+  }
+};
+
+/**
+ * CommentSection Component - FIXED: Working replies
  */
 const CommentSection = ({ 
   eventId, 
@@ -79,7 +139,6 @@ const CommentSection = ({
   const handleTextChange = (text, textareaElement) => {
     setNewComment(text);
     
-    // Check for @mentions
     const cursorPosition = textareaElement.selectionStart;
     const textBeforeCursor = text.substring(0, cursorPosition);
     const lastAtSymbol = textBeforeCursor.lastIndexOf('@');
@@ -87,14 +146,13 @@ const CommentSection = ({
     if (lastAtSymbol !== -1) {
       const searchTerm = textBeforeCursor.substring(lastAtSymbol + 1);
       
-      // Only show suggestions if we have a partial search and no spaces after @
       if (searchTerm.length > 0 && !searchTerm.includes(' ')) {
         const suggestions = members
           .filter(member => {
             const fullName = `${member.firstName} ${member.lastName}`.toLowerCase();
             return fullName.includes(searchTerm.toLowerCase());
           })
-          .slice(0, 5); // Limit to 5 suggestions
+          .slice(0, 5);
         
         if (suggestions.length > 0) {
           setMentionSuggestions(suggestions);
@@ -121,7 +179,6 @@ const CommentSection = ({
     setNewComment(newText);
     setShowMentionSuggestions(false);
     
-    // Focus back to textarea
     setTimeout(() => {
       textareaRef.current.focus();
       const newCursorPosition = beforeMention.length + mentionText.length + 1;
@@ -135,65 +192,105 @@ const CommentSection = ({
     return member ? `${member.firstName} ${member.lastName}` : 'Unknown User';
   };
 
-  // Filter comments based on view mode and selected division
+  // FIXED: Better comment filtering logic
   const getFilteredComments = () => {
-    if (!comments) return [];
-    
-    if (viewMode === 'general') {
-      return comments.filter(comment => !comment.divisionId);
-    } else if (viewMode === 'division' && selectedDivision) {
-      return comments.filter(comment => comment.divisionId === selectedDivision);
+    if (!comments || !Array.isArray(comments)) {
+      console.log('📝 No comments or comments not an array:', comments);
+      return [];
     }
     
-    return comments; // 'all' mode
+    console.log('📝 All comments before filtering:', comments.length);
+    console.log('📝 View mode:', viewMode, 'Selected division:', selectedDivision);
+    
+    let filtered = [];
+    
+    if (viewMode === 'general') {
+      filtered = comments.filter(comment => !comment.divisionId);
+      console.log('📝 General comments:', filtered.length);
+    } else if (viewMode === 'division' && selectedDivision) {
+      filtered = comments.filter(comment => comment.divisionId === selectedDivision);
+      console.log('📝 Division comments for', selectedDivision, ':', filtered.length);
+    } else {
+      filtered = comments; // 'all' mode
+      console.log('📝 All comments:', filtered.length);
+    }
+    
+    // Log some details about filtered comments
+    filtered.forEach(comment => {
+      console.log(`📝 Comment ${comment.id}: parentId=${comment.parentId}, divisionId=${comment.divisionId}, content="${comment.content.substring(0, 50)}..."`);
+    });
+    
+    return filtered;
   };
 
   const filteredComments = getFilteredComments();
 
-  // Handle comment submission
- const handleSubmitComment = async (content, parentId = null, targetDivisionId = null) => {
-  if (!content.trim() || !currentMember) return;
+  // FIXED: Enhanced comment submission with better debugging
+  const handleSubmitComment = async (content, parentId = null, targetDivisionId = null) => {
+    if (!content.trim() || !currentMember) {
+      console.log('❌ Cannot submit: missing content or member', { content: !!content.trim(), currentMember: !!currentMember });
+      return;
+    }
 
-  setSubmitting(true);
-  try {
-    // Parse mentions from the comment
-    const mentions = parseMentions(content, members);
-    
-    // 🐛 DEBUG: Log the mentions
-    console.log('=== MENTION DEBUG ===');
-    console.log('Comment content:', content);
-    console.log('Parsed mentions:', mentions);
-    console.log('Current member:', currentMember);
-    console.log('All members:', members);
-    console.log('Mentions IDs:', mentions.map(m => m.id));
-    console.log('Current member ID:', currentMember.id);
-    console.log('Is self-mention?', mentions.some(m => m.id === currentMember.id));
-    console.log('====================');
-    
-    // 🚨 FIXED: Pass members and event to addComment
-    await addComment(
-      {
+    console.log('📝 Submitting comment:', {
+      content: content.substring(0, 50) + '...',
+      parentId,
+      targetDivisionId,
+      viewMode,
+      selectedDivision
+    });
+
+    setSubmitting(true);
+    try {
+      // Parse mentions from the comment
+      const mentions = parseMentions(content, members);
+      
+      // FIXED: Better division ID logic for replies
+      let finalDivisionId = null;
+      
+      if (parentId) {
+        // For replies, inherit the parent's division
+        const parentComment = comments.find(c => c.id === parentId);
+        if (parentComment) {
+          finalDivisionId = parentComment.divisionId || null;
+          console.log('📝 Reply inheriting parent division:', finalDivisionId);
+        }
+      } else {
+        // For new comments, use the specified division or current mode
+        finalDivisionId = targetDivisionId || (viewMode === 'division' ? selectedDivision : null);
+        console.log('📝 New comment using division:', finalDivisionId);
+      }
+      
+      const commentData = {
         content: content.trim(),
         parentId,
-        divisionId: targetDivisionId || (viewMode === 'division' ? selectedDivision : null),
-        mentions: mentions.map(m => m.id) // Store mentioned member IDs
-      }, 
-      currentMember.id, 
-      `${currentMember.firstName} ${currentMember.lastName}`,
-      members, // 🚨 ADD THIS: Pass members array
-      event     // 🚨 ADD THIS: Pass event object
-    );
-    
-    setNewComment('');
-    setReplyingTo(null);
-    showAlert('success', 'Comment posted successfully');
-  } catch (error) {
-    console.error('Comment submission error:', error);
-    showAlert('error', error.message);
-  } finally {
-    setSubmitting(false);
-  }
-};
+        divisionId: finalDivisionId,
+        mentions: mentions.map(m => m.id)
+      };
+      
+      console.log('📝 Comment data being submitted:', commentData);
+      
+      // Submit the comment
+      const commentId = await addComment(
+        commentData,
+        currentMember.id, 
+        `${currentMember.firstName} ${currentMember.lastName}`,
+        members, 
+        event     
+      );
+      
+      console.log('✅ Comment submitted successfully with ID:', commentId);
+      
+      setNewComment('');
+      setReplyingTo(null);
+      showAlert('success', parentId ? 'Reply posted successfully' : 'Comment posted successfully');
+    } catch (error) {
+      console.error('❌ Comment submission error:', error);
+      showAlert('error', error.message);
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   // Handle comment edit
   const handleEditComment = async (commentId, newContent) => {
@@ -241,11 +338,13 @@ const CommentSection = ({
 
   // Start replying to a comment
   const startReply = (comment) => {
+    console.log('📝 Starting reply to comment:', comment.id);
     setReplyingTo(comment.id);
   };
 
   // Cancel reply
   const cancelReply = () => {
+    console.log('📝 Cancelling reply');
     setReplyingTo(null);
   };
 
@@ -481,7 +580,15 @@ const CommentSection = ({
             <div className="space-y-4">
               {filteredComments
                 .filter(comment => comment.parentId === null)
-                .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+                .sort((a, b) => {
+                  try {
+                    const dateA = toJSDate(a.createdAt);
+                    const dateB = toJSDate(b.createdAt);
+                    return dateB - dateA; // Newest first
+                  } catch (error) {
+                    return 0;
+                  }
+                })
                 .map(comment => (
                   <CommentItem
                     key={comment.id}
@@ -516,7 +623,7 @@ const CommentSection = ({
 };
 
 /**
- * CommentItem Component - Individual comment display with @mention highlighting
+ * CommentItem Component - FIXED: Better reply handling
  */
 const CommentItem = ({
   comment,
@@ -548,17 +655,11 @@ const CommentItem = ({
     return member ? `${member.firstName} ${member.lastName}` : 'Unknown User';
   };
 
-  const formatDate = (date) => {
-    return new Date(date).toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      hour: 'numeric',
-      minute: '2-digit'
-    });
-  };
-
+  // FIXED: Better reply submission
   const handleReplySubmit = () => {
     if (replyText.trim()) {
+      console.log('📝 Submitting reply to comment:', comment.id, 'with division:', comment.divisionId);
+      // Pass the parent comment's division ID to maintain context
       onReply(replyText, comment.id, comment.divisionId);
       setReplyText('');
       cancelReply();
@@ -569,6 +670,8 @@ const CommentItem = ({
   const formatCommentContent = (content) => {
     return formatMentionText(content, members);
   };
+
+  console.log('📝 Rendering comment:', comment.id, 'with', replies.length, 'replies');
 
   return (
     <div className={`${comment.depth > 0 ? 'ml-6 border-l-2 border-gray-200 pl-4' : ''}`}>
@@ -684,14 +787,18 @@ const CommentItem = ({
 
         {/* Reply Form */}
         {replyingTo === comment.id && (
-          <div className="mt-4 pl-6 border-l-2 border-gray-200">
+          <div className="mt-4 pl-6 border-l-2 border-blue-200 bg-blue-50 rounded p-3">
             <div className="space-y-2">
+              <div className="text-sm text-blue-700 mb-2">
+                Replying to {getMemberName(comment.authorId)}
+              </div>
               <textarea
                 value={replyText}
                 onChange={(e) => setReplyText(e.target.value)}
                 placeholder={`Reply to ${getMemberName(comment.authorId)}...`}
                 className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                 rows={2}
+                autoFocus
               />
               <div className="flex space-x-2">
                 <Button
@@ -699,7 +806,7 @@ const CommentItem = ({
                   onClick={handleReplySubmit}
                   disabled={!replyText.trim()}
                 >
-                  Reply
+                  Post Reply
                 </Button>
                 <Button
                   size="sm"
@@ -714,36 +821,47 @@ const CommentItem = ({
         )}
       </div>
 
-      {/* Replies */}
+      {/* Replies - FIXED: Ensure replies are properly displayed */}
       {replies.length > 0 && (
         <div className="mt-3 space-y-3">
           {replies
-            .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt))
-            .map(reply => (
-              <CommentItem
-                key={reply.id}
-                comment={{ ...reply, depth: (comment.depth || 0) + 1 }}
-                replies={[]}
-                currentMember={currentMember}
-                members={members}
-                canEdit={canEdit}
-                canDelete={canDelete}
-                canModerate={canModerate}
-                onEdit={onEdit}
-                onDelete={onDelete}
-                onReply={onReply}
-                isEditing={false}
-                editText=""
-                setEditText={() => {}}
-                startEditing={startEditing}
-                cancelEditing={cancelEditing}
-                replyingTo={replyingTo}
-                startReply={startReply}
-                cancelReply={cancelReply}
-                getDivisionName={getDivisionName}
-                isDivisionBased={isDivisionBased}
-              />
-            ))}
+            .sort((a, b) => {
+              try {
+                const dateA = toJSDate(a.createdAt);
+                const dateB = toJSDate(b.createdAt);
+                return dateA - dateB; // Replies oldest first (conversation flow)
+              } catch (error) {
+                return 0;
+              }
+            })
+            .map(reply => {
+              console.log('📝 Rendering reply:', reply.id, 'to parent:', comment.id);
+              return (
+                <CommentItem
+                  key={reply.id}
+                  comment={{ ...reply, depth: (comment.depth || 0) + 1 }}
+                  replies={[]} // Keep replies simple - no deep nesting for now
+                  currentMember={currentMember}
+                  members={members}
+                  canEdit={canEdit}
+                  canDelete={canDelete}
+                  canModerate={canModerate}
+                  onEdit={onEdit}
+                  onDelete={onDelete}
+                  onReply={onReply}
+                  isEditing={false}
+                  editText=""
+                  setEditText={() => {}}
+                  startEditing={startEditing}
+                  cancelEditing={cancelEditing}
+                  replyingTo={replyingTo}
+                  startReply={startReply}
+                  cancelReply={cancelReply}
+                  getDivisionName={getDivisionName}
+                  isDivisionBased={isDivisionBased}
+                />
+              );
+            })}
         </div>
       )}
     </div>

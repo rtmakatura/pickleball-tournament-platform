@@ -1,4 +1,4 @@
-// src/components/notifications/NotificationItem.jsx - Individual notification component
+// src/components/notifications/NotificationItem.jsx - FIXED: Proper date handling
 
 import React, { useState } from 'react';
 import { 
@@ -13,14 +13,149 @@ import {
   Check,
   ExternalLink
 } from 'lucide-react';
-import { 
-  formatNotificationTime, 
-  getNotificationTheme,
-  NOTIFICATION_TYPES 
-} from '../../utils/notificationUtils';
+
+/**
+ * Convert Firebase timestamp to JavaScript Date - FIXED
+ * @param {*} timestamp - Firebase timestamp or date string
+ * @returns {Date} JavaScript Date object
+ */
+const toJSDate = (timestamp) => {
+  if (!timestamp) return new Date();
+  
+  // Handle Firebase Timestamp objects
+  if (timestamp && typeof timestamp === 'object' && timestamp.seconds) {
+    return new Date(timestamp.seconds * 1000);
+  }
+  
+  // Handle Firestore server timestamp (may come as object with nanoseconds)
+  if (timestamp && typeof timestamp === 'object' && timestamp.nanoseconds) {
+    const seconds = timestamp.seconds || Math.floor(timestamp.nanoseconds / 1000000000);
+    return new Date(seconds * 1000);
+  }
+  
+  // Handle string dates
+  if (typeof timestamp === 'string') {
+    return new Date(timestamp);
+  }
+  
+  // Handle numeric timestamps
+  if (typeof timestamp === 'number') {
+    // If it's in seconds (typical Firebase), convert to milliseconds
+    return timestamp > 1000000000000 ? new Date(timestamp) : new Date(timestamp * 1000);
+  }
+  
+  // Fallback: assume it's already a Date or try to convert
+  return new Date(timestamp);
+};
+
+/**
+ * Format notification time for display - FIXED
+ * @param {*} timestamp - Firebase timestamp
+ * @returns {string} Formatted time string
+ */
+const formatNotificationTime = (timestamp) => {
+  if (!timestamp) return 'Unknown time';
+  
+  try {
+    const date = toJSDate(timestamp);
+    const now = new Date();
+    const diffInMs = now - date;
+    const diffInMinutes = Math.floor(diffInMs / (1000 * 60));
+    const diffInHours = Math.floor(diffInMinutes / 60);
+    const diffInDays = Math.floor(diffInHours / 24);
+    
+    if (diffInMinutes < 1) {
+      return 'Just now';
+    } else if (diffInMinutes < 60) {
+      return `${diffInMinutes}m ago`;
+    } else if (diffInHours < 24) {
+      return `${diffInHours}h ago`;
+    } else if (diffInDays === 1) {
+      return 'Yesterday';
+    } else if (diffInDays < 7) {
+      return `${diffInDays}d ago`;
+    } else {
+      return date.toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit'
+      });
+    }
+  } catch (error) {
+    console.error('Error formatting notification time:', error, timestamp);
+    return 'Invalid date';
+  }
+};
+
+/**
+ * Get notification theme colors
+ * @param {string} type - Notification type
+ * @returns {Object} Color theme object
+ */
+const getNotificationTheme = (type) => {
+  switch (type) {
+    case 'comment_reply':
+      return {
+        bg: 'bg-blue-50',
+        border: 'border-blue-200',
+        text: 'text-blue-900',
+        icon: 'text-blue-600'
+      };
+      
+    case 'mention':
+      return {
+        bg: 'bg-purple-50',
+        border: 'border-purple-200',
+        text: 'text-purple-900',
+        icon: 'text-purple-600'
+      };
+      
+    case 'event_update':
+      return {
+        bg: 'bg-green-50',
+        border: 'border-green-200',
+        text: 'text-green-900',
+        icon: 'text-green-600'
+      };
+      
+    case 'payment_reminder':
+      return {
+        bg: 'bg-yellow-50',
+        border: 'border-yellow-200',
+        text: 'text-yellow-900',
+        icon: 'text-yellow-600'
+      };
+      
+    case 'result_posted':
+      return {
+        bg: 'bg-amber-50',
+        border: 'border-amber-200',
+        text: 'text-amber-900',
+        icon: 'text-amber-600'
+      };
+      
+    case 'event_reminder':
+      return {
+        bg: 'bg-red-50',
+        border: 'border-red-200',
+        text: 'text-red-900',
+        icon: 'text-red-600'
+      };
+      
+    default:
+      return {
+        bg: 'bg-gray-50',
+        border: 'border-gray-200',
+        text: 'text-gray-900',
+        icon: 'text-gray-600'
+      };
+  }
+};
 
 /**
  * NotificationItem Component - Display individual notification
+ * FIXED: Proper date handling throughout
  * 
  * @param {Object} notification - Notification object
  * @param {Function} onMarkAsRead - Mark notification as read
@@ -46,16 +181,16 @@ const NotificationItem = ({
   // Get appropriate icon for notification type
   const getNotificationIcon = (type) => {
     switch (type) {
-      case NOTIFICATION_TYPES.COMMENT_REPLY:
+      case 'comment_reply':
         return MessageSquare;
-      case NOTIFICATION_TYPES.MENTION:
+      case 'mention':
         return AtSign;
-      case NOTIFICATION_TYPES.EVENT_UPDATE:
-      case NOTIFICATION_TYPES.EVENT_REMINDER:
+      case 'event_update':
+      case 'event_reminder':
         return Calendar;
-      case NOTIFICATION_TYPES.PAYMENT_REMINDER:
+      case 'payment_reminder':
         return DollarSign;
-      case NOTIFICATION_TYPES.RESULT_POSTED:
+      case 'result_posted':
         return Trophy;
       default:
         return Bell;
