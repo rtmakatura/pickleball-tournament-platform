@@ -1,7 +1,9 @@
-// src/hooks/useComments.js (FIXED - Handle divisionId properly)
+// src/hooks/useComments.js (FIXED - Now creates notifications for mentions)
 import { useState, useEffect } from 'react';
 import firebaseOps from '../services/firebaseOperations';
+import notificationService from '../services/notificationService'; // ADD THIS IMPORT
 import { createComment, COMMENT_STATUS, COMMENT_TYPES } from '../services/models';
+import { parseMentions } from '../utils/mentionUtils'; // ADD THIS IMPORT
 
 /**
  * Helper function for formatting relative time - simplified implementation
@@ -23,7 +25,7 @@ const formatDistanceToNow = (date) => {
 
 /**
  * useComments Hook - Manages team messages for tournaments and leagues
- * FIXED: Properly handles divisionId in options parameter
+ * FIXED: Now properly creates notifications for mentions and replies
  * 
  * Params:
  * - eventId: string - ID of the event (tournament or league)
@@ -124,92 +126,108 @@ export const useComments = (eventId, eventType = 'tournament', options = {}) => 
   };
 
   /**
-   * Post a new comment
+   * Add a comment with flexible parameters (FIXED - Now creates notifications)
    */
-  const postComment = async (content, authorId, authorName, parentId = null) => {
+  const addComment = async (commentData, authorId, authorName, members = [], event = null) => {
+    if (!commentData.content?.trim()) {
+      throw new Error('Comment content is required');
+    }
+
+    console.log('🚀 Adding comment with notification support');
+    console.log('Comment data:', commentData);
+    console.log('Author:', { authorId, authorName });
+    console.log('Members available:', members.length);
+
+    // Get the target division ID if provided, otherwise use the hook's divisionId
+    const effectiveDivisionId = commentData.divisionId || divisionId;
+    
     setError(null);
     
     try {
-      const depth = parentId ? await getCommentDepth(parentId) + 1 : 0;
+      const depth = commentData.parentId ? await getCommentDepth(commentData.parentId) + 1 : 0;
+      
+      // Parse mentions from the comment content
+      const mentions = parseMentions(commentData.content, members);
+      console.log('🏷️ Parsed mentions:', mentions);
       
       const comment = createComment({
         eventId,
         eventType,
-        divisionId, // Use the divisionId from options
+        divisionId: effectiveDivisionId,
         authorId,
         authorName,
-        content: content.trim(),
-        parentId,
-        type: parentId ? COMMENT_TYPES.REPLY : COMMENT_TYPES.COMMENT,
+        content: commentData.content.trim(),
+        parentId: commentData.parentId || null,
+        type: commentData.parentId ? COMMENT_TYPES.REPLY : COMMENT_TYPES.COMMENT,
         depth,
-        status: COMMENT_STATUS.ACTIVE
+        status: COMMENT_STATUS.ACTIVE,
+        mentions: mentions.map(m => m.id) // Store mention IDs
       });
 
+      console.log('💾 Creating comment document:', comment);
       const commentId = await firebaseOps.create('comments', comment);
+      console.log('✅ Comment created with ID:', commentId);
+      
+      // 🚨 CRITICAL FIX: Create notifications for mentions and replies
+      try {
+        // Get the full comment object with ID for notifications
+        const fullComment = { ...comment, id: commentId };
+        
+        // Get parent comment if this is a reply
+        let parentComment = null;
+        if (commentData.parentId) {
+          parentComment = await firebaseOps.read('comments', commentData.parentId);
+          console.log('📝 Retrieved parent comment for reply notification:', parentComment);
+        }
+
+        // Get event data if not provided
+        let eventData = event;
+        if (!eventData) {
+          const collection = eventType === 'tournament' ? 'tournaments' : 'leagues';
+          eventData = await firebaseOps.read(collection, eventId);
+          console.log('📅 Retrieved event data:', eventData);
+        }
+
+        // 🔔 Create notifications
+        console.log('🔔 Creating notifications...');
+        await notificationService.processCommentNotifications(
+          fullComment, 
+          parentComment, 
+          eventData, 
+          members
+        );
+        console.log('✅ Notifications created successfully');
+
+      } catch (notificationError) {
+        console.error('❌ Error creating notifications (comment still saved):', notificationError);
+        // Don't throw here - comment was saved successfully
+      }
       
       // Update event comment count
       await updateEventCommentCount(1);
       
       // Update parent comment reply count if this is a reply
-      if (parentId) {
-        await updateCommentReplyCount(parentId, 1);
+      if (commentData.parentId) {
+        await updateCommentReplyCount(commentData.parentId, 1);
       }
       
       return commentId;
     } catch (err) {
+      console.error('❌ Error adding comment:', err);
       setError(err.message);
       throw err;
     }
   };
 
   /**
-   * Add a comment with flexible parameters (for the UI components)
+   * Post a new comment (legacy method - kept for compatibility)
    */
-  const addComment = async (commentData) => {
-    if (!commentData.content?.trim()) {
-      throw new Error('Comment content is required');
-    }
-
-    // Get current user info (you'll need to import useAuth or pass this in)
-    // For now, we'll assume the caller provides authorId and authorName
-    const { content, parentId = null, divisionId: targetDivisionId = null } = commentData;
-    
-    // Use the target division ID if provided, otherwise use the hook's divisionId
-    const effectiveDivisionId = targetDivisionId || divisionId;
-    
-    setError(null);
-    
-    try {
-      const depth = parentId ? await getCommentDepth(parentId) + 1 : 0;
-      
-      const comment = createComment({
-        eventId,
-        eventType,
-        divisionId: effectiveDivisionId,
-        authorId: commentData.authorId || 'unknown', // This should come from the calling component
-        authorName: commentData.authorName || 'Unknown User',
-        content: content.trim(),
-        parentId,
-        type: parentId ? COMMENT_TYPES.REPLY : COMMENT_TYPES.COMMENT,
-        depth,
-        status: COMMENT_STATUS.ACTIVE
-      });
-
-      const commentId = await firebaseOps.create('comments', comment);
-      
-      // Update event comment count
-      await updateEventCommentCount(1);
-      
-      // Update parent comment reply count if this is a reply
-      if (parentId) {
-        await updateCommentReplyCount(parentId, 1);
-      }
-      
-      return commentId;
-    } catch (err) {
-      setError(err.message);
-      throw err;
-    }
+  const postComment = async (content, authorId, authorName, parentId = null) => {
+    return addComment(
+      { content, parentId },
+      authorId,
+      authorName
+    );
   };
 
   /**
@@ -443,9 +461,9 @@ export const useComments = (eventId, eventType = 'tournament', options = {}) => 
     // CRUD operations
     loadComments,
     postComment,
-    addComment, // NEW: More flexible comment adding
+    addComment, // FIXED: Now creates notifications for mentions
     editComment,
-    updateComment, // NEW: More flexible comment updating
+    updateComment,
     deleteComment,
     
     // Moderation

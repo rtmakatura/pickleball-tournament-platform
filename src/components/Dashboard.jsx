@@ -1,5 +1,5 @@
-// src/components/Dashboard.jsx (COMPLETE - WITH PAGINATION AND NOTIFICATIONS)
-import React, { useState } from 'react';
+// src/components/Dashboard.jsx (FULLY UPDATED - WITH PERFORMANCE FIXES)
+import React, { useState, useMemo, useCallback } from 'react';
 import { 
   Plus, 
   Calendar, 
@@ -43,11 +43,496 @@ import SignInForm from './auth/SignInForm';
 import { ResultsButton } from './results';
 import { CommentSection } from './comments';
 
+// CSS for preventing flickering and stabilizing animations
+const dashboardStyles = `
+  .tournament-row, .league-row {
+    transition: background-color 0.15s ease;
+  }
+  
+  .tournament-row:hover, .league-row:hover {
+    background-color: rgb(249 250 251) !important;
+  }
+  
+  .notification-badge {
+    transition: none !important;
+  }
+  
+  button {
+    transition: background-color 0.15s ease, color 0.15s ease;
+  }
+  
+  /* Prevent table flickering */
+  .enhanced-table {
+    table-layout: fixed;
+  }
+  
+  /* Stabilize hover states */
+  .table-actions {
+    opacity: 1 !important;
+    transition: none !important;
+  }
+`;
+
+const DashboardStyles = () => (
+  <style dangerouslySetInnerHTML={{ __html: dashboardStyles }} />
+);
+
+// Stable notifications hook with debouncing
+const useStableNotifications = (userId, options = {}) => {
+  const { debounceMs = 500, ...otherOptions } = options;
+  const [stableState, setStableState] = useState({ unreadCount: 0, hasNew: false, notifications: [] });
+  
+  const notifications = useNotifications(userId, otherOptions);
+  
+  // Debounce updates to prevent rapid re-renders
+  React.useEffect(() => {
+    const timer = setTimeout(() => {
+      if (
+        notifications.unreadCount !== stableState.unreadCount ||
+        notifications.hasNew !== stableState.hasNew ||
+        notifications.notifications?.length !== stableState.notifications?.length
+      ) {
+        setStableState({
+          unreadCount: notifications.unreadCount,
+          hasNew: notifications.hasNew,
+          notifications: notifications.notifications || []
+        });
+      }
+    }, debounceMs);
+    
+    return () => clearTimeout(timer);
+  }, [notifications.unreadCount, notifications.hasNew, notifications.notifications, debounceMs, stableState]);
+  
+  return stableState;
+};
+
+// Memoized Tournament Row Component
+const TournamentRow = React.memo(({ tournament, onView, onEdit }) => {
+  const totalParticipants = getTournamentTotalParticipants(tournament);
+  const totalExpected = getTournamentTotalExpected(tournament);
+  const divisionCount = tournament.divisions?.length || 0;
+  
+  // Helper function to get registration deadline text
+  const getRegistrationDeadlineText = (tournament) => {
+    if (tournament.registrationDeadline) {
+      const deadline = tournament.registrationDeadline.seconds 
+        ? new Date(tournament.registrationDeadline.seconds * 1000)
+        : new Date(tournament.registrationDeadline);
+      
+      return `Until ${deadline.toLocaleDateString('en-US', { 
+        month: 'short', 
+        day: 'numeric' 
+      })}`;
+    }
+    return 'Until event date';
+  };
+
+  const handleViewClick = useCallback((e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    onView(tournament);
+  }, [tournament, onView]);
+
+  const handleEditClick = useCallback((e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    onEdit(tournament);
+  }, [tournament, onEdit]);
+
+  return (
+    <tr key={tournament.id} className="tournament-row">
+      {/* Name Column */}
+      <td className="py-4 px-4 align-top">
+        <div className="space-y-2">
+          <div className="font-medium text-gray-900 leading-5 break-words">
+            {tournament.name}
+          </div>
+          
+          {/* Mobile-only: Key info */}
+          <div className="sm:hidden space-y-1">
+            <div className="flex items-center text-sm text-gray-600">
+              <Calendar className="h-3.5 w-3.5 mr-1.5 flex-shrink-0" />
+              <span>
+                {tournament.eventDate ? new Date(tournament.eventDate.seconds * 1000).toLocaleDateString() : 'TBD'}
+              </span>
+            </div>
+            {divisionCount > 0 && (
+              <div className="flex items-center justify-between text-sm">
+                <div className="flex items-center text-gray-600">
+                  <Layers className="h-3.5 w-3.5 mr-1.5" />
+                  <span>{divisionCount} division{divisionCount !== 1 ? 's' : ''}</span>
+                </div>
+                {totalExpected > 0 && (
+                  <div className="flex items-center text-green-600 font-medium">
+                    <span>${totalExpected}</span>
+                  </div>
+                )}
+              </div>
+            )}
+            {tournament.location && (
+              <div className="text-sm text-gray-500 truncate">
+                📍 {tournament.location}
+              </div>
+            )}
+          </div>
+          
+          {/* Quick indicators */}
+          <div className="flex items-center space-x-4 text-xs">
+            <div className="flex items-center text-gray-500">
+              <Users className="h-3 w-3 mr-1" />
+              <span>{totalParticipants} total</span>
+            </div>
+            {divisionCount > 0 && (
+              <div className="hidden sm:flex items-center text-blue-600">
+                <Layers className="h-3 w-3 mr-1" />
+                <span>{divisionCount} divisions</span>
+              </div>
+            )}
+            {totalExpected > 0 && (
+              <div className="hidden sm:flex items-center text-green-600 font-medium">
+                <span>${totalExpected}</span>
+              </div>
+            )}
+            {tournament.commentCount > 0 && (
+              <div className="flex items-center text-gray-400">
+                <MessageSquare className="h-3 w-3 mr-1" />
+                <span>{tournament.commentCount}</span>
+              </div>
+            )}
+          </div>
+        </div>
+      </td>
+
+      {/* Date & Divisions Column */}
+      <td className="py-4 px-4 align-top hidden sm:table-cell">
+        <div className="space-y-2">
+          <div className="flex items-center text-sm text-gray-900">
+            <Calendar className="h-4 w-4 mr-2 text-gray-400" />
+            <span className="font-medium">
+              {tournament.eventDate 
+                ? new Date(tournament.eventDate.seconds * 1000).toLocaleDateString('en-US', {
+                    month: 'short',
+                    day: 'numeric',
+                    year: 'numeric'
+                  })
+                : 'TBD'
+              }
+            </span>
+          </div>
+          <div className="flex items-center text-sm text-gray-600">
+            <Layers className="h-4 w-4 mr-2 text-gray-400" />
+            <span>{divisionCount} division{divisionCount !== 1 ? 's' : ''}</span>
+          </div>
+          <div className="flex items-center text-sm text-gray-600">
+            <Users className="h-4 w-4 mr-2 text-gray-400" />
+            <span>{totalParticipants} participants</span>
+          </div>
+        </div>
+      </td>
+
+      {/* Location Column */}
+      <td className="py-4 px-4 align-top hidden md:table-cell">
+        <div className="space-y-2">
+          {tournament.location ? (
+            <>
+              <div className="text-sm text-gray-900 leading-5 break-words">
+                {tournament.location}
+              </div>
+              <div className="flex items-center space-x-1">
+                <button 
+                  className="inline-flex items-center px-2 py-1 text-xs bg-blue-50 text-blue-700 rounded-md hover:bg-blue-100 transition-colors"
+                  onClick={() => openLinkSafely(generateGoogleMapsLink(tournament.location))}
+                  title="View on Maps"
+                  type="button"
+                >
+                  <MapPin className="h-3 w-3 mr-1" />
+                  Maps
+                </button>
+                {tournament.website && (
+                  <button 
+                    className="inline-flex items-center px-2 py-1 text-xs bg-gray-50 text-gray-700 rounded-md hover:bg-gray-100 transition-colors"
+                    onClick={() => openLinkSafely(tournament.website)}
+                    title="Visit Website"
+                    type="button"
+                  >
+                    <ExternalLink className="h-3 w-3 mr-1" />
+                    Site
+                  </button>
+                )}
+              </div>
+            </>
+          ) : (
+            <span className="text-gray-400 text-sm">No location</span>
+          )}
+        </div>
+      </td>
+
+      {/* Status Column */}
+      <td className="py-4 px-4 align-top hidden lg:table-cell">
+        <div className="space-y-2">
+          <span className={`
+            inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium
+            ${tournament.status === TOURNAMENT_STATUS.DRAFT ? 'bg-gray-100 text-gray-800' :
+              tournament.status === TOURNAMENT_STATUS.REGISTRATION_OPEN ? 'bg-green-100 text-green-800' :
+              tournament.status === TOURNAMENT_STATUS.IN_PROGRESS ? 'bg-blue-100 text-blue-800' :
+              tournament.status === TOURNAMENT_STATUS.COMPLETED ? 'bg-purple-100 text-purple-800' :
+              'bg-gray-100 text-gray-800'
+            }
+          `}>
+            <div className={`
+              w-1.5 h-1.5 rounded-full mr-1.5
+              ${tournament.status === TOURNAMENT_STATUS.REGISTRATION_OPEN ? 'bg-green-400' :
+                tournament.status === TOURNAMENT_STATUS.IN_PROGRESS ? 'bg-blue-400' :
+                tournament.status === TOURNAMENT_STATUS.COMPLETED ? 'bg-purple-400' :
+                'bg-gray-400'
+              }
+            `}></div>
+            {tournament.status.replace('_', ' ')}
+          </span>
+          <div className="text-xs text-gray-500">
+            {tournament.status === TOURNAMENT_STATUS.REGISTRATION_OPEN 
+              ? getRegistrationDeadlineText(tournament) 
+              : ''
+            }
+          </div>
+        </div>
+      </td>
+
+      {/* Actions Column */}
+      <td className="py-4 px-4 align-top">
+        <div className="flex flex-col space-y-1 table-actions">
+          <button 
+            className="inline-flex items-center justify-center px-3 py-1.5 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors w-20"
+            onClick={handleViewClick}
+            type="button"
+          >
+            Discuss
+          </button>
+          <button 
+            className="inline-flex items-center justify-center px-3 py-1.5 text-sm bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors w-20"
+            onClick={handleEditClick}
+            type="button"
+          >
+            Edit
+          </button>
+        </div>
+      </td>
+    </tr>
+  );
+});
+
+// Memoized League Row Component
+const LeagueRow = React.memo(({ league, onView, onEdit }) => {
+  // Helper function to format event type for display
+  const formatEventType = (eventType) => {
+    if (!eventType) return '';
+    return eventType.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase());
+  };
+
+  const handleViewClick = useCallback((e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    onView(league);
+  }, [league, onView]);
+
+  const handleEditClick = useCallback((e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    onEdit(league);
+  }, [league, onEdit]);
+
+  return (
+    <tr key={league.id} className="league-row">
+      {/* Name Column */}
+      <td className="py-4 px-4 align-top">
+        <div className="space-y-2">
+          <div className="font-medium text-gray-900 leading-5 break-words">
+            {league.name}
+          </div>
+          
+          <div className="sm:hidden space-y-1">
+            <div className="flex items-center text-sm text-gray-600">
+              <Calendar className="h-3.5 w-3.5 mr-1.5 flex-shrink-0" />
+              <span>
+                {league.startDate ? new Date(league.startDate.seconds * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'TBD'} to {league.endDate ? new Date(league.endDate.seconds * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'TBD'}
+              </span>
+            </div>
+            <div className="flex items-center justify-between text-sm">
+              <div className="flex items-center text-gray-600">
+                <Trophy className="h-3.5 w-3.5 mr-1.5" />
+                <span className="capitalize">{league.skillLevel}</span>
+              </div>
+              {league.registrationFee > 0 && (
+                <div className="flex items-center text-green-600 font-medium">
+                  <span>${league.registrationFee}</span>
+                </div>
+              )}
+            </div>
+            {league.location && (
+              <div className="text-sm text-gray-500 truncate">
+                📍 {league.location}
+              </div>
+            )}
+          </div>
+          
+          <div className="flex items-center space-x-4 text-xs">
+            <div className="flex items-center text-gray-500">
+              <span>Type: {formatEventType(league.eventType)}</span>
+            </div>
+            {league.registrationFee > 0 && (
+              <div className="hidden sm:flex items-center text-green-600 font-medium">
+                <span>${league.registrationFee}</span>
+              </div>
+            )}
+            {league.commentCount > 0 && (
+              <div className="flex items-center text-gray-400">
+                <MessageSquare className="h-3 w-3 mr-1" />
+                <span>{league.commentCount}</span>
+              </div>
+            )}
+          </div>
+        </div>
+      </td>
+
+      <td className="py-4 px-4 align-top hidden sm:table-cell">
+        <div className="space-y-2">
+          <div className="flex items-center text-sm text-gray-900">
+            <Calendar className="h-4 w-4 mr-2 text-gray-400" />
+            <span className="font-medium">
+              {league.startDate && league.endDate
+                ? `${new Date(league.startDate.seconds * 1000).toLocaleDateString('en-US', {
+                    month: 'short',
+                    day: 'numeric'
+                  })} to ${new Date(league.endDate.seconds * 1000).toLocaleDateString('en-US', {
+                    month: 'short',
+                    day: 'numeric'
+                  })}`
+                : 'TBD'
+              }
+            </span>
+          </div>
+          <div className="flex items-center text-sm text-gray-600">
+            <Trophy className="h-4 w-4 mr-2 text-gray-400" />
+            <span className="capitalize">{league.skillLevel}</span>
+          </div>
+          <div className="flex items-center text-sm text-gray-600">
+            <Users className="h-4 w-4 mr-2 text-gray-400" />
+            <span>{league.participants?.length || 0} members</span>
+          </div>
+        </div>
+      </td>
+
+      <td className="py-4 px-4 align-top hidden md:table-cell">
+        <div className="space-y-2">
+          {league.location ? (
+            <>
+              <div className="text-sm text-gray-900 leading-5 break-words">
+                {league.location}
+              </div>
+              <div className="flex items-center space-x-1">
+                <button 
+                  className="inline-flex items-center px-2 py-1 text-xs bg-blue-50 text-blue-700 rounded-md hover:bg-blue-100 transition-colors"
+                  onClick={() => openLinkSafely(generateGoogleMapsLink(league.location))}
+                  title="View on Maps"
+                  type="button"
+                >
+                  <MapPin className="h-3 w-3 mr-1" />
+                  Maps
+                </button>
+                {league.website && (
+                  <button 
+                    className="inline-flex items-center px-2 py-1 text-xs bg-gray-50 text-gray-700 rounded-md hover:bg-gray-100 transition-colors"
+                    onClick={() => openLinkSafely(league.website)}
+                    title="Visit Website"
+                    type="button"
+                  >
+                    <ExternalLink className="h-3 w-3 mr-1" />
+                    Site
+                  </button>
+                )}
+              </div>
+            </>
+          ) : (
+            <span className="text-gray-400 text-sm">No location</span>
+          )}
+        </div>
+      </td>
+
+      <td className="py-4 px-4 align-top hidden lg:table-cell">
+        <div className="space-y-2">
+          <span className={`
+            inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium
+            ${league.status === LEAGUE_STATUS.ACTIVE ? 'bg-green-100 text-green-800' :
+              league.status === LEAGUE_STATUS.COMPLETED ? 'bg-purple-100 text-purple-800' :
+              'bg-gray-100 text-gray-800'
+            }
+          `}>
+            <div className={`
+              w-1.5 h-1.5 rounded-full mr-1.5
+              ${league.status === LEAGUE_STATUS.ACTIVE ? 'bg-green-400' :
+                league.status === LEAGUE_STATUS.COMPLETED ? 'bg-purple-400' :
+                'bg-gray-400'
+              }
+            `}></div>
+            {league.status.replace('_', ' ')}
+          </span>
+          <div className="text-xs text-gray-500">
+            {league.status === LEAGUE_STATUS.ACTIVE ? 'Ongoing' : ''}
+          </div>
+        </div>
+      </td>
+
+      <td className="py-4 px-4 align-top">
+        <div className="flex flex-col space-y-1 table-actions">
+          <button 
+            className="inline-flex items-center justify-center px-3 py-1.5 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors w-20"
+            onClick={handleViewClick}
+            type="button"
+          >
+            Discuss
+          </button>
+          <button 
+            className="inline-flex items-center justify-center px-3 py-1.5 text-sm bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors w-20"
+            onClick={handleEditClick}
+            type="button"
+          >
+            Edit
+          </button>
+        </div>
+      </td>
+    </tr>
+  );
+});
+
+// Memoized Header Component
+const DashboardHeader = React.memo(({ currentUserMember, user, unreadCount, hasNew, onNotificationClick, onLogout }) => (
+  <div className="flex justify-between items-center mb-8">
+    <div>
+      <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
+      <p className="text-gray-600">
+        Welcome back, {currentUserMember?.firstName || user.email}!
+      </p>
+    </div>
+    <div className="flex items-center space-x-4">
+      <NotificationBadge
+        count={unreadCount}
+        hasHighPriority={hasNew}
+        onClick={onNotificationClick}
+        animate={hasNew}
+      />
+      
+      <Button variant="outline" onClick={onLogout}>
+        Logout
+      </Button>
+    </div>
+  </div>
+));
+
 const Dashboard = () => {
   const { user, signIn, signUpWithProfile, logout, isAuthenticated, loading: authLoading } = useAuth();
-  const { members, loading: membersLoading, addMember, updateMember, deleteMember } = useMembers();
-  const { leagues, loading: leaguesLoading, addLeague, updateLeague, deleteLeague } = useLeagues();
-  const { tournaments, loading: tournamentsLoading, addTournament, updateTournament, deleteTournament } = useTournaments();
+  const { members, loading: membersLoading, addMember, updateMember, deleteMember } = useMembers({ realTime: false });
+  const { leagues, loading: leaguesLoading, addLeague, updateLeague, deleteLeague } = useLeagues({ realTime: false });
+  const { tournaments, loading: tournamentsLoading, addTournament, updateTournament, deleteTournament } = useTournaments({ realTime: false });
 
   // Modal states
   const [showTournamentModal, setShowTournamentModal] = useState(false);
@@ -63,8 +548,57 @@ const Dashboard = () => {
   const [viewingTournament, setViewingTournament] = useState(null);
   const [viewingLeague, setViewingLeague] = useState(null);
   
+  const currentUserMember = useMemo(() => 
+    members.find(m => m.authUid === user?.uid), 
+    [members, user?.uid]
+  );
+
+  // Stable notifications hook with debouncing
+  // Replace your current line with this:
+  const { unreadCount, hasNew } = { unreadCount: 0, hasNew: false };
+
+  // Auth UI state
+  const [authMode, setAuthMode] = useState('signin');
+  
+  // Pagination state
+  const [visibleTournaments, setVisibleTournaments] = useState(4);
+  const [visibleLeagues, setVisibleLeagues] = useState(4);
+  
+  // Form states
+  const [selectedLeagueMembers, setSelectedLeagueMembers] = useState([]);
+  const [formLoading, setFormLoading] = useState(false);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [alert, setAlert] = useState(null);
+
+  // Memoized event handlers
+  const handleViewTournament = useCallback((tournament) => {
+    setViewingTournament(tournament);
+    setShowTournamentDetailModal(true);
+  }, []);
+
+  const handleViewLeague = useCallback((league) => {
+    setViewingLeague(league);
+    setShowLeagueDetailModal(true);
+  }, []);
+
+  const handleEditTournament = useCallback((tournament) => {
+    setEditingTournament(tournament);
+    setShowTournamentModal(true);
+  }, []);
+
+  const handleEditLeague = useCallback((league) => {
+    setEditingLeague(league);
+    setSelectedLeagueMembers(league.participants || []);
+    setShowLeagueModal(true);
+  }, []);
+
+  const handleEditMember = useCallback((member) => {
+    setEditingMember(member);
+    setShowMemberModal(true);
+  }, []);
+
   // Handle notification navigation
-  const handleNotificationNavigation = (notification) => {
+  const handleNotificationNavigation = useCallback((notification) => {
     const { eventId, eventType, commentId } = notification.data || {};
     
     if (eventType === 'tournament') {
@@ -82,69 +616,10 @@ const Dashboard = () => {
     }
     
     setShowNotificationModal(false);
-  };
-
-  const currentUserMember = members.find(m => m.authUid === user?.uid);
-  // Notifications hook
-  const { unreadCount, hasNew } = useNotifications(currentUserMember?.id, { realTime: true });
-
-  // Auth UI state
-  const [authMode, setAuthMode] = useState('signin');
-  
-  // Pagination state
-  const [visibleTournaments, setVisibleTournaments] = useState(4);
-  const [visibleLeagues, setVisibleLeagues] = useState(4);
-  
-  // Form states
-  const [selectedLeagueMembers, setSelectedLeagueMembers] = useState([]);
-  const [formLoading, setFormLoading] = useState(false);
-  const [deleteLoading, setDeleteLoading] = useState(false);
-  const [alert, setAlert] = useState(null);
-
-  // Helper function to sort tournaments by relevance (upcoming/active first, then by date)
-  const getSortedTournaments = () => {
-    const now = new Date();
-    
-    return [...tournaments].sort((a, b) => {
-      const dateA = a.eventDate ? (a.eventDate.seconds ? new Date(a.eventDate.seconds * 1000) : new Date(a.eventDate)) : new Date(0);
-      const dateB = b.eventDate ? (b.eventDate.seconds ? new Date(b.eventDate.seconds * 1000) : new Date(b.eventDate)) : new Date(0);
-      
-      // Prioritize by status first (upcoming/active tournaments first)
-      const statusPriorityA = getTournamentStatusPriority(a.status, dateA, now);
-      const statusPriorityB = getTournamentStatusPriority(b.status, dateB, now);
-      
-      if (statusPriorityA !== statusPriorityB) {
-        return statusPriorityA - statusPriorityB;
-      }
-      
-      // Then sort by date
-      return dateA - dateB;
-    });
-  };
-
-  // Helper function to sort leagues by relevance (active first, then by date)
-  const getSortedLeagues = () => {
-    const now = new Date();
-    
-    return [...leagues].sort((a, b) => {
-      const dateA = a.startDate ? (a.startDate.seconds ? new Date(a.startDate.seconds * 1000) : new Date(a.startDate)) : new Date(0);
-      const dateB = b.startDate ? (b.startDate.seconds ? new Date(b.startDate.seconds * 1000) : new Date(b.startDate)) : new Date(0);
-      
-      // Prioritize by status first (active leagues first)
-      const statusPriorityA = getLeagueStatusPriority(a.status, dateA, now);
-      const statusPriorityB = getLeagueStatusPriority(b.status, dateB, now);
-      
-      if (statusPriorityA !== statusPriorityB) {
-        return statusPriorityA - statusPriorityB;
-      }
-      
-      // Then sort by date
-      return dateA - dateB;
-    });
-  };
+  }, [tournaments, leagues]);
 
   // Get tournament status priority for sorting (lower = higher priority)
-  const getTournamentStatusPriority = (status, eventDate, now) => {
+  const getTournamentStatusPriority = useCallback((status, eventDate, now) => {
     const isUpcoming = eventDate > now;
     
     switch (status) {
@@ -163,10 +638,10 @@ const Dashboard = () => {
       default:
         return 4;
     }
-  };
+  }, []);
 
   // Get league status priority for sorting (lower = higher priority)
-  const getLeagueStatusPriority = (status, startDate, now) => {
+  const getLeagueStatusPriority = useCallback((status, startDate, now) => {
     switch (status) {
       case LEAGUE_STATUS.ACTIVE:
         return 1;
@@ -175,34 +650,58 @@ const Dashboard = () => {
       default:
         return 3;
     }
-  };
+  }, []);
+
+  // Helper functions memoized
+  const getSortedTournaments = useCallback(() => {
+    const now = new Date();
+    
+    return [...tournaments].sort((a, b) => {
+      const dateA = a.eventDate ? (a.eventDate.seconds ? new Date(a.eventDate.seconds * 1000) : new Date(a.eventDate)) : new Date(0);
+      const dateB = b.eventDate ? (b.eventDate.seconds ? new Date(b.eventDate.seconds * 1000) : new Date(b.eventDate)) : new Date(0);
+      
+      // Prioritize by status first (upcoming/active tournaments first)
+      const statusPriorityA = getTournamentStatusPriority(a.status, dateA, now);
+      const statusPriorityB = getTournamentStatusPriority(b.status, dateB, now);
+      
+      if (statusPriorityA !== statusPriorityB) {
+        return statusPriorityA - statusPriorityB;
+      }
+      
+      // Then sort by date
+      return dateA - dateB;
+    });
+  }, [tournaments.length]);
+
+  const getSortedLeagues = useCallback(() => {
+    const now = new Date();
+    
+    return [...leagues].sort((a, b) => {
+      const dateA = a.startDate ? (a.startDate.seconds ? new Date(a.startDate.seconds * 1000) : new Date(a.startDate)) : new Date(0);
+      const dateB = b.startDate ? (b.startDate.seconds ? new Date(b.startDate.seconds * 1000) : new Date(b.startDate)) : new Date(0);
+      
+      // Prioritize by status first (active leagues first)
+      const statusPriorityA = getLeagueStatusPriority(a.status, dateA, now);
+      const statusPriorityB = getLeagueStatusPriority(b.status, dateB, now);
+      
+      if (statusPriorityA !== statusPriorityB) {
+        return statusPriorityA - statusPriorityB;
+      }
+      
+      // Then sort by date
+      return dateA - dateB;
+    });
+  }, [leagues.length]);
+
+  // Memoized sorted data to prevent recalculation on every render
+  const sortedTournaments = useMemo(() => getSortedTournaments(), [getSortedTournaments]);
+  const sortedLeagues = useMemo(() => getSortedLeagues(), [getSortedLeagues]);
 
   // Show alert message
-  const showAlert = (type, title, message) => {
+  const showAlert = useCallback((type, title, message) => {
     setAlert({ type, title, message });
     setTimeout(() => setAlert(null), 5000);
-  };
-
-  // Helper function to format event type for display
-  const formatEventType = (eventType) => {
-    if (!eventType) return '';
-    return eventType.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase());
-  };
-
-  // Helper function to get registration deadline text
-  const getRegistrationDeadlineText = (tournament) => {
-    if (tournament.registrationDeadline) {
-      const deadline = tournament.registrationDeadline.seconds 
-        ? new Date(tournament.registrationDeadline.seconds * 1000)
-        : new Date(tournament.registrationDeadline);
-      
-      return `Until ${deadline.toLocaleDateString('en-US', { 
-        month: 'short', 
-        day: 'numeric' 
-      })}`;
-    }
-    return 'Until event date';
-  };
+  }, []);
 
   // Enhanced tournament table with pagination
   const EnhancedTournamentTable = ({ data, visibleCount, onLoadMore, hasMore }) => {
@@ -221,7 +720,7 @@ const Dashboard = () => {
       <div className="space-y-4">
         <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full">
+            <table className="w-full enhanced-table">
               <thead>
                 <tr className="bg-gray-50 border-b border-gray-200">
                   <th className="text-left py-3 px-4 font-medium text-gray-700 text-sm uppercase tracking-wider w-[30%]">
@@ -242,188 +741,14 @@ const Dashboard = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {displayData.map((tournament) => {
-                  const totalParticipants = getTournamentTotalParticipants(tournament);
-                  const totalExpected = getTournamentTotalExpected(tournament);
-                  const divisionCount = tournament.divisions?.length || 0;
-                  
-                  return (
-                    <tr key={tournament.id} className="hover:bg-gray-50 transition-colors">
-                      {/* Name Column */}
-                      <td className="py-4 px-4 align-top">
-                        <div className="space-y-2">
-                          <div className="font-medium text-gray-900 leading-5 break-words">
-                            {tournament.name}
-                          </div>
-                          
-                          {/* Mobile-only: Key info */}
-                          <div className="sm:hidden space-y-1">
-                            <div className="flex items-center text-sm text-gray-600">
-                              <Calendar className="h-3.5 w-3.5 mr-1.5 flex-shrink-0" />
-                              <span>
-                                {tournament.eventDate ? new Date(tournament.eventDate.seconds * 1000).toLocaleDateString() : 'TBD'}
-                              </span>
-                            </div>
-                            {divisionCount > 0 && (
-                              <div className="flex items-center justify-between text-sm">
-                                <div className="flex items-center text-gray-600">
-                                  <Layers className="h-3.5 w-3.5 mr-1.5" />
-                                  <span>{divisionCount} division{divisionCount !== 1 ? 's' : ''}</span>
-                                </div>
-                                {totalExpected > 0 && (
-                                  <div className="flex items-center text-green-600 font-medium">
-                                    <span>${totalExpected}</span>
-                                  </div>
-                                )}
-                              </div>
-                            )}
-                            {tournament.location && (
-                              <div className="text-sm text-gray-500 truncate">
-                                📍 {tournament.location}
-                              </div>
-                            )}
-                          </div>
-                          
-                          {/* Quick indicators */}
-                          <div className="flex items-center space-x-4 text-xs">
-                            <div className="flex items-center text-gray-500">
-                              <Users className="h-3 w-3 mr-1" />
-                              <span>{totalParticipants} total</span>
-                            </div>
-                            {divisionCount > 0 && (
-                              <div className="hidden sm:flex items-center text-blue-600">
-                                <Layers className="h-3 w-3 mr-1" />
-                                <span>{divisionCount} divisions</span>
-                              </div>
-                            )}
-                            {totalExpected > 0 && (
-                              <div className="hidden sm:flex items-center text-green-600 font-medium">
-                                <span>${totalExpected}</span>
-                              </div>
-                            )}
-                            {tournament.commentCount > 0 && (
-                              <div className="flex items-center text-gray-400">
-                                <MessageSquare className="h-3 w-3 mr-1" />
-                                <span>{tournament.commentCount}</span>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </td>
-
-                      {/* Date & Divisions Column */}
-                      <td className="py-4 px-4 align-top hidden sm:table-cell">
-                        <div className="space-y-2">
-                          <div className="flex items-center text-sm text-gray-900">
-                            <Calendar className="h-4 w-4 mr-2 text-gray-400" />
-                            <span className="font-medium">
-                              {tournament.eventDate 
-                                ? new Date(tournament.eventDate.seconds * 1000).toLocaleDateString('en-US', {
-                                    month: 'short',
-                                    day: 'numeric',
-                                    year: 'numeric'
-                                  })
-                                : 'TBD'
-                              }
-                            </span>
-                          </div>
-                          <div className="flex items-center text-sm text-gray-600">
-                            <Layers className="h-4 w-4 mr-2 text-gray-400" />
-                            <span>{divisionCount} division{divisionCount !== 1 ? 's' : ''}</span>
-                          </div>
-                          <div className="flex items-center text-sm text-gray-600">
-                            <Users className="h-4 w-4 mr-2 text-gray-400" />
-                            <span>{totalParticipants} participants</span>
-                          </div>
-                        </div>
-                      </td>
-
-                      {/* Location Column */}
-                      <td className="py-4 px-4 align-top hidden md:table-cell">
-                        <div className="space-y-2">
-                          {tournament.location ? (
-                            <>
-                              <div className="text-sm text-gray-900 leading-5 break-words">
-                                {tournament.location}
-                              </div>
-                              <div className="flex items-center space-x-1">
-                                <button 
-                                  className="inline-flex items-center px-2 py-1 text-xs bg-blue-50 text-blue-700 rounded-md hover:bg-blue-100 transition-colors"
-                                  onClick={() => openLinkSafely(generateGoogleMapsLink(tournament.location))}
-                                  title="View on Maps"
-                                >
-                                  <MapPin className="h-3 w-3 mr-1" />
-                                  Maps
-                                </button>
-                                {tournament.website && (
-                                  <button 
-                                    className="inline-flex items-center px-2 py-1 text-xs bg-gray-50 text-gray-700 rounded-md hover:bg-gray-100 transition-colors"
-                                    onClick={() => openLinkSafely(tournament.website)}
-                                    title="Visit Website"
-                                  >
-                                    <ExternalLink className="h-3 w-3 mr-1" />
-                                    Site
-                                  </button>
-                                )}
-                              </div>
-                            </>
-                          ) : (
-                            <span className="text-gray-400 text-sm">No location</span>
-                          )}
-                        </div>
-                      </td>
-
-                      {/* Status Column */}
-                      <td className="py-4 px-4 align-top hidden lg:table-cell">
-                        <div className="space-y-2">
-                          <span className={`
-                            inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium
-                            ${tournament.status === TOURNAMENT_STATUS.DRAFT ? 'bg-gray-100 text-gray-800' :
-                              tournament.status === TOURNAMENT_STATUS.REGISTRATION_OPEN ? 'bg-green-100 text-green-800' :
-                              tournament.status === TOURNAMENT_STATUS.IN_PROGRESS ? 'bg-blue-100 text-blue-800' :
-                              tournament.status === TOURNAMENT_STATUS.COMPLETED ? 'bg-purple-100 text-purple-800' :
-                              'bg-gray-100 text-gray-800'
-                            }
-                          `}>
-                            <div className={`
-                              w-1.5 h-1.5 rounded-full mr-1.5
-                              ${tournament.status === TOURNAMENT_STATUS.REGISTRATION_OPEN ? 'bg-green-400' :
-                                tournament.status === TOURNAMENT_STATUS.IN_PROGRESS ? 'bg-blue-400' :
-                                tournament.status === TOURNAMENT_STATUS.COMPLETED ? 'bg-purple-400' :
-                                'bg-gray-400'
-                              }
-                            `}></div>
-                            {tournament.status.replace('_', ' ')}
-                          </span>
-                          <div className="text-xs text-gray-500">
-                            {tournament.status === TOURNAMENT_STATUS.REGISTRATION_OPEN 
-                              ? getRegistrationDeadlineText(tournament) 
-                              : ''
-                            }
-                          </div>
-                        </div>
-                      </td>
-
-                      {/* Actions Column */}
-                      <td className="py-4 px-4 align-top">
-                        <div className="flex flex-col space-y-1">
-                          <button 
-                            className="inline-flex items-center justify-center px-3 py-1.5 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors w-20"
-                            onClick={() => handleViewTournament(tournament)}
-                          >
-                            Discuss
-                          </button>
-                          <button 
-                            className="inline-flex items-center justify-center px-3 py-1.5 text-sm bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors w-20"
-                            onClick={() => handleEditTournament(tournament)}
-                          >
-                            Edit
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
+                {displayData.map((tournament) => (
+                  <TournamentRow 
+                    key={tournament.id}
+                    tournament={tournament}
+                    onView={handleViewTournament}
+                    onEdit={handleEditTournament}
+                  />
+                ))}
               </tbody>
             </table>
           </div>
@@ -469,7 +794,7 @@ const Dashboard = () => {
       <div className="space-y-4">
         <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full">
+            <table className="w-full enhanced-table">
               <thead>
                 <tr className="bg-gray-50 border-b border-gray-200">
                   <th className="text-left py-3 px-4 font-medium text-gray-700 text-sm uppercase tracking-wider w-[35%]">
@@ -491,161 +816,12 @@ const Dashboard = () => {
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {displayData.map((league) => (
-                  <tr key={league.id} className="hover:bg-gray-50 transition-colors">
-                    {/* Name Column */}
-                    <td className="py-4 px-4 align-top">
-                      <div className="space-y-2">
-                        <div className="font-medium text-gray-900 leading-5 break-words">
-                          {league.name}
-                        </div>
-                        
-                        <div className="sm:hidden space-y-1">
-                          <div className="flex items-center text-sm text-gray-600">
-                            <Calendar className="h-3.5 w-3.5 mr-1.5 flex-shrink-0" />
-                            <span>
-                              {league.startDate ? new Date(league.startDate.seconds * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'TBD'} to {league.endDate ? new Date(league.endDate.seconds * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'TBD'}
-                            </span>
-                          </div>
-                          <div className="flex items-center justify-between text-sm">
-                            <div className="flex items-center text-gray-600">
-                              <Trophy className="h-3.5 w-3.5 mr-1.5" />
-                              <span className="capitalize">{league.skillLevel}</span>
-                            </div>
-                            {league.registrationFee > 0 && (
-                              <div className="flex items-center text-green-600 font-medium">
-                                <span>${league.registrationFee}</span>
-                              </div>
-                            )}
-                          </div>
-                          {league.location && (
-                            <div className="text-sm text-gray-500 truncate">
-                              📍 {league.location}
-                            </div>
-                          )}
-                        </div>
-                        
-                        <div className="flex items-center space-x-4 text-xs">
-                          <div className="flex items-center text-gray-500">
-                            <span>Type: {formatEventType(league.eventType)}</span>
-                          </div>
-                          {league.registrationFee > 0 && (
-                            <div className="hidden sm:flex items-center text-green-600 font-medium">
-                              <span>${league.registrationFee}</span>
-                            </div>
-                          )}
-                          {league.commentCount > 0 && (
-                            <div className="flex items-center text-gray-400">
-                              <MessageSquare className="h-3 w-3 mr-1" />
-                              <span>{league.commentCount}</span>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </td>
-
-                    <td className="py-4 px-4 align-top hidden sm:table-cell">
-                      <div className="space-y-2">
-                        <div className="flex items-center text-sm text-gray-900">
-                          <Calendar className="h-4 w-4 mr-2 text-gray-400" />
-                          <span className="font-medium">
-                            {league.startDate && league.endDate
-                              ? `${new Date(league.startDate.seconds * 1000).toLocaleDateString('en-US', {
-                                  month: 'short',
-                                  day: 'numeric'
-                                })} to ${new Date(league.endDate.seconds * 1000).toLocaleDateString('en-US', {
-                                  month: 'short',
-                                  day: 'numeric'
-                                })}`
-                              : 'TBD'
-                            }
-                          </span>
-                        </div>
-                        <div className="flex items-center text-sm text-gray-600">
-                          <Trophy className="h-4 w-4 mr-2 text-gray-400" />
-                          <span className="capitalize">{league.skillLevel}</span>
-                        </div>
-                        <div className="flex items-center text-sm text-gray-600">
-                          <Users className="h-4 w-4 mr-2 text-gray-400" />
-                          <span>{league.participants?.length || 0} members</span>
-                        </div>
-                      </div>
-                    </td>
-
-                    <td className="py-4 px-4 align-top hidden md:table-cell">
-                      <div className="space-y-2">
-                        {league.location ? (
-                          <>
-                            <div className="text-sm text-gray-900 leading-5 break-words">
-                              {league.location}
-                            </div>
-                            <div className="flex items-center space-x-1">
-                              <button 
-                                className="inline-flex items-center px-2 py-1 text-xs bg-blue-50 text-blue-700 rounded-md hover:bg-blue-100 transition-colors"
-                                onClick={() => openLinkSafely(generateGoogleMapsLink(league.location))}
-                                title="View on Maps"
-                              >
-                                <MapPin className="h-3 w-3 mr-1" />
-                                Maps
-                              </button>
-                              {league.website && (
-                                <button 
-                                  className="inline-flex items-center px-2 py-1 text-xs bg-gray-50 text-gray-700 rounded-md hover:bg-gray-100 transition-colors"
-                                  onClick={() => openLinkSafely(league.website)}
-                                  title="Visit Website"
-                                >
-                                  <ExternalLink className="h-3 w-3 mr-1" />
-                                  Site
-                                </button>
-                              )}
-                            </div>
-                          </>
-                        ) : (
-                          <span className="text-gray-400 text-sm">No location</span>
-                        )}
-                      </div>
-                    </td>
-
-                    <td className="py-4 px-4 align-top hidden lg:table-cell">
-                      <div className="space-y-2">
-                        <span className={`
-                          inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium
-                          ${league.status === LEAGUE_STATUS.ACTIVE ? 'bg-green-100 text-green-800' :
-                            league.status === LEAGUE_STATUS.COMPLETED ? 'bg-purple-100 text-purple-800' :
-                            'bg-gray-100 text-gray-800'
-                          }
-                        `}>
-                          <div className={`
-                            w-1.5 h-1.5 rounded-full mr-1.5
-                            ${league.status === LEAGUE_STATUS.ACTIVE ? 'bg-green-400' :
-                              league.status === LEAGUE_STATUS.COMPLETED ? 'bg-purple-400' :
-                              'bg-gray-400'
-                            }
-                          `}></div>
-                          {league.status.replace('_', ' ')}
-                        </span>
-                        <div className="text-xs text-gray-500">
-                          {league.status === LEAGUE_STATUS.ACTIVE ? 'Ongoing' : ''}
-                        </div>
-                      </div>
-                    </td>
-
-                    <td className="py-4 px-4 align-top">
-                      <div className="flex flex-col space-y-1">
-                        <button 
-                          className="inline-flex items-center justify-center px-3 py-1.5 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors w-20"
-                          onClick={() => handleViewLeague(league)}
-                        >
-                          Discuss
-                        </button>
-                        <button 
-                          className="inline-flex items-center justify-center px-3 py-1.5 text-sm bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors w-20"
-                          onClick={() => handleEditLeague(league)}
-                        >
-                          Edit
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
+                  <LeagueRow 
+                    key={league.id}
+                    league={league}
+                    onView={handleViewLeague}
+                    onEdit={handleEditLeague}
+                  />
                 ))}
               </tbody>
             </table>
@@ -726,16 +902,6 @@ const Dashboard = () => {
     }
   };
 
-  const handleEditTournament = (tournament) => {
-    setEditingTournament(tournament);
-    setShowTournamentModal(true);
-  };
-
-  const handleViewTournament = (tournament) => {
-    setViewingTournament(tournament);
-    setShowTournamentDetailModal(true);
-  };
-
   const handleUpdateTournament = async (tournamentData) => {
     setFormLoading(true);
     try {
@@ -786,17 +952,6 @@ const Dashboard = () => {
     }
   };
 
-  const handleEditLeague = (league) => {
-    setEditingLeague(league);
-    setSelectedLeagueMembers(league.participants || []);
-    setShowLeagueModal(true);
-  };
-
-  const handleViewLeague = (league) => {
-    setViewingLeague(league);
-    setShowLeagueDetailModal(true);
-  };
-
   const handleUpdateLeague = async (leagueData) => {
     setFormLoading(true);
     try {
@@ -845,11 +1000,6 @@ const Dashboard = () => {
     }
   };
 
-  const handleEditMember = (member) => {
-    setEditingMember(member);
-    setShowMemberModal(true);
-  };
-
   const handleUpdateMember = async (memberData) => {
     setFormLoading(true);
     try {
@@ -878,61 +1028,15 @@ const Dashboard = () => {
     }
   };
 
-  // Payment tracking calculations
-  const getPaymentSummary = () => {
+  // Payment tracking calculations - memoized
+  const getPaymentSummary = useCallback(() => {
     return calculateOverallPaymentSummary(tournaments, leagues);
-  };
+  }, [tournaments, leagues]);
 
-  // Show loading state while auth is initializing
-  if (authLoading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-green-600"></div>
-          <p className="mt-2 text-gray-600">Loading...</p>
-        </div>
-      </div>
-    );
-  }
+  const paymentSummary = useMemo(() => getPaymentSummary(), [getPaymentSummary]);
 
-  // Authentication UI
-  if (!isAuthenticated) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="w-full max-w-md">
-          {alert && (
-            <div className="mb-6">
-              <Alert
-                type={alert.type}
-                title={alert.title}
-                message={alert.message}
-                onClose={() => setAlert(null)}
-              />
-            </div>
-          )}
-
-          {authMode === 'signin' ? (
-            <SignInForm
-              onSubmit={handleSignIn}
-              onSwitchToSignUp={() => setAuthMode('signup')}
-            />
-          ) : (
-            <SignUpForm
-              onSubmit={handleSignUp}
-              onSwitchToSignIn={() => setAuthMode('signin')}
-            />
-          )}
-        </div>
-      </div>
-    );
-  }
-
-  // Get sorted data
-  const sortedTournaments = getSortedTournaments();
-  const sortedLeagues = getSortedLeagues();
-
-  // Member table columns
-  const memberColumns = [
+  // Stable member columns
+  const memberColumns = useMemo(() => [
     {
       key: 'displayName',
       label: 'Name',
@@ -983,12 +1087,56 @@ const Dashboard = () => {
         />
       )
     }
-  ];
+  ], [handleEditMember]);
 
-  const paymentSummary = getPaymentSummary();
+  // Show loading state while auth is initializing
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-green-600"></div>
+          <p className="mt-2 text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Authentication UI
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="w-full max-w-md">
+          {alert && (
+            <div className="mb-6">
+              <Alert
+                type={alert.type}
+                title={alert.title}
+                message={alert.message}
+                onClose={() => setAlert(null)}
+              />
+            </div>
+          )}
+
+          {authMode === 'signin' ? (
+            <SignInForm
+              onSubmit={handleSignIn}
+              onSwitchToSignUp={() => setAuthMode('signup')}
+            />
+          ) : (
+            <SignUpForm
+              onSubmit={handleSignUp}
+              onSwitchToSignIn={() => setAuthMode('signin')}
+            />
+          )}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
+      <DashboardStyles />
+      
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Alert notification */}
         {alert && (
@@ -1003,26 +1151,14 @@ const Dashboard = () => {
         )}
 
         {/* Header with Notifications */}
-        <div className="flex justify-between items-center mb-8">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
-            <p className="text-gray-600">
-              Welcome back, {currentUserMember?.firstName || user.email}!
-            </p>
-          </div>
-          <div className="flex items-center space-x-4">
-            <NotificationBadge
-              count={unreadCount}
-              hasHighPriority={hasNew}
-              onClick={() => setShowNotificationModal(true)}
-              animate={hasNew}
-            />
-            
-            <Button variant="outline" onClick={logout}>
-              Logout
-            </Button>
-          </div>
-        </div>
+        <DashboardHeader 
+          currentUserMember={currentUserMember}
+          user={user}
+          unreadCount={unreadCount}
+          hasNew={hasNew}
+          onNotificationClick={() => setShowNotificationModal(true)}
+          onLogout={logout}
+        />
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">

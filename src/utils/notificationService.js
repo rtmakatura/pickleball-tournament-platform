@@ -1,4 +1,4 @@
-// src/services/notificationService.js - Service for handling notification business logic
+// src/services/notificationService.js - FIXED: Allow self-mentions
 
 import firebaseOps from './firebaseOperations';
 import { NOTIFICATION_TYPES, formatNotificationMessage, getNotificationPriority } from '../utils/notificationUtils';
@@ -36,6 +36,7 @@ export const createCommentReplyNotification = async (comment, parentComment, eve
   try {
     // Don't notify if replying to own comment
     if (comment.authorId === parentComment.authorId) {
+      console.log('⏭️ Skipping reply notification - user replied to own comment');
       return;
     }
     
@@ -73,9 +74,9 @@ export const createCommentReplyNotification = async (comment, parentComment, eve
     });
     
     await firebaseOps.create('notifications', notification);
-    console.log('Reply notification created for user:', parentComment.authorId);
+    console.log('✅ Reply notification created for user:', parentComment.authorId);
   } catch (error) {
-    console.error('Error creating reply notification:', error);
+    console.error('❌ Error creating reply notification:', error);
   }
 };
 
@@ -84,12 +85,19 @@ export const createCommentReplyNotification = async (comment, parentComment, eve
  * @param {Object} comment - The comment containing mentions
  * @param {Object} event - The event (tournament/league)
  * @param {Array} members - Array of all members
+ * @param {Object} options - Options including allowSelfMentions
  */
-export const createMentionNotifications = async (comment, event, members) => {
+export const createMentionNotifications = async (comment, event, members, options = {}) => {
   try {
-    const mentions = parseMentions(comment.content, members);
+    const { allowSelfMentions = true } = options; // 🚨 CHANGED: Default to allow self-mentions
     
-    if (mentions.length === 0) return;
+    const mentions = parseMentions(comment.content, members);
+    console.log('🏷️ Found mentions:', mentions.map(m => `${m.firstName} ${m.lastName} (${m.id})`));
+    
+    if (mentions.length === 0) {
+      console.log('ℹ️ No mentions found to create notifications for');
+      return;
+    }
     
     const authorMember = members.find(m => m.id === comment.authorId);
     const authorName = authorMember ? `${authorMember.firstName} ${authorMember.lastName}` : 'Someone';
@@ -98,45 +106,60 @@ export const createMentionNotifications = async (comment, event, members) => {
       ? event.divisions.find(div => div.id === comment.divisionId)?.name
       : null;
     
-    const notifications = mentions
-      .filter(mentionedMember => mentionedMember.id !== comment.authorId) // Don't notify self
-      .map(mentionedMember => {
-        const formatted = formatNotificationMessage(NOTIFICATION_TYPES.MENTION, {
-          authorName,
-          eventName: event.name,
-          eventType: comment.eventType,
-          divisionName,
-          commentText: comment.content
-        });
-        
-        return createNotification({
-          recipientId: mentionedMember.id,
-          type: NOTIFICATION_TYPES.MENTION,
-          title: formatted.title,
-          message: formatted.message,
-          preview: formatted.preview,
-          icon: formatted.icon,
-          data: {
-            commentId: comment.id,
-            eventId: event.id,
-            eventType: comment.eventType,
-            divisionId: comment.divisionId,
-            authorId: comment.authorId,
-            authorName,
-            mentionedMemberId: mentionedMember.id,
-            mentionedMemberName: `${mentionedMember.firstName} ${mentionedMember.lastName}`
+    // 🚨 CRITICAL FIX: Conditionally filter self-mentions based on options
+    const notificationTargets = allowSelfMentions 
+      ? mentions // Include all mentions
+      : mentions.filter(mentionedMember => {
+          const isSelfMention = mentionedMember.id === comment.authorId;
+          if (isSelfMention) {
+            console.log('⏭️ Skipping self-mention notification (disabled by options)');
           }
+          return !isSelfMention;
         });
+    
+    console.log(`🔔 Creating ${notificationTargets.length} mention notifications (allowSelfMentions: ${allowSelfMentions})`);
+    
+    const notifications = notificationTargets.map(mentionedMember => {
+      const isSelfMention = mentionedMember.id === comment.authorId;
+      console.log(`📝 Creating notification for ${mentionedMember.firstName} ${mentionedMember.lastName} (self: ${isSelfMention})`);
+      
+      const formatted = formatNotificationMessage(NOTIFICATION_TYPES.MENTION, {
+        authorName,
+        eventName: event.name,
+        eventType: comment.eventType,
+        divisionName,
+        commentText: comment.content
       });
+      
+      return createNotification({
+        recipientId: mentionedMember.id,
+        type: NOTIFICATION_TYPES.MENTION,
+        title: formatted.title,
+        message: formatted.message,
+        preview: formatted.preview,
+        icon: formatted.icon,
+        data: {
+          commentId: comment.id,
+          eventId: event.id,
+          eventType: comment.eventType,
+          divisionId: comment.divisionId,
+          authorId: comment.authorId,
+          authorName,
+          mentionedMemberId: mentionedMember.id,
+          mentionedMemberName: `${mentionedMember.firstName} ${mentionedMember.lastName}`,
+          isSelfMention // Track if this is a self-mention
+        }
+      });
+    });
     
     // Create all mention notifications
     await Promise.all(notifications.map(notification => 
       firebaseOps.create('notifications', notification)
     ));
     
-    console.log(`Created ${notifications.length} mention notifications`);
+    console.log(`✅ Created ${notifications.length} mention notifications`);
   } catch (error) {
-    console.error('Error creating mention notifications:', error);
+    console.error('❌ Error creating mention notifications:', error);
   }
 };
 
@@ -177,9 +200,9 @@ export const createEventUpdateNotifications = async (event, updateType, particip
       firebaseOps.create('notifications', notification)
     ));
     
-    console.log(`Created ${notifications.length} event update notifications`);
+    console.log(`✅ Created ${notifications.length} event update notifications`);
   } catch (error) {
-    console.error('Error creating event update notifications:', error);
+    console.error('❌ Error creating event update notifications:', error);
   }
 };
 
@@ -229,9 +252,9 @@ export const createPaymentReminderNotifications = async (event, divisionId, unpa
       firebaseOps.create('notifications', notification)
     ));
     
-    console.log(`Created ${notifications.length} payment reminder notifications`);
+    console.log(`✅ Created ${notifications.length} payment reminder notifications`);
   } catch (error) {
-    console.error('Error creating payment reminder notifications:', error);
+    console.error('❌ Error creating payment reminder notifications:', error);
   }
 };
 
@@ -277,9 +300,9 @@ export const createResultPostedNotifications = async (event, divisionId, partici
       firebaseOps.create('notifications', notification)
     ));
     
-    console.log(`Created ${notifications.length} result posted notifications`);
+    console.log(`✅ Created ${notifications.length} result posted notifications`);
   } catch (error) {
-    console.error('Error creating result posted notifications:', error);
+    console.error('❌ Error creating result posted notifications:', error);
   }
 };
 
@@ -320,9 +343,9 @@ export const createEventReminderNotifications = async (event, participants, time
       firebaseOps.create('notifications', notification)
     ));
     
-    console.log(`Created ${notifications.length} event reminder notifications`);
+    console.log(`✅ Created ${notifications.length} event reminder notifications`);
   } catch (error) {
-    console.error('Error creating event reminder notifications:', error);
+    console.error('❌ Error creating event reminder notifications:', error);
   }
 };
 
@@ -357,22 +380,33 @@ export const getEventParticipants = (event) => {
  * @param {Object} parentComment - Parent comment (if reply)
  * @param {Object} event - The event
  * @param {Array} members - Array of all members
+ * @param {Object} options - Options including allowSelfMentions
  */
-export const processCommentNotifications = async (comment, parentComment, event, members) => {
+export const processCommentNotifications = async (comment, parentComment, event, members, options = {}) => {
   try {
+    console.log('🔄 Processing comment notifications...');
+    console.log('Comment:', comment);
+    console.log('Parent comment:', parentComment);
+    console.log('Event:', event?.name);
+    console.log('Members count:', members?.length);
+    console.log('Options:', options);
+    
     const promises = [];
     
     // Create reply notification if this is a reply
     if (parentComment) {
+      console.log('📧 Creating reply notification...');
       promises.push(createCommentReplyNotification(comment, parentComment, event, members));
     }
     
-    // Create mention notifications
-    promises.push(createMentionNotifications(comment, event, members));
+    // Create mention notifications (with self-mention support)
+    console.log('🏷️ Creating mention notifications...');
+    promises.push(createMentionNotifications(comment, event, members, options));
     
     await Promise.all(promises);
+    console.log('✅ All comment notifications processed');
   } catch (error) {
-    console.error('Error processing comment notifications:', error);
+    console.error('❌ Error processing comment notifications:', error);
   }
 };
 
@@ -387,7 +421,7 @@ export const markNotificationAsRead = async (notificationId) => {
       readAt: new Date()
     });
   } catch (error) {
-    console.error('Error marking notification as read:', error);
+    console.error('❌ Error marking notification as read:', error);
     throw error;
   }
 };
@@ -418,7 +452,7 @@ export const markAllNotificationsAsRead = async (userId) => {
     
     return updates.length;
   } catch (error) {
-    console.error('Error marking all notifications as read:', error);
+    console.error('❌ Error marking all notifications as read:', error);
     throw error;
   }
 };
@@ -446,10 +480,10 @@ export const cleanupOldNotifications = async (daysOld = 30) => {
       await firebaseOps.batchDelete(deletions);
     }
     
-    console.log(`Cleaned up ${deletions.length} old notifications`);
+    console.log(`🧹 Cleaned up ${deletions.length} old notifications`);
     return deletions.length;
   } catch (error) {
-    console.error('Error cleaning up old notifications:', error);
+    console.error('❌ Error cleaning up old notifications:', error);
     throw error;
   }
 };

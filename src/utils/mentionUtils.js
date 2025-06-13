@@ -1,4 +1,4 @@
-// src/utils/mentionUtils.js - Utilities for parsing and formatting @mentions
+// src/utils/mentionUtils.js - FIXED with better debugging and parsing
 
 /**
  * Parse @mentions from text and return mentioned members
@@ -7,26 +7,73 @@
  * @returns {Array} Array of mentioned member objects
  */
 export const parseMentions = (text, members) => {
-  if (!text || !members || !Array.isArray(members)) return [];
+  console.log('🔍 parseMentions called with:', { text, membersCount: members?.length });
+  
+  if (!text || !members || !Array.isArray(members)) {
+    console.log('❌ parseMentions: Invalid input', { text: !!text, members: !!members, isArray: Array.isArray(members) });
+    return [];
+  }
   
   const mentions = [];
-  const mentionRegex = /@([A-Za-z]+(?:\s+[A-Za-z]+)*)/g;
+  
+  // Fixed regex to capture only First Last name (exactly 2 words)
+  const mentionRegex = /@([A-Za-z]+\s+[A-Za-z]+)(?=\s|$)/g;
   let match;
+  
+  console.log('🔍 Starting regex search with pattern:', mentionRegex);
   
   while ((match = mentionRegex.exec(text)) !== null) {
     const mentionText = match[1].trim();
+    console.log('🎯 Found potential mention:', mentionText);
     
-    // Find member by first and last name
+    // Find member by first and last name (case insensitive)
     const mentionedMember = members.find(member => {
       const fullName = `${member.firstName} ${member.lastName}`.toLowerCase();
-      return fullName === mentionText.toLowerCase();
+      const searchName = mentionText.toLowerCase();
+      
+      console.log(`🔍 Comparing: "${searchName}" === "${fullName}"`, searchName === fullName);
+      
+      return fullName === searchName;
     });
     
-    if (mentionedMember && !mentions.find(m => m.id === mentionedMember.id)) {
-      mentions.push(mentionedMember);
+    if (mentionedMember) {
+      console.log('✅ Found matching member:', mentionedMember);
+      // Avoid duplicates
+      if (!mentions.find(m => m.id === mentionedMember.id)) {
+        mentions.push(mentionedMember);
+        console.log('➕ Added to mentions array');
+      } else {
+        console.log('⏭️ Already in mentions array');
+      }
+    } else {
+      console.log('❌ No matching member found for:', mentionText);
+      
+      // Try partial matching as fallback
+      console.log('🔍 Trying partial matches...');
+      const partialMatches = members.filter(member => {
+        const fullName = `${member.firstName} ${member.lastName}`.toLowerCase();
+        const firstName = member.firstName.toLowerCase();
+        const lastName = member.lastName.toLowerCase();
+        const searchName = mentionText.toLowerCase();
+        
+        const isPartialMatch = fullName.includes(searchName) || 
+                              firstName.includes(searchName) || 
+                              lastName.includes(searchName);
+        
+        if (isPartialMatch) {
+          console.log(`🎯 Partial match found: "${searchName}" in "${fullName}"`);
+        }
+        
+        return isPartialMatch;
+      });
+      
+      if (partialMatches.length > 0) {
+        console.log('🤔 Found partial matches, but using exact match only');
+      }
     }
   }
   
+  console.log('🏷️ Final mentions result:', mentions);
   return mentions;
 };
 
@@ -39,7 +86,7 @@ export const parseMentions = (text, members) => {
 export const formatMentionText = (text, members) => {
   if (!text || !members || !Array.isArray(members)) return text;
   
-  const mentionRegex = /@([A-Za-z]+(?:\s+[A-Za-z]+)*)/g;
+  const mentionRegex = /@([A-Za-z]+\s+[A-Za-z]+)(?=\s|$)/g;
   
   return text.replace(mentionRegex, (match, mentionText) => {
     const trimmedMention = mentionText.trim();
@@ -167,7 +214,7 @@ export const formatMentionDisplayName = (member) => {
 export const createClickableMentions = (text, members, onMemberClick = null) => {
   if (!text || !members || !Array.isArray(members)) return text;
   
-  const mentionRegex = /@([A-Za-z]+(?:\s+[A-Za-z]+)*)/g;
+  const mentionRegex = /@([A-Za-z]+\s+[A-Za-z]+)(?=\s|$)/g;
   
   return text.replace(mentionRegex, (match, mentionText) => {
     const trimmedMention = mentionText.trim();

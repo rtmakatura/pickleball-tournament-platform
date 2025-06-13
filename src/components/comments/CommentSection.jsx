@@ -151,30 +151,49 @@ const CommentSection = ({
   const filteredComments = getFilteredComments();
 
   // Handle comment submission
-  const handleSubmitComment = async (content, parentId = null, targetDivisionId = null) => {
-    if (!content.trim() || !currentMember) return;
+ const handleSubmitComment = async (content, parentId = null, targetDivisionId = null) => {
+  if (!content.trim() || !currentMember) return;
 
-    setSubmitting(true);
-    try {
-      // Parse mentions from the comment
-      const mentions = parseMentions(content, members);
-      
-      await addComment({
+  setSubmitting(true);
+  try {
+    // Parse mentions from the comment
+    const mentions = parseMentions(content, members);
+    
+    // 🐛 DEBUG: Log the mentions
+    console.log('=== MENTION DEBUG ===');
+    console.log('Comment content:', content);
+    console.log('Parsed mentions:', mentions);
+    console.log('Current member:', currentMember);
+    console.log('All members:', members);
+    console.log('Mentions IDs:', mentions.map(m => m.id));
+    console.log('Current member ID:', currentMember.id);
+    console.log('Is self-mention?', mentions.some(m => m.id === currentMember.id));
+    console.log('====================');
+    
+    // 🚨 FIXED: Pass members and event to addComment
+    await addComment(
+      {
         content: content.trim(),
         parentId,
         divisionId: targetDivisionId || (viewMode === 'division' ? selectedDivision : null),
         mentions: mentions.map(m => m.id) // Store mentioned member IDs
-      }, currentMember.id, `${currentMember.firstName} ${currentMember.lastName}`);
-      
-      setNewComment('');
-      setReplyingTo(null);
-      showAlert('success', 'Comment posted successfully');
-    } catch (error) {
-      showAlert('error', error.message);
-    } finally {
-      setSubmitting(false);
-    }
-  };
+      }, 
+      currentMember.id, 
+      `${currentMember.firstName} ${currentMember.lastName}`,
+      members, // 🚨 ADD THIS: Pass members array
+      event     // 🚨 ADD THIS: Pass event object
+    );
+    
+    setNewComment('');
+    setReplyingTo(null);
+    showAlert('success', 'Comment posted successfully');
+  } catch (error) {
+    console.error('Comment submission error:', error);
+    showAlert('error', error.message);
+  } finally {
+    setSubmitting(false);
+  }
+};
 
   // Handle comment edit
   const handleEditComment = async (commentId, newContent) => {
