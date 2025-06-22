@@ -1,4 +1,4 @@
-// src/components/Dashboard.jsx (FIXED - Tournament Update & Modal State Issues)
+// src/components/Dashboard.jsx (RESPONSIVE DESIGN - Mobile + Desktop Optimized)
 import React, { useState, useMemo, useCallback } from 'react';
 import { 
   Plus, 
@@ -11,7 +11,15 @@ import {
   MapPin, 
   ExternalLink, 
   Navigation,
-  Layers
+  Layers,
+  ChevronRight,
+  MoreVertical,
+  Phone,
+  Mail,
+  Star,
+  Clock,
+  CheckCircle,
+  AlertCircle
 } from 'lucide-react';
 import { 
   useMembers, 
@@ -51,33 +59,62 @@ import SignInForm from './auth/SignInForm';
 import { ResultsButton } from './results';
 import { CommentSection } from './comments';
 
-// CSS for preventing flickering and stabilizing animations
+// CSS for responsive optimizations
 const dashboardStyles = `
-  .tournament-row, .league-row {
-    transition: background-color 0.15s ease;
+  /* Mobile card optimizations */
+  .mobile-card {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
   }
   
-  .tournament-row:hover, .league-row:hover {
-    background-color: rgb(249 250 251) !important;
+  .mobile-card:active {
+    transform: scale(0.98);
   }
   
-  .notification-badge {
-    transition: none !important;
+  @media (max-width: 768px) {
+    .touch-target {
+      min-height: 44px;
+      min-width: 44px;
+    }
+    
+    .mobile-action-button {
+      min-height: 48px;
+      min-width: 120px;
+    }
   }
   
-  button {
-    transition: background-color 0.15s ease, color 0.15s ease;
+  /* Desktop table optimizations */
+  @media (min-width: 769px) {
+    .tournament-row, .league-row {
+      transition: background-color 0.15s ease;
+    }
+    
+    .tournament-row:hover, .league-row:hover {
+      background-color: rgb(249 250 251) !important;
+    }
+    
+    .enhanced-table {
+      table-layout: fixed;
+    }
+    
+    .table-actions {
+      opacity: 1 !important;
+      transition: none !important;
+    }
   }
   
-  /* Prevent table flickering */
-  .enhanced-table {
-    table-layout: fixed;
+  /* Prevent text selection on touch for better mobile UX */
+  @media (max-width: 768px) {
+    .no-select {
+      -webkit-user-select: none;
+      -moz-user-select: none;
+      -ms-user-select: none;
+      user-select: none;
+    }
   }
   
-  /* Stabilize hover states */
-  .table-actions {
-    opacity: 1 !important;
-    transition: none !important;
+  /* Smooth scrolling for mobile */
+  .mobile-scroll {
+    -webkit-overflow-scrolling: touch;
   }
 `;
 
@@ -85,13 +122,170 @@ const DashboardStyles = () => (
   <style dangerouslySetInnerHTML={{ __html: dashboardStyles }} />
 );
 
-// Memoized Tournament Row Component
+// Mobile-First Tournament Card Component (for mobile only)
+const TournamentCard = React.memo(({ tournament, onView, onEdit }) => {
+  const totalParticipants = getTournamentTotalParticipants(tournament);
+  const totalExpected = getTournamentTotalExpected(tournament);
+  const divisionCount = tournament.divisions?.length || 0;
+  
+  const getStatusConfig = (status) => {
+    switch (status) {
+      case TOURNAMENT_STATUS.DRAFT:
+        return { color: 'text-gray-600 bg-gray-100', icon: Clock, label: 'Draft' };
+      case TOURNAMENT_STATUS.REGISTRATION_OPEN:
+        return { color: 'text-green-700 bg-green-100', icon: CheckCircle, label: 'Open' };
+      case TOURNAMENT_STATUS.IN_PROGRESS:
+        return { color: 'text-blue-700 bg-blue-100', icon: Activity, label: 'In Progress' };
+      case TOURNAMENT_STATUS.COMPLETED:
+        return { color: 'text-purple-700 bg-purple-100', icon: Trophy, label: 'Completed' };
+      default:
+        return { color: 'text-gray-600 bg-gray-100', icon: Clock, label: 'Unknown' };
+    }
+  };
+
+  const statusConfig = getStatusConfig(tournament.status);
+  const StatusIcon = statusConfig.icon;
+
+  const formatDate = (date) => {
+    if (!date) return 'TBD';
+    const dateObj = date.seconds ? new Date(date.seconds * 1000) : new Date(date);
+    return dateObj.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric'
+    });
+  };
+
+  return (
+    <div className="mobile-card bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden">
+      {/* Card Header */}
+      <div className="p-4 pb-3">
+        <div className="flex items-start justify-between mb-3">
+          <div className="flex-1 min-w-0">
+            <h3 className="text-lg font-semibold text-gray-900 truncate">
+              {tournament.name}
+            </h3>
+            <div className="flex items-center space-x-2 mt-1">
+              <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${statusConfig.color}`}>
+                <StatusIcon className="h-3 w-3 mr-1" />
+                {statusConfig.label}
+              </span>
+              {divisionCount > 0 && (
+                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
+                  <Layers className="h-3 w-3 mr-1" />
+                  {divisionCount} division{divisionCount !== 1 ? 's' : ''}
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Quick Info Grid */}
+        <div className="grid grid-cols-2 gap-3 text-sm">
+          <div className="flex items-center text-gray-600">
+            <Calendar className="h-4 w-4 mr-2 text-gray-400" />
+            <span>{formatDate(tournament.eventDate)}</span>
+          </div>
+          <div className="flex items-center text-gray-600">
+            <Users className="h-4 w-4 mr-2 text-gray-400" />
+            <span>{totalParticipants} people</span>
+          </div>
+          {tournament.location && (
+            <div className="col-span-2 flex items-center text-gray-600">
+              <MapPin className="h-4 w-4 mr-2 text-gray-400" />
+              <span className="truncate">{tournament.location}</span>
+            </div>
+          )}
+        </div>
+
+        {/* Expected Revenue */}
+        {totalExpected > 0 && (
+          <div className="mt-3 flex items-center justify-between p-2 bg-green-50 rounded-lg">
+            <span className="text-sm text-green-700">Expected Revenue</span>
+            <span className="text-lg font-semibold text-green-800">${totalExpected}</span>
+          </div>
+        )}
+      </div>
+
+      {/* Action Buttons */}
+      <div className="px-4 pb-4 flex space-x-2">
+        <Button
+          onClick={(e) => {
+            e.stopPropagation();
+            onView(tournament);
+          }}
+          className="mobile-action-button flex-1 bg-blue-600 hover:bg-blue-700 text-white"
+          size="md"
+        >
+          <MessageSquare className="h-4 w-4 mr-2" />
+          Discuss
+        </Button>
+        <Button
+          onClick={(e) => {
+            e.stopPropagation();
+            onEdit(tournament);
+          }}
+          variant="outline"
+          className="mobile-action-button flex-1"
+          size="md"
+        >
+          <Trophy className="h-4 w-4 mr-2" />
+          Manage
+        </Button>
+      </div>
+
+      {/* Quick Actions Bar */}
+      {tournament.location && (
+        <div className="border-t border-gray-100 px-4 py-2 bg-gray-50">
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-gray-600">Quick Actions</span>
+            <div className="flex space-x-1">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  openLinkSafely(generateGoogleMapsLink(tournament.location));
+                }}
+                className="touch-target p-2 rounded-md hover:bg-gray-200 transition-colors"
+                title="View on Maps"
+              >
+                <MapPin className="h-3 w-3 text-gray-500" />
+              </button>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  openLinkSafely(generateDirectionsLink(tournament.location));
+                }}
+                className="touch-target p-2 rounded-md hover:bg-gray-200 transition-colors"
+                title="Directions"
+              >
+                <Navigation className="h-3 w-3 text-gray-500" />
+              </button>
+              {tournament.website && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    openLinkSafely(tournament.website);
+                  }}
+                  className="touch-target p-2 rounded-md hover:bg-gray-200 transition-colors"
+                  title="Website"
+                >
+                  <ExternalLink className="h-3 w-3 text-gray-500" />
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+});
+
+// Desktop Tournament Row Component (for desktop tables)
 const TournamentRow = React.memo(({ tournament, onView, onEdit }) => {
   const totalParticipants = getTournamentTotalParticipants(tournament);
   const totalExpected = getTournamentTotalExpected(tournament);
   const divisionCount = tournament.divisions?.length || 0;
   
-  // Helper function to get registration deadline text
   const getRegistrationDeadlineText = (tournament) => {
     if (tournament.registrationDeadline) {
       const deadline = tournament.registrationDeadline.seconds 
@@ -127,34 +321,6 @@ const TournamentRow = React.memo(({ tournament, onView, onEdit }) => {
             {tournament.name}
           </div>
           
-          {/* Mobile-only: Key info */}
-          <div className="sm:hidden space-y-1">
-            <div className="flex items-center text-sm text-gray-600">
-              <Calendar className="h-3.5 w-3.5 mr-1.5 flex-shrink-0" />
-              <span>
-                {tournament.eventDate ? new Date(tournament.eventDate.seconds * 1000).toLocaleDateString() : 'TBD'}
-              </span>
-            </div>
-            {divisionCount > 0 && (
-              <div className="flex items-center justify-between text-sm">
-                <div className="flex items-center text-gray-600">
-                  <Layers className="h-3.5 w-3.5 mr-1.5" />
-                  <span>{divisionCount} division{divisionCount !== 1 ? 's' : ''}</span>
-                </div>
-                {totalExpected > 0 && (
-                  <div className="flex items-center text-green-600 font-medium">
-                    <span>${totalExpected}</span>
-                  </div>
-                )}
-              </div>
-            )}
-            {tournament.location && (
-              <div className="text-sm text-gray-500 truncate">
-                📍 {tournament.location}
-              </div>
-            )}
-          </div>
-          
           {/* Quick indicators */}
           <div className="flex items-center space-x-4 text-xs">
             <div className="flex items-center text-gray-500">
@@ -162,13 +328,13 @@ const TournamentRow = React.memo(({ tournament, onView, onEdit }) => {
               <span>{totalParticipants} total</span>
             </div>
             {divisionCount > 0 && (
-              <div className="hidden sm:flex items-center text-blue-600">
+              <div className="flex items-center text-blue-600">
                 <Layers className="h-3 w-3 mr-1" />
                 <span>{divisionCount} divisions</span>
               </div>
             )}
             {totalExpected > 0 && (
-              <div className="hidden sm:flex items-center text-green-600 font-medium">
+              <div className="flex items-center text-green-600 font-medium">
                 <span>${totalExpected}</span>
               </div>
             )}
@@ -183,7 +349,7 @@ const TournamentRow = React.memo(({ tournament, onView, onEdit }) => {
       </td>
 
       {/* Date & Divisions Column */}
-      <td className="py-4 px-4 align-top hidden sm:table-cell">
+      <td className="py-4 px-4 align-top">
         <div className="space-y-2">
           <div className="flex items-center text-sm text-gray-900">
             <Calendar className="h-4 w-4 mr-2 text-gray-400" />
@@ -210,7 +376,7 @@ const TournamentRow = React.memo(({ tournament, onView, onEdit }) => {
       </td>
 
       {/* Location Column */}
-      <td className="py-4 px-4 align-top hidden md:table-cell">
+      <td className="py-4 px-4 align-top">
         <div className="space-y-2">
           {tournament.location ? (
             <>
@@ -247,7 +413,7 @@ const TournamentRow = React.memo(({ tournament, onView, onEdit }) => {
       </td>
 
       {/* Status Column */}
-      <td className="py-4 px-4 align-top hidden lg:table-cell">
+      <td className="py-4 px-4 align-top">
         <div className="space-y-2">
           <span className={`
             inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium
@@ -300,9 +466,119 @@ const TournamentRow = React.memo(({ tournament, onView, onEdit }) => {
   );
 });
 
-// Memoized League Row Component (unchanged for brevity)
+// League Card Component (mobile only)
+const LeagueCard = React.memo(({ league, onView, onEdit }) => {
+  const participantCount = league.participants?.length || 0;
+  
+  const formatEventType = (eventType) => {
+    if (!eventType) return '';
+    return eventType.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase());
+  };
+
+  const formatDateRange = (startDate, endDate) => {
+    if (!startDate || !endDate) return 'TBD';
+    const start = startDate.seconds ? new Date(startDate.seconds * 1000) : new Date(startDate);
+    const end = endDate.seconds ? new Date(endDate.seconds * 1000) : new Date(endDate);
+    
+    return `${start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${end.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
+  };
+
+  const getStatusColor = (status) => {
+    switch (status) {
+      case LEAGUE_STATUS.ACTIVE:
+        return 'text-green-700 bg-green-100';
+      case LEAGUE_STATUS.COMPLETED:
+        return 'text-purple-700 bg-purple-100';
+      default:
+        return 'text-gray-600 bg-gray-100';
+    }
+  };
+
+  return (
+    <div className="mobile-card bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden">
+      {/* Card Header */}
+      <div className="p-4 pb-3">
+        <div className="flex items-start justify-between mb-3">
+          <div className="flex-1 min-w-0">
+            <h3 className="text-lg font-semibold text-gray-900 truncate">
+              {league.name}
+            </h3>
+            <div className="flex items-center space-x-2 mt-1">
+              <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(league.status)}`}>
+                {league.status.replace('_', ' ')}
+              </span>
+              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700 capitalize">
+                {league.skillLevel}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* League Info */}
+        <div className="space-y-2 text-sm">
+          <div className="flex items-center text-gray-600">
+            <Calendar className="h-4 w-4 mr-2 text-gray-400" />
+            <span>{formatDateRange(league.startDate, league.endDate)}</span>
+          </div>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center text-gray-600">
+              <Users className="h-4 w-4 mr-2 text-gray-400" />
+              <span>{participantCount} member{participantCount !== 1 ? 's' : ''}</span>
+            </div>
+            <div className="flex items-center text-gray-600">
+              <Trophy className="h-4 w-4 mr-2 text-gray-400" />
+              <span>{formatEventType(league.eventType)}</span>
+            </div>
+          </div>
+          {league.location && (
+            <div className="flex items-center text-gray-600">
+              <MapPin className="h-4 w-4 mr-2 text-gray-400" />
+              <span className="truncate">{league.location}</span>
+            </div>
+          )}
+        </div>
+
+        {/* Registration Fee */}
+        {league.registrationFee > 0 && (
+          <div className="mt-3 flex items-center justify-between p-2 bg-green-50 rounded-lg">
+            <span className="text-sm text-green-700">Registration Fee</span>
+            <span className="text-lg font-semibold text-green-800">${league.registrationFee}</span>
+          </div>
+        )}
+      </div>
+
+      {/* Action Buttons */}
+      <div className="px-4 pb-4 flex space-x-2">
+        <Button
+          onClick={(e) => {
+            e.stopPropagation();
+            onView(league);
+          }}
+          className="mobile-action-button flex-1 bg-blue-600 hover:bg-blue-700 text-white"
+          size="md"
+        >
+          <MessageSquare className="h-4 w-4 mr-2" />
+          Discuss
+        </Button>
+        <Button
+          onClick={(e) => {
+            e.stopPropagation();
+            onEdit(league);
+          }}
+          variant="outline"
+          className="mobile-action-button flex-1"
+          size="md"
+        >
+          <Activity className="h-4 w-4 mr-2" />
+          Manage
+        </Button>
+      </div>
+    </div>
+  );
+});
+
+// Desktop League Row Component (for desktop tables)
 const LeagueRow = React.memo(({ league, onView, onEdit }) => {
-  // Helper function to format event type for display
   const formatEventType = (eventType) => {
     if (!eventType) return '';
     return eventType.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase());
@@ -329,37 +605,12 @@ const LeagueRow = React.memo(({ league, onView, onEdit }) => {
             {league.name}
           </div>
           
-          <div className="sm:hidden space-y-1">
-            <div className="flex items-center text-sm text-gray-600">
-              <Calendar className="h-3.5 w-3.5 mr-1.5 flex-shrink-0" />
-              <span>
-                {league.startDate ? new Date(league.startDate.seconds * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'TBD'} to {league.endDate ? new Date(league.endDate.seconds * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'TBD'}
-              </span>
-            </div>
-            <div className="flex items-center justify-between text-sm">
-              <div className="flex items-center text-gray-600">
-                <Trophy className="h-3.5 w-3.5 mr-1.5" />
-                <span className="capitalize">{league.skillLevel}</span>
-              </div>
-              {league.registrationFee > 0 && (
-                <div className="flex items-center text-green-600 font-medium">
-                  <span>${league.registrationFee}</span>
-                </div>
-              )}
-            </div>
-            {league.location && (
-              <div className="text-sm text-gray-500 truncate">
-                📍 {league.location}
-              </div>
-            )}
-          </div>
-          
           <div className="flex items-center space-x-4 text-xs">
             <div className="flex items-center text-gray-500">
               <span>Type: {formatEventType(league.eventType)}</span>
             </div>
             {league.registrationFee > 0 && (
-              <div className="hidden sm:flex items-center text-green-600 font-medium">
+              <div className="flex items-center text-green-600 font-medium">
                 <span>${league.registrationFee}</span>
               </div>
             )}
@@ -373,7 +624,7 @@ const LeagueRow = React.memo(({ league, onView, onEdit }) => {
         </div>
       </td>
 
-      <td className="py-4 px-4 align-top hidden sm:table-cell">
+      <td className="py-4 px-4 align-top">
         <div className="space-y-2">
           <div className="flex items-center text-sm text-gray-900">
             <Calendar className="h-4 w-4 mr-2 text-gray-400" />
@@ -401,7 +652,7 @@ const LeagueRow = React.memo(({ league, onView, onEdit }) => {
         </div>
       </td>
 
-      <td className="py-4 px-4 align-top hidden md:table-cell">
+      <td className="py-4 px-4 align-top">
         <div className="space-y-2">
           {league.location ? (
             <>
@@ -437,7 +688,7 @@ const LeagueRow = React.memo(({ league, onView, onEdit }) => {
         </div>
       </td>
 
-      <td className="py-4 px-4 align-top hidden lg:table-cell">
+      <td className="py-4 px-4 align-top">
         <div className="space-y-2">
           <span className={`
             inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium
@@ -483,6 +734,76 @@ const LeagueRow = React.memo(({ league, onView, onEdit }) => {
   );
 });
 
+// Member Card Component (for mobile)
+const MemberCard = React.memo(({ member, onEdit }) => {
+  return (
+    <div className="mobile-card bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden">
+      <div className="p-4">
+        <div className="flex items-start justify-between mb-3">
+          <div className="flex items-center space-x-3 flex-1 min-w-0">
+            <div className="h-12 w-12 bg-gradient-to-r from-blue-400 to-purple-500 rounded-full flex items-center justify-center flex-shrink-0">
+              <span className="text-white font-semibold text-lg">
+                {member.firstName.charAt(0)}{member.lastName.charAt(0)}
+              </span>
+            </div>
+            <div className="min-w-0 flex-1">
+              <h3 className="text-base font-semibold text-gray-900 truncate">
+                {member.firstName} {member.lastName}
+              </h3>
+              <p className="text-sm text-gray-600 truncate">{member.email}</p>
+              <div className="flex items-center space-x-2 mt-1">
+                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700 capitalize">
+                  {member.skillLevel}
+                </span>
+                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700 capitalize">
+                  {member.role}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Contact Info */}
+        <div className="space-y-2 text-sm">
+          {member.phoneNumber && (
+            <div className="flex items-center text-gray-600">
+              <Phone className="h-3 w-3 mr-2 text-gray-400" />
+              <span>{member.phoneNumber}</span>
+            </div>
+          )}
+          {member.venmoHandle && (
+            <div className="flex items-center text-gray-600">
+              <DollarSign className="h-3 w-3 mr-2 text-gray-400" />
+              <span>@{member.venmoHandle}</span>
+            </div>
+          )}
+        </div>
+
+        {/* Status and Actions */}
+        <div className="flex items-center justify-between mt-4">
+          <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+            member.isActive ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+          }`}>
+            {member.isActive ? 'Active' : 'Inactive'}
+          </span>
+          
+          <Button
+            onClick={(e) => {
+              e.stopPropagation();
+              onEdit(member);
+            }}
+            variant="outline"
+            size="sm"
+            className="touch-target"
+          >
+            Edit
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+});
+
 // Dashboard Header Component
 const DashboardHeader = React.memo(({ currentUserMember, user, onNotificationClick, onLogout }) => {
   const {
@@ -496,23 +817,29 @@ const DashboardHeader = React.memo(({ currentUserMember, user, onNotificationCli
   });
 
   return (
-    <div className="flex justify-between items-center mb-8">
+    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-6 sm:mb-8 space-y-4 sm:space-y-0">
       <div>
-        <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
-        <p className="text-gray-600">
-          Welcome back, {currentUserMember?.firstName || user.email}!
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Dashboard</h1>
+        <p className="text-gray-600 text-sm sm:text-base">
+          Welcome back, {currentUserMember?.firstName || user.email.split('@')[0]}!
         </p>
       </div>
-      <div className="flex items-center space-x-4">
+      <div className="flex items-center space-x-3 sm:space-x-4">
         <NotificationBadge
           count={count}
           hasHighPriority={hasHighPriority}
           onClick={onNotificationClick}
           animate={shouldAnimate}
           aria-label={ariaLabel}
+          className="touch-target"
         />
         
-        <Button variant="outline" onClick={onLogout}>
+        <Button 
+          variant="outline" 
+          onClick={onLogout}
+          className="touch-target"
+          size="md"
+        >
           Logout
         </Button>
       </div>
@@ -538,7 +865,7 @@ const Dashboard = () => {
   const [showLeagueDetailModal, setShowLeagueDetailModal] = useState(false);
   const [showNotificationModal, setShowNotificationModal] = useState(false);
   
-  // FIXED: Enhanced tournament state management with better tracking
+  // Enhanced tournament state management
   const [editingTournament, setEditingTournament] = useState(null);
   const [editingLeague, setEditingLeague] = useState(null);
   const [editingMember, setEditingMember] = useState(null);
@@ -553,9 +880,10 @@ const Dashboard = () => {
   // Auth UI state
   const [authMode, setAuthMode] = useState('signin');
   
-  // Pagination state
+  // RESPONSIVE PAGINATION: Different limits for mobile vs desktop
   const [visibleTournaments, setVisibleTournaments] = useState(4);
   const [visibleLeagues, setVisibleLeagues] = useState(4);
+  const [visibleMembers, setVisibleMembers] = useState(8);
   
   // Form states
   const [selectedLeagueMembers, setSelectedLeagueMembers] = useState([]);
@@ -563,7 +891,20 @@ const Dashboard = () => {
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [alert, setAlert] = useState(null);
 
-  // Memoized event handlers
+  // Detect screen size for responsive behavior
+  const [isMobile, setIsMobile] = useState(false);
+  
+  React.useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  // Event handlers (keeping all existing handlers)
   const handleViewTournament = useCallback((tournament) => {
     console.log('Viewing tournament:', tournament);
     setViewingTournament(tournament);
@@ -576,14 +917,9 @@ const Dashboard = () => {
     setShowLeagueDetailModal(true);
   }, []);
 
-  // FIXED: Enhanced tournament editing with better state management
   const handleEditTournament = useCallback((tournament) => {
     console.log('Editing tournament:', tournament);
-    
-    // Ensure we have the latest tournament data
     const latestTournament = tournaments.find(t => t.id === tournament.id) || tournament;
-    console.log('Using latest tournament data:', latestTournament);
-    
     setEditingTournament(latestTournament);
     setShowTournamentModal(true);
   }, [tournaments]);
@@ -622,47 +958,39 @@ const Dashboard = () => {
     setShowNotificationModal(false);
   }, [tournaments, leagues]);
 
-  // FIXED: Simple tournament sorting - earliest event dates first (chronological order)
+  // Sorting functions
   const getSortedTournaments = useCallback(() => {
     return [...tournaments].sort((a, b) => {
-      // Primary sort: Event date (earliest first)
-      const dateA = a.eventDate ? (a.eventDate.seconds ? new Date(a.eventDate.seconds * 1000) : new Date(a.eventDate)) : new Date('2099-12-31'); // Put events without dates at the end
+      const dateA = a.eventDate ? (a.eventDate.seconds ? new Date(a.eventDate.seconds * 1000) : new Date(a.eventDate)) : new Date('2099-12-31');
       const dateB = b.eventDate ? (b.eventDate.seconds ? new Date(b.eventDate.seconds * 1000) : new Date(b.eventDate)) : new Date('2099-12-31');
       
-      // Sort by event date ascending (earliest first)
       if (dateA.getTime() !== dateB.getTime()) {
-        return dateA - dateB; // FIXED: Ascending order (earliest first)
+        return dateA - dateB;
       }
       
-      // Secondary sort: Creation date (most recently created first for same event dates)
       const createdA = a.createdAt ? (a.createdAt.seconds ? new Date(a.createdAt.seconds * 1000) : new Date(a.createdAt)) : new Date(0);
       const createdB = b.createdAt ? (b.createdAt.seconds ? new Date(b.createdAt.seconds * 1000) : new Date(b.createdAt)) : new Date(0);
       
-      return createdB - createdA; // Most recently created first
+      return createdB - createdA;
     });
   }, [tournaments]);
 
-  // FIXED: Simple league sorting - earliest start dates first (chronological order)
   const getSortedLeagues = useCallback(() => {
     return [...leagues].sort((a, b) => {
-      // Primary sort: Start date (earliest first)
-      const dateA = a.startDate ? (a.startDate.seconds ? new Date(a.startDate.seconds * 1000) : new Date(a.startDate)) : new Date('2099-12-31'); // Put leagues without dates at the end
+      const dateA = a.startDate ? (a.startDate.seconds ? new Date(a.startDate.seconds * 1000) : new Date(a.startDate)) : new Date('2099-12-31');
       const dateB = b.startDate ? (b.startDate.seconds ? new Date(b.startDate.seconds * 1000) : new Date(b.startDate)) : new Date('2099-12-31');
       
-      // Sort by start date ascending (earliest first)
       if (dateA.getTime() !== dateB.getTime()) {
-        return dateA - dateB; // FIXED: Ascending order (earliest first)
+        return dateA - dateB;
       }
       
-      // Secondary sort: Creation date (most recently created first for same start dates)
       const createdA = a.createdAt ? (a.createdAt.seconds ? new Date(a.createdAt.seconds * 1000) : new Date(a.createdAt)) : new Date(0);
       const createdB = b.createdAt ? (b.createdAt.seconds ? new Date(b.createdAt.seconds * 1000) : new Date(b.createdAt)) : new Date(0);
       
-      return createdB - createdA; // Most recently created first
+      return createdB - createdA;
     });
   }, [leagues]);
 
-  // Memoized sorted data to prevent recalculation on every render
   const sortedTournaments = useMemo(() => getSortedTournaments(), [getSortedTournaments]);
   const sortedLeagues = useMemo(() => getSortedLeagues(), [getSortedLeagues]);
 
@@ -673,238 +1001,417 @@ const Dashboard = () => {
     setTimeout(() => setAlert(null), 5000);
   }, []);
 
-  // Enhanced tournament table with pagination
-  const EnhancedTournamentTable = ({ data, visibleCount, onLoadMore, hasMore }) => {
+  // RESPONSIVE COMPONENTS: Show cards on mobile, tables on desktop
+  const ResponsiveTournamentList = ({ data, visibleCount, onLoadMore, hasMore }) => {
     const displayData = data.slice(0, visibleCount);
     
     if (!data || data.length === 0) {
       return (
         <div className="text-center py-12 text-gray-500">
           <Trophy className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-          <p>No tournaments yet. Create your first tournament!</p>
+          <p className="text-lg font-medium">No tournaments yet</p>
+          <p className="text-sm mt-1">Create your first tournament to get started!</p>
         </div>
       );
     }
 
-    return (
-      <div className="space-y-4">
-        <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full enhanced-table">
-              <thead>
-                <tr className="bg-gray-50 border-b border-gray-200">
-                  <th className="text-left py-3 px-4 font-medium text-gray-700 text-sm uppercase tracking-wider w-[30%]">
-                    Tournament
-                  </th>
-                  <th className="text-left py-3 px-4 font-medium text-gray-700 text-sm uppercase tracking-wider w-[20%] hidden sm:table-cell">
-                    Date & Divisions
-                  </th>
-                  <th className="text-left py-3 px-4 font-medium text-gray-700 text-sm uppercase tracking-wider w-[25%] hidden md:table-cell">
-                    Location
-                  </th>
-                  <th className="text-left py-3 px-4 font-medium text-gray-700 text-sm uppercase tracking-wider w-[15%] hidden lg:table-cell">
-                    Status
-                  </th>
-                  <th className="text-right py-3 px-4 font-medium text-gray-700 text-sm uppercase tracking-wider w-[10%]">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {displayData.map((tournament) => (
-                  <TournamentRow 
-                    key={tournament.id}
-                    tournament={tournament}
-                    onView={handleViewTournament}
-                    onEdit={handleEditTournament}
-                  />
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-        
-        {/* Load More Button */}
-        {hasMore && (
-          <div className="text-center">
-            <Button
-              variant="outline"
-              onClick={onLoadMore}
-              className="px-6 py-2"
-            >
-              Load More Tournaments ({Math.min(4, data.length - visibleCount)} more)
-            </Button>
-          </div>
-        )}
-        
-        {/* Showing X of Y indicator */}
-        {data.length > 4 && (
-          <div className="text-center text-sm text-gray-500">
-            Showing {Math.min(visibleCount, data.length)} of {data.length} tournaments
-          </div>
-        )}
-      </div>
-    );
-  };
-
-  // Enhanced League Table Component
-  const EnhancedLeagueTable = ({ data, visibleCount, onLoadMore, hasMore }) => {
-    const displayData = data.slice(0, visibleCount);
-    
-    if (!data || data.length === 0) {
-        return (
-        <div className="text-center py-12 text-gray-500">
-            <Activity className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-            <p>No leagues yet. Create your first league!</p>
-        </div>
-        );
-    }
-
-    return (
+    if (isMobile) {
+      // Mobile: Show cards
+      return (
         <div className="space-y-4">
-        <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+          <div className="grid grid-cols-1 gap-4">
+            {displayData.map((tournament) => (
+              <TournamentCard 
+                key={tournament.id}
+                tournament={tournament}
+                onView={handleViewTournament}
+                onEdit={handleEditTournament}
+              />
+            ))}
+          </div>
+          
+          {hasMore && (
+            <div className="text-center pt-4">
+              <Button
+                variant="outline"
+                onClick={onLoadMore}
+                className="mobile-action-button"
+                size="md"
+              >
+                Load More ({Math.min(4, data.length - visibleCount)} more)
+              </Button>
+            </div>
+          )}
+          
+          {data.length > 4 && (
+            <div className="text-center text-sm text-gray-500">
+              Showing {Math.min(visibleCount, data.length)} of {data.length} tournaments
+            </div>
+          )}
+        </div>
+      );
+    } else {
+      // Desktop: Show table
+      return (
+        <div className="space-y-4">
+          <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
             <div className="overflow-x-auto">
-            <table className="w-full enhanced-table">
+              <table className="w-full enhanced-table">
                 <thead>
-                <tr className="bg-gray-50 border-b border-gray-200">
+                  <tr className="bg-gray-50 border-b border-gray-200">
                     <th className="text-left py-3 px-4 font-medium text-gray-700 text-sm uppercase tracking-wider w-[30%]">
-                    League
+                      Tournament
                     </th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-700 text-sm uppercase tracking-wider w-[20%] hidden sm:table-cell">
-                    Duration & Details
+                    <th className="text-left py-3 px-4 font-medium text-gray-700 text-sm uppercase tracking-wider w-[20%]">
+                      Date & Divisions
                     </th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-700 text-sm uppercase tracking-wider w-[25%] hidden md:table-cell">
-                    Location
+                    <th className="text-left py-3 px-4 font-medium text-gray-700 text-sm uppercase tracking-wider w-[25%]">
+                      Location
                     </th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-700 text-sm uppercase tracking-wider w-[15%] hidden lg:table-cell">
-                    Status
+                    <th className="text-left py-3 px-4 font-medium text-gray-700 text-sm uppercase tracking-wider w-[15%]">
+                      Status
                     </th>
                     <th className="text-right py-3 px-4 font-medium text-gray-700 text-sm uppercase tracking-wider w-[10%]">
-                    Actions
+                      Actions
                     </th>
-                </tr>
+                  </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                {displayData.map((league) => (
-                    <LeagueRow 
-                    key={league.id}
-                    league={league}
-                    onView={handleViewLeague}
-                    onEdit={handleEditLeague}
+                  {displayData.map((tournament) => (
+                    <TournamentRow 
+                      key={tournament.id}
+                      tournament={tournament}
+                      onView={handleViewTournament}
+                      onEdit={handleEditTournament}
                     />
-                ))}
+                  ))}
                 </tbody>
-            </table>
+              </table>
             </div>
-        </div>
-        
-        {/* Load More Button */}
-        {hasMore && (
+          </div>
+          
+          {hasMore && (
             <div className="text-center">
-            <Button
+              <Button
                 variant="outline"
                 onClick={onLoadMore}
                 className="px-6 py-2"
-            >
-                Load More Leagues ({Math.min(4, data.length - visibleCount)} more)
-            </Button>
+              >
+                Load More Tournaments ({Math.min(4, data.length - visibleCount)} more)
+              </Button>
             </div>
-        )}
-        
-        {/* Showing X of Y indicator */}
-        {data.length > 4 && (
+          )}
+          
+          {data.length > 4 && (
             <div className="text-center text-sm text-gray-500">
-            Showing {Math.min(visibleCount, data.length)} of {data.length} leagues
+              Showing {Math.min(visibleCount, data.length)} of {data.length} tournaments
             </div>
-        )}
+          )}
         </div>
-    );
-  };
-
-  // Handle division participant changes
-  const handleDivisionParticipantsChange = (divisionId, participants) => {
-    if (!editingTournament) return;
-    
-    console.log('Updating division participants:', divisionId, participants);
-    
-    const updatedDivisions = editingTournament.divisions.map(division => 
-      division.id === divisionId 
-        ? { ...division, participants }
-        : division
-    );
-    
-    setEditingTournament(prev => ({
-      ...prev,
-      divisions: updatedDivisions
-    }));
-  };
-
-  // Auth functions
-  const handleSignIn = async (credentials) => {
-    try {
-      await signIn(credentials.email, credentials.password);
-      showAlert('success', 'Welcome back!', 'Signed in successfully');
-    } catch (err) {
-      showAlert('error', 'Sign in failed', err.message);
-      throw err;
+      );
     }
   };
 
-  const handleSignUp = async (signupData) => {
-    try {
-      await signUpWithProfile(signupData);
-      showAlert('success', 'Welcome!', 'Account created successfully');
-    } catch (err) {
-      showAlert('error', 'Sign up failed', err.message);
-      throw err;
+  const ResponsiveLeagueList = ({ data, visibleCount, onLoadMore, hasMore }) => {
+    const displayData = data.slice(0, visibleCount);
+    
+    if (!data || data.length === 0) {
+      return (
+        <div className="text-center py-12 text-gray-500">
+          <Activity className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+          <p className="text-lg font-medium">No leagues yet</p>
+          <p className="text-sm mt-1">Create your first league to get started!</p>
+        </div>
+      );
+    }
+
+    if (isMobile) {
+      // Mobile: Show cards
+      return (
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 gap-4">
+            {displayData.map((league) => (
+              <LeagueCard 
+                key={league.id}
+                league={league}
+                onView={handleViewLeague}
+                onEdit={handleEditLeague}
+              />
+            ))}
+          </div>
+          
+          {hasMore && (
+            <div className="text-center pt-4">
+              <Button
+                variant="outline"
+                onClick={onLoadMore}
+                className="mobile-action-button"
+                size="md"
+              >
+                Load More ({Math.min(4, data.length - visibleCount)} more)
+              </Button>
+            </div>
+          )}
+          
+          {data.length > 4 && (
+            <div className="text-center text-sm text-gray-500">
+              Showing {Math.min(visibleCount, data.length)} of {data.length} leagues
+            </div>
+          )}
+        </div>
+      );
+    } else {
+      // Desktop: Show table
+      return (
+        <div className="space-y-4">
+          <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full enhanced-table">
+                <thead>
+                  <tr className="bg-gray-50 border-b border-gray-200">
+                    <th className="text-left py-3 px-4 font-medium text-gray-700 text-sm uppercase tracking-wider w-[30%]">
+                      League
+                    </th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-700 text-sm uppercase tracking-wider w-[20%]">
+                      Duration & Details
+                    </th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-700 text-sm uppercase tracking-wider w-[25%]">
+                      Location
+                    </th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-700 text-sm uppercase tracking-wider w-[15%]">
+                      Status
+                    </th>
+                    <th className="text-right py-3 px-4 font-medium text-gray-700 text-sm uppercase tracking-wider w-[10%]">
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {displayData.map((league) => (
+                    <LeagueRow 
+                      key={league.id}
+                      league={league}
+                      onView={handleViewLeague}
+                      onEdit={handleEditLeague}
+                    />
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+          
+          {hasMore && (
+            <div className="text-center">
+              <Button
+                variant="outline"
+                onClick={onLoadMore}
+                className="px-6 py-2"
+              >
+                Load More Leagues ({Math.min(4, data.length - visibleCount)} more)
+              </Button>
+            </div>
+          )}
+          
+          {data.length > 4 && (
+            <div className="text-center text-sm text-gray-500">
+              Showing {Math.min(visibleCount, data.length)} of {data.length} leagues
+            </div>
+          )}
+        </div>
+      );
     }
   };
 
-  // FIXED: Tournament functions with enhanced error handling and state management
+  const ResponsiveMemberList = ({ data, visibleCount, onLoadMore, hasMore }) => {
+    const displayData = data.slice(0, visibleCount);
+    
+    if (!data || data.length === 0) {
+      return (
+        <div className="text-center py-12 text-gray-500">
+          <Users className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+          <p className="text-lg font-medium">No members yet</p>
+          <p className="text-sm mt-1">Add your first member to get started!</p>
+        </div>
+      );
+    }
+
+    if (isMobile) {
+      // Mobile: Show cards
+      return (
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {displayData.map((member) => (
+              <MemberCard 
+                key={member.id}
+                member={member}
+                onEdit={handleEditMember}
+              />
+            ))}
+          </div>
+          
+          {hasMore && (
+            <div className="text-center pt-4">
+              <Button
+                variant="outline"
+                onClick={onLoadMore}
+                className="mobile-action-button"
+                size="md"
+              >
+                Load More ({Math.min(8, data.length - visibleCount)} more)
+              </Button>
+            </div>
+          )}
+          
+          {data.length > 8 && (
+            <div className="text-center text-sm text-gray-500">
+              Showing {Math.min(visibleCount, data.length)} of {data.length} members
+            </div>
+          )}
+        </div>
+      );
+    } else {
+      // Desktop: Show table
+      const memberColumns = [
+        {
+          key: 'displayName',
+          label: 'Name',
+          render: (_, member) => `${member.firstName} ${member.lastName}`
+        },
+        {
+          key: 'email',
+          label: 'Email'
+        },
+        {
+          key: 'skillLevel',
+          label: 'Skill Level',
+          render: (level) => <span className="capitalize">{level}</span>
+        },
+        {
+          key: 'role',
+          label: 'Role',
+          render: (role) => <span className="capitalize">{role}</span>
+        },
+        {
+          key: 'venmoHandle',
+          label: 'Venmo',
+          render: (handle) => handle ? `@${handle}` : '—'
+        },
+        {
+          key: 'isActive',
+          label: 'Status',
+          render: (isActive) => (
+            <span className={`
+              px-2 py-1 text-xs rounded-full
+              ${isActive ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}
+            `}>
+              {isActive ? 'Active' : 'Inactive'}
+            </span>
+          )
+        },
+        {
+          key: 'actions',
+          label: 'Actions',
+          render: (_, member) => (
+            <TableActions
+              actions={[
+                {
+                  label: 'Edit',
+                  onClick: () => handleEditMember(member)
+                }
+              ]}
+            />
+          )
+        }
+      ];
+
+      return (
+        <div className="space-y-4">
+          <div className="border rounded-lg overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    {memberColumns.map((column) => (
+                      <th
+                        key={column.key}
+                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                      >
+                        {column.label}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {displayData.map((row, rowIndex) => (
+                    <tr
+                      key={row.id || rowIndex}
+                      className="hover:bg-gray-50 transition-colors duration-150"
+                    >
+                      {memberColumns.map((column) => (
+                        <td
+                          key={column.key}
+                          className="px-6 py-4 whitespace-nowrap text-sm text-gray-900"
+                        >
+                          {column.render 
+                            ? column.render(row[column.key], row)
+                            : row[column.key]
+                          }
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+          
+          {hasMore && (
+            <div className="text-center">
+              <Button
+                variant="outline"
+                onClick={onLoadMore}
+                className="px-6 py-2"
+              >
+                Load More Members ({Math.min(8, data.length - visibleCount)} more)
+              </Button>
+            </div>
+          )}
+          
+          {data.length > 8 && (
+            <div className="text-center text-sm text-gray-500">
+              Showing {Math.min(visibleCount, data.length)} of {data.length} members
+            </div>
+          )}
+        </div>
+      );
+    }
+  };
+
+  // All the form handling functions (keeping existing implementations)
   const handleCreateTournament = async (tournamentData) => {
     setFormLoading(true);
-    console.log('Creating tournament:', tournamentData);
-    
     try {
       const tournamentId = await addTournament(tournamentData);
-      console.log('Tournament created successfully:', tournamentId);
-      
-      // Close modal only on success
       setShowTournamentModal(false);
       setEditingTournament(null);
-      
-      showAlert('success', 'Tournament created!', `${tournamentData.name} has been created successfully with ${tournamentData.divisions.length} division${tournamentData.divisions.length !== 1 ? 's' : ''}`);
+      showAlert('success', 'Tournament created!', `${tournamentData.name} has been created successfully`);
     } catch (err) {
-      console.error('Tournament creation failed:', err);
       showAlert('error', 'Failed to create tournament', err.message);
-      // Don't close modal on error - let user try again
     } finally {
       setFormLoading(false);
     }
   };
 
   const handleUpdateTournament = async (tournamentData) => {
-    if (!editingTournament) {
-      console.error('No tournament being edited');
-      return;
-    }
-    
+    if (!editingTournament) return;
     setFormLoading(true);
-    console.log('Updating tournament:', editingTournament.id, tournamentData);
-    
     try {
       await updateTournament(editingTournament.id, tournamentData);
-      console.log('Tournament updated successfully');
-      
-      // Close modal only on success
       setShowTournamentModal(false);
       setEditingTournament(null);
-      
       showAlert('success', 'Tournament updated!', `${tournamentData.name} has been updated successfully`);
     } catch (err) {
-      console.error('Tournament update failed:', err);
       showAlert('error', 'Failed to update tournament', err.message);
-      // Don't close modal on error - let user try again
     } finally {
       setFormLoading(false);
     }
@@ -912,27 +1419,19 @@ const Dashboard = () => {
 
   const handleDeleteTournament = async (tournamentId) => {
     setDeleteLoading(true);
-    console.log('Deleting tournament:', tournamentId);
-    
     try {
       await deleteTournament(tournamentId);
-      console.log('Tournament deleted successfully');
-      
-      // Close modal only on success
       setShowTournamentModal(false);
       setEditingTournament(null);
-      
       showAlert('success', 'Tournament deleted!', 'Tournament has been successfully deleted');
     } catch (err) {
-      console.error('Tournament deletion failed:', err);
       showAlert('error', 'Failed to delete tournament', err.message);
-      // Don't close modal on error
     } finally {
       setDeleteLoading(false);
     }
   };
 
-  // League functions
+  // League functions (keeping existing implementations)
   const handleCreateLeague = async (leagueData) => {
     setFormLoading(true);
     try {
@@ -988,7 +1487,7 @@ const Dashboard = () => {
     }
   };
 
-  // Member functions
+  // Member functions (keeping existing implementations)
   const handleCreateMember = async (memberData) => {
     setFormLoading(true);
     try {
@@ -1037,64 +1536,30 @@ const Dashboard = () => {
 
   const paymentSummary = useMemo(() => getPaymentSummary(), [getPaymentSummary]);
 
-  // Stable member columns
-  const memberColumns = useMemo(() => [
-    {
-      key: 'displayName',
-      label: 'Name',
-      render: (_, member) => `${member.firstName} ${member.lastName}`
-    },
-    {
-      key: 'email',
-      label: 'Email'
-    },
-    {
-      key: 'skillLevel',
-      label: 'Skill Level',
-      render: (level) => <span className="capitalize">{level}</span>
-    },
-    {
-      key: 'role',
-      label: 'Role',
-      render: (role) => <span className="capitalize">{role}</span>
-    },
-    {
-      key: 'venmoHandle',
-      label: 'Venmo',
-      render: (handle) => handle ? `@${handle}` : '—'
-    },
-    {
-      key: 'isActive',
-      label: 'Status',
-      render: (isActive) => (
-        <span className={`
-          px-2 py-1 text-xs rounded-full
-          ${isActive ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}
-        `}>
-          {isActive ? 'Active' : 'Inactive'}
-        </span>
-      )
-    },
-    {
-      key: 'actions',
-      label: 'Actions',
-      render: (_, member) => (
-        <TableActions
-          actions={[
-            {
-              label: 'Edit',
-              onClick: () => handleEditMember(member)
-            }
-          ]}
-        />
-      )
+  // Handle auth functions
+  const handleSignIn = async (credentials) => {
+    try {
+      await signIn(credentials.email, credentials.password);
+      showAlert('success', 'Welcome back!', 'Signed in successfully');
+    } catch (err) {
+      showAlert('error', 'Sign in failed', err.message);
+      throw err;
     }
-  ], [handleEditMember]);
+  };
 
-  // FIXED: Enhanced modal close handlers that prevent accidental closure
+  const handleSignUp = async (signupData) => {
+    try {
+      await signUpWithProfile(signupData);
+      showAlert('success', 'Welcome!', 'Account created successfully');
+    } catch (err) {
+      showAlert('error', 'Sign up failed', err.message);
+      throw err;
+    }
+  };
+
+  // Modal close handlers
   const handleTournamentModalClose = useCallback(() => {
     if (!formLoading && !deleteLoading) {
-      console.log('Closing tournament modal');
       setShowTournamentModal(false);
       setEditingTournament(null);
     }
@@ -1102,7 +1567,6 @@ const Dashboard = () => {
 
   const handleLeagueModalClose = useCallback(() => {
     if (!formLoading && !deleteLoading) {
-      console.log('Closing league modal');
       setShowLeagueModal(false);
       setEditingLeague(null);
       setSelectedLeagueMembers([]);
@@ -1111,7 +1575,6 @@ const Dashboard = () => {
 
   const handleMemberModalClose = useCallback(() => {
     if (!formLoading && !deleteLoading) {
-      console.log('Closing member modal');
       setShowMemberModal(false);
       setEditingMember(null);
     }
@@ -1132,7 +1595,7 @@ const Dashboard = () => {
   // Authentication UI
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
         <div className="w-full max-w-md">
           {alert && (
             <div className="mb-6">
@@ -1165,10 +1628,10 @@ const Dashboard = () => {
     <div className="min-h-screen bg-gray-50">
       <DashboardStyles />
       
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
         {/* Alert notification */}
         {alert && (
-          <div className="mb-6">
+          <div className="mb-4 sm:mb-6">
             <Alert
               type={alert.type}
               title={alert.title}
@@ -1185,7 +1648,7 @@ const Dashboard = () => {
           navItems={navItems}
         />
 
-        {/* Header with Real Notifications */}
+        {/* Header */}
         <DashboardHeader 
           currentUserMember={currentUserMember}
           user={user}
@@ -1193,107 +1656,105 @@ const Dashboard = () => {
           onLogout={logout}
         />
 
-        {/* Stats Cards */}
-        <div ref={refs.statsRef} className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <div className="bg-white rounded-lg border shadow-sm p-6 text-center">
-            <h3 className="text-sm font-medium text-gray-500 mb-2">Total Tournaments</h3>
-            <div className="flex items-center justify-center">
-              <Trophy className="h-8 w-8 text-green-600 mr-3" />
-              <span className="text-3xl font-bold text-gray-900">
-                {tournaments.length}
-              </span>
+        {/* Stats Cards - Responsive Grid */}
+        <div ref={refs.statsRef} className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6 mb-6 sm:mb-8">
+          <div className="bg-white rounded-lg border shadow-sm p-4 sm:p-6 text-center">
+            <Trophy className="h-6 w-6 sm:h-8 sm:w-8 text-green-600 mx-auto mb-2" />
+            <div className="text-xl sm:text-3xl font-bold text-gray-900">
+              {tournaments.length}
             </div>
+            <div className="text-xs sm:text-sm text-gray-500">Tournaments</div>
           </div>
 
-          <div className="bg-white rounded-lg border shadow-sm p-6 text-center">
-            <h3 className="text-sm font-medium text-gray-500 mb-2">Total Divisions</h3>
-            <div className="flex items-center justify-center">
-              <Layers className="h-8 w-8 text-blue-600 mr-3" />
-              <span className="text-3xl font-bold text-gray-900">
-                {tournaments.reduce((sum, t) => sum + (t.divisions?.length || 0), 0)}
-              </span>
+          <div className="bg-white rounded-lg border shadow-sm p-4 sm:p-6 text-center">
+            <Layers className="h-6 w-6 sm:h-8 sm:w-8 text-blue-600 mx-auto mb-2" />
+            <div className="text-xl sm:text-3xl font-bold text-gray-900">
+              {tournaments.reduce((sum, t) => sum + (t.divisions?.length || 0), 0)}
             </div>
+            <div className="text-xs sm:text-sm text-gray-500">Divisions</div>
           </div>
 
-          <div className="bg-white rounded-lg border shadow-sm p-6 text-center">
-            <h3 className="text-sm font-medium text-gray-500 mb-2">Active Leagues</h3>
-            <div className="flex items-center justify-center">
-              <Activity className="h-8 w-8 text-purple-600 mr-3" />
-              <span className="text-3xl font-bold text-gray-900">
-                {leagues.filter(l => l.status === LEAGUE_STATUS.ACTIVE).length}
-              </span>
+          <div className="bg-white rounded-lg border shadow-sm p-4 sm:p-6 text-center">
+            <Activity className="h-6 w-6 sm:h-8 sm:w-8 text-purple-600 mx-auto mb-2" />
+            <div className="text-xl sm:text-3xl font-bold text-gray-900">
+              {leagues.filter(l => l.status === LEAGUE_STATUS.ACTIVE).length}
             </div>
+            <div className="text-xs sm:text-sm text-gray-500">Active Leagues</div>
           </div>
 
-          <div className="bg-white rounded-lg border shadow-sm p-6 text-center">
-            <h3 className="text-sm font-medium text-gray-500 mb-2">Active Members</h3>
-            <div className="flex items-center justify-center">
-              <Users className="h-8 w-8 text-indigo-600 mr-3" />
-              <span className="text-3xl font-bold text-gray-900">
-                {members.length}
-              </span>
+          <div className="bg-white rounded-lg border shadow-sm p-4 sm:p-6 text-center">
+            <Users className="h-6 w-6 sm:h-8 sm:w-8 text-indigo-600 mx-auto mb-2" />
+            <div className="text-xl sm:text-3xl font-bold text-gray-900">
+              {members.length}
             </div>
+            <div className="text-xs sm:text-sm text-gray-500">Members</div>
           </div>
         </div>
 
-        {/* Quick Actions */}
-        <Card ref={refs.actionsRef} title="Quick Actions" className="mb-8">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Quick Actions - Responsive */}
+        <Card ref={refs.actionsRef} title="Quick Actions" className="mb-6 sm:mb-8">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
             <Button 
               variant="outline" 
               onClick={() => setShowMemberModal(true)}
-              className="h-16"
+              className={`${isMobile ? 'mobile-action-button h-16 flex-col' : 'h-16'}`}
+              size="md"
             >
-              <Users className="h-5 w-5 mr-2" />
-              Add Member
+              <Users className="h-5 w-5 mb-2" />
+              <span className="text-xs sm:text-sm">Add Member</span>
             </Button>
             
             <Button 
               variant="outline" 
               onClick={() => setShowTournamentModal(true)}
-              className="h-16"
+              className={`${isMobile ? 'mobile-action-button h-16 flex-col' : 'h-16'}`}
+              size="md"
             >
-              <Trophy className="h-5 w-5 mr-2" />
-              Create Tournament
+              <Trophy className="h-5 w-5 mb-2" />
+              <span className="text-xs sm:text-sm">New Tournament</span>
             </Button>
 
             <Button 
               variant="outline" 
               onClick={() => setShowLeagueModal(true)}
-              className="h-16"
+              className={`${isMobile ? 'mobile-action-button h-16 flex-col' : 'h-16'}`}
+              size="md"
             >
-              <Activity className="h-5 w-5 mr-2" />
-              Create League
+              <Activity className="h-5 w-5 mb-2" />
+              <span className="text-xs sm:text-sm">New League</span>
             </Button>
             
             <Button 
               variant="outline" 
               onClick={() => setShowPaymentModal(true)}
-              className="h-16"
+              className={`${isMobile ? 'mobile-action-button h-16 flex-col' : 'h-16'}`}
+              size="md"
             >
-              <DollarSign className="h-5 w-5 mr-2" />
-              Payment Tracker
+              <DollarSign className="h-5 w-5 mb-2" />
+              <span className="text-xs sm:text-sm">Payment Tracker</span>
             </Button>
           </div>
         </Card>
 
-        {/* Tournaments Section */}
+        {/* Tournaments Section - RESPONSIVE */}
         <Card 
           ref={refs.tournamentsRef}
           title="Tournaments"
-          subtitle={`Manage your pickleball tournaments with divisions (showing ${Math.min(visibleTournaments, sortedTournaments.length)} of ${sortedTournaments.length}, sorted by earliest event date first)`}
+          subtitle={`${sortedTournaments.length} total tournament${sortedTournaments.length !== 1 ? 's' : ''}`}
           actions={[
             <Button 
               key="add-tournament"
               onClick={() => setShowTournamentModal(true)}
+              className="touch-target"
+              size="md"
             >
               <Plus className="h-4 w-4 mr-2" />
-              New Tournament
+              New
             </Button>
           ]}
-          className="mb-8"
+          className="mb-6 sm:mb-8"
         >
-          <EnhancedTournamentTable 
+          <ResponsiveTournamentList 
             data={sortedTournaments}
             visibleCount={visibleTournaments}
             onLoadMore={() => setVisibleTournaments(prev => prev + 4)}
@@ -1301,23 +1762,25 @@ const Dashboard = () => {
           />
         </Card>
 
-        {/* Leagues Section */}
+        {/* Leagues Section - RESPONSIVE */}
         <Card 
           ref={refs.leaguesRef}
           title="Leagues"
-          subtitle={`Manage ongoing pickleball leagues (showing ${Math.min(visibleLeagues, sortedLeagues.length)} of ${sortedLeagues.length}, sorted by earliest start date first)`}
+          subtitle={`${sortedLeagues.length} total league${sortedLeagues.length !== 1 ? 's' : ''}`}
           actions={[
             <Button 
               key="add-league"
               onClick={() => setShowLeagueModal(true)}
+              className="touch-target"
+              size="md"
             >
               <Plus className="h-4 w-4 mr-2" />
-              New League
+              New
             </Button>
           ]}
-          className="mb-8 min-h-[400px]"
+          className="mb-6 sm:mb-8"
         >
-          <EnhancedLeagueTable 
+          <ResponsiveLeagueList 
             data={sortedLeagues}
             visibleCount={visibleLeagues}
             onLoadMore={() => setVisibleLeagues(prev => prev + 4)}
@@ -1325,62 +1788,33 @@ const Dashboard = () => {
           />
         </Card>
 
-        {/* Members Section */}
+        {/* Members Section - RESPONSIVE */}
         <Card 
           ref={refs.membersRef}
           title="Members"
-          subtitle="Manage pickleball community members"
+          subtitle={`${members.length} total member${members.length !== 1 ? 's' : ''}`}
           actions={[
             <Button 
               key="add-member"
               onClick={() => setShowMemberModal(true)}
+              className="touch-target"
+              size="md"
             >
               <Plus className="h-4 w-4 mr-2" />
-              New Member
+              New
             </Button>
           ]}
-          className="mb-8 min-h-[400px]"
+          className="mb-6 sm:mb-8"
         >
-          <div className="border rounded-lg overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    {memberColumns.map((column) => (
-                      <th
-                        key={column.key}
-                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                      >
-                        {column.label}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {members.map((row, rowIndex) => (
-                    <tr
-                      key={row.id || rowIndex}
-                      className="hover:bg-gray-50 transition-colors duration-150"
-                    >
-                      {memberColumns.map((column) => (
-                        <td
-                          key={column.key}
-                          className="px-6 py-4 whitespace-nowrap text-sm text-gray-900"
-                        >
-                          {column.render 
-                            ? column.render(row[column.key], row)
-                            : row[column.key]
-                          }
-                        </td>
-                      ))}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
+          <ResponsiveMemberList 
+            data={members}
+            visibleCount={visibleMembers}
+            onLoadMore={() => setVisibleMembers(prev => prev + 8)}
+            hasMore={members.length > visibleMembers}
+          />
         </Card>
 
+        {/* All existing modals remain the same... */}
         {/* Notification Modal */}
         {showNotificationModal && (
           <NotificationCenter
@@ -1390,7 +1824,7 @@ const Dashboard = () => {
           />
         )}
 
-        {/* FIXED: Tournament Modal with better error handling and state management */}
+        {/* Tournament Modal */}
         <Modal
           isOpen={showTournamentModal}
           onClose={handleTournamentModalClose}
@@ -1403,12 +1837,11 @@ const Dashboard = () => {
               onSubmit={editingTournament ? handleUpdateTournament : handleCreateTournament}
               onCancel={handleTournamentModalClose}
               onDelete={editingTournament ? handleDeleteTournament : null}
-              onUpdateTournament={updateTournament} // NEW: Pass direct update function for divisions
+              onUpdateTournament={updateTournament}
               loading={formLoading}
               deleteLoading={deleteLoading}
             />
             
-            {/* Division Participant Management - Only show when editing */}
             {editingTournament && editingTournament.divisions && editingTournament.divisions.length > 0 && (
               <div className="border-t pt-6">
                 <h3 className="text-lg font-medium text-gray-900 mb-4">
@@ -1417,7 +1850,20 @@ const Dashboard = () => {
                 <DivisionMemberSelector
                   tournament={editingTournament}
                   members={members}
-                  onDivisionParticipantsChange={handleDivisionParticipantsChange}
+                  onDivisionParticipantsChange={(divisionId, participants) => {
+                    if (!editingTournament) return;
+                    
+                    const updatedDivisions = editingTournament.divisions.map(division => 
+                      division.id === divisionId 
+                        ? { ...division, participants }
+                        : division
+                    );
+                    
+                    setEditingTournament(prev => ({
+                      ...prev,
+                      divisions: updatedDivisions
+                    }));
+                  }}
                   loading={membersLoading}
                 />
               </div>
@@ -1425,7 +1871,7 @@ const Dashboard = () => {
           </div>
         </Modal>
 
-        {/* Tournament Detail Modal - Simplified for Discussion */}
+        {/* Tournament Detail Modal */}
         <Modal
           isOpen={showTournamentDetailModal}
           onClose={() => {
@@ -1475,7 +1921,7 @@ const Dashboard = () => {
           </div>
         </Modal>
 
-        {/* League Detail Modal - Simplified for Discussion */}
+        {/* League Detail Modal */}
         <Modal
           isOpen={showLeagueDetailModal}
           onClose={() => {
@@ -1511,7 +1957,7 @@ const Dashboard = () => {
           />
         </Modal>
 
-        {/* Payment Modal with Division Support */}
+        {/* Payment Modal - keeping the existing implementation */}
         <Modal
           isOpen={showPaymentModal}
           onClose={() => setShowPaymentModal(false)}
@@ -1543,6 +1989,7 @@ const Dashboard = () => {
               </div>
             </div>
 
+            {/* Rest of payment modal content - keeping existing implementation */}
             <div className="bg-white border-2 border-gray-200 rounded-lg p-6">
               <div className="border-b border-gray-200 pb-4 mb-6">
                 <h3 className="text-xl font-semibold text-gray-900 flex items-center">
@@ -1581,7 +2028,6 @@ const Dashboard = () => {
                               eventType="tournament"
                               members={members}
                               onPaymentUpdate={(eventId, updates) => {
-                                // Update the specific division
                                 const updatedDivisions = tournament.divisions.map(div => 
                                   div.id === division.id ? { ...div, ...updates } : div
                                 );
