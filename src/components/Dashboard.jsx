@@ -12,21 +12,15 @@ import {
   ExternalLink, 
   Navigation,
   Layers,
-  ChevronRight,
-  MoreVertical,
   Phone,
-  Mail,
-  Star,
   Clock,
-  CheckCircle,
-  AlertCircle
+  CheckCircle
 } from 'lucide-react';
 import { 
   useMembers, 
   useLeagues, 
   useTournaments, 
-  useAuth, 
-  useNotificationBadge 
+  useAuth
 } from '../hooks';
 import { useSmoothNavigation } from '../hooks/useSmoothNavigation';
 import { 
@@ -38,7 +32,6 @@ import {
 } from '../services/models';
 import { calculateTournamentPaymentSummary, calculateOverallPaymentSummary } from '../utils/paymentUtils';
 import { generateGoogleMapsLink, generateDirectionsLink, openLinkSafely, extractDomain } from '../utils/linkUtils';
-import { NotificationBadge, NotificationCenter } from './notifications';
 import StickyNavigation from './StickyNavigation';
 
 // Import our UI components
@@ -56,12 +49,11 @@ import { MemberForm } from './member';
 import { LeagueForm, LeagueMemberSelector } from './league';
 import { SignUpForm } from './auth';
 import SignInForm from './auth/SignInForm';
-import { ResultsButton } from './results';
 import { CommentSection } from './comments';
 
 // CSS for responsive optimizations
 const dashboardStyles = `
-  /* Mobile card optimizations */
+  /* Mobile-first optimizations */
   .mobile-card {
     transition: transform 0.2s ease, box-shadow 0.2s ease;
   }
@@ -72,12 +64,12 @@ const dashboardStyles = `
   
   @media (max-width: 768px) {
     .touch-target {
-      min-height: 44px;
-      min-width: 44px;
+      min-height: 48px;
+      min-width: 48px;
     }
     
     .mobile-action-button {
-      min-height: 48px;
+      min-height: 52px;
       min-width: 120px;
     }
   }
@@ -165,13 +157,13 @@ const TournamentCard = React.memo(({ tournament, onView, onEdit }) => {
             <h3 className="text-lg font-semibold text-gray-900 truncate">
               {tournament.name}
             </h3>
-            <div className="flex items-center space-x-2 mt-1">
-              <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${statusConfig.color}`}>
+            <div className="flex items-center space-x-2 mt-2">
+              <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${statusConfig.color}`}>
                 <StatusIcon className="h-3 w-3 mr-1" />
                 {statusConfig.label}
               </span>
               {divisionCount > 0 && (
-                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
+                <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
                   <Layers className="h-3 w-3 mr-1" />
                   {divisionCount} division{divisionCount !== 1 ? 's' : ''}
                 </span>
@@ -184,25 +176,25 @@ const TournamentCard = React.memo(({ tournament, onView, onEdit }) => {
         <div className="grid grid-cols-2 gap-3 text-sm">
           <div className="flex items-center text-gray-600">
             <Calendar className="h-4 w-4 mr-2 text-gray-400" />
-            <span>{formatDate(tournament.eventDate)}</span>
+            <span className="text-xs">{formatDate(tournament.eventDate)}</span>
           </div>
           <div className="flex items-center text-gray-600">
             <Users className="h-4 w-4 mr-2 text-gray-400" />
-            <span>{totalParticipants} people</span>
+            <span className="text-xs">{totalParticipants} people</span>
           </div>
           {tournament.location && (
             <div className="col-span-2 flex items-center text-gray-600">
               <MapPin className="h-4 w-4 mr-2 text-gray-400" />
-              <span className="truncate">{tournament.location}</span>
+              <span className="truncate text-xs">{tournament.location}</span>
             </div>
           )}
         </div>
 
         {/* Expected Revenue */}
         {totalExpected > 0 && (
-          <div className="mt-3 flex items-center justify-between p-2 bg-green-50 rounded-lg">
-            <span className="text-sm text-green-700">Expected Revenue</span>
-            <span className="text-lg font-semibold text-green-800">${totalExpected}</span>
+          <div className="mt-3 flex items-center justify-between p-3 bg-green-50 rounded-lg">
+            <span className="text-sm text-green-700 font-medium">Expected Revenue</span>
+            <span className="text-lg font-bold text-green-800">${totalExpected}</span>
           </div>
         )}
       </div>
@@ -236,10 +228,10 @@ const TournamentCard = React.memo(({ tournament, onView, onEdit }) => {
 
       {/* Quick Actions Bar */}
       {tournament.location && (
-        <div className="border-t border-gray-100 px-4 py-2 bg-gray-50">
+        <div className="border-t border-gray-100 px-4 py-3 bg-gray-50">
           <div className="flex items-center justify-between">
-            <span className="text-xs text-gray-600">Quick Actions</span>
-            <div className="flex space-x-1">
+            <span className="text-xs text-gray-600 font-medium">Quick Actions</span>
+            <div className="flex space-x-2">
               <button
                 onClick={(e) => {
                   e.stopPropagation();
@@ -248,7 +240,7 @@ const TournamentCard = React.memo(({ tournament, onView, onEdit }) => {
                 className="touch-target p-2 rounded-md hover:bg-gray-200 transition-colors"
                 title="View on Maps"
               >
-                <MapPin className="h-3 w-3 text-gray-500" />
+                <MapPin className="h-4 w-4 text-gray-500" />
               </button>
               <button
                 onClick={(e) => {
@@ -258,7 +250,7 @@ const TournamentCard = React.memo(({ tournament, onView, onEdit }) => {
                 className="touch-target p-2 rounded-md hover:bg-gray-200 transition-colors"
                 title="Directions"
               >
-                <Navigation className="h-3 w-3 text-gray-500" />
+                <Navigation className="h-4 w-4 text-gray-500" />
               </button>
               {tournament.website && (
                 <button
@@ -269,7 +261,7 @@ const TournamentCard = React.memo(({ tournament, onView, onEdit }) => {
                   className="touch-target p-2 rounded-md hover:bg-gray-200 transition-colors"
                   title="Website"
                 >
-                  <ExternalLink className="h-3 w-3 text-gray-500" />
+                  <ExternalLink className="h-4 w-4 text-gray-500" />
                 </button>
               )}
             </div>
@@ -503,11 +495,11 @@ const LeagueCard = React.memo(({ league, onView, onEdit }) => {
             <h3 className="text-lg font-semibold text-gray-900 truncate">
               {league.name}
             </h3>
-            <div className="flex items-center space-x-2 mt-1">
-              <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(league.status)}`}>
+            <div className="flex items-center space-x-2 mt-2">
+              <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${getStatusColor(league.status)}`}>
                 {league.status.replace('_', ' ')}
               </span>
-              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700 capitalize">
+              <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700 capitalize">
                 {league.skillLevel}
               </span>
             </div>
@@ -518,31 +510,31 @@ const LeagueCard = React.memo(({ league, onView, onEdit }) => {
         <div className="space-y-2 text-sm">
           <div className="flex items-center text-gray-600">
             <Calendar className="h-4 w-4 mr-2 text-gray-400" />
-            <span>{formatDateRange(league.startDate, league.endDate)}</span>
+            <span className="text-xs">{formatDateRange(league.startDate, league.endDate)}</span>
           </div>
           <div className="flex items-center justify-between">
             <div className="flex items-center text-gray-600">
               <Users className="h-4 w-4 mr-2 text-gray-400" />
-              <span>{participantCount} member{participantCount !== 1 ? 's' : ''}</span>
+              <span className="text-xs">{participantCount} member{participantCount !== 1 ? 's' : ''}</span>
             </div>
             <div className="flex items-center text-gray-600">
               <Trophy className="h-4 w-4 mr-2 text-gray-400" />
-              <span>{formatEventType(league.eventType)}</span>
+              <span className="text-xs">{formatEventType(league.eventType)}</span>
             </div>
           </div>
           {league.location && (
             <div className="flex items-center text-gray-600">
               <MapPin className="h-4 w-4 mr-2 text-gray-400" />
-              <span className="truncate">{league.location}</span>
+              <span className="truncate text-xs">{league.location}</span>
             </div>
           )}
         </div>
 
         {/* Registration Fee */}
         {league.registrationFee > 0 && (
-          <div className="mt-3 flex items-center justify-between p-2 bg-green-50 rounded-lg">
-            <span className="text-sm text-green-700">Registration Fee</span>
-            <span className="text-lg font-semibold text-green-800">${league.registrationFee}</span>
+          <div className="mt-3 flex items-center justify-between p-3 bg-green-50 rounded-lg">
+            <span className="text-sm text-green-700 font-medium">Registration Fee</span>
+            <span className="text-lg font-bold text-green-800">${league.registrationFee}</span>
           </div>
         )}
       </div>
@@ -751,7 +743,7 @@ const MemberCard = React.memo(({ member, onEdit }) => {
                 {member.firstName} {member.lastName}
               </h3>
               <p className="text-sm text-gray-600 truncate">{member.email}</p>
-              <div className="flex items-center space-x-2 mt-1">
+              <div className="flex items-center space-x-2 mt-2">
                 <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700 capitalize">
                   {member.skillLevel}
                 </span>
@@ -768,13 +760,13 @@ const MemberCard = React.memo(({ member, onEdit }) => {
           {member.phoneNumber && (
             <div className="flex items-center text-gray-600">
               <Phone className="h-3 w-3 mr-2 text-gray-400" />
-              <span>{member.phoneNumber}</span>
+              <span className="text-xs">{member.phoneNumber}</span>
             </div>
           )}
           {member.venmoHandle && (
             <div className="flex items-center text-gray-600">
               <DollarSign className="h-3 w-3 mr-2 text-gray-400" />
-              <span>@{member.venmoHandle}</span>
+              <span className="text-xs">@{member.venmoHandle}</span>
             </div>
           )}
         </div>
@@ -804,49 +796,6 @@ const MemberCard = React.memo(({ member, onEdit }) => {
   );
 });
 
-// Dashboard Header Component
-const DashboardHeader = React.memo(({ currentUserMember, user, onNotificationClick, onLogout }) => {
-  const {
-    count,
-    hasHighPriority,
-    shouldAnimate,
-    ariaLabel
-  } = useNotificationBadge({
-    debounceMs: 500,
-    enableSound: false
-  });
-
-  return (
-    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-6 sm:mb-8 space-y-4 sm:space-y-0">
-      <div>
-        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Dashboard</h1>
-        <p className="text-gray-600 text-sm sm:text-base">
-          Welcome back, {currentUserMember?.firstName || user.email.split('@')[0]}!
-        </p>
-      </div>
-      <div className="flex items-center space-x-3 sm:space-x-4">
-        <NotificationBadge
-          count={count}
-          hasHighPriority={hasHighPriority}
-          onClick={onNotificationClick}
-          animate={shouldAnimate}
-          aria-label={ariaLabel}
-          className="touch-target"
-        />
-        
-        <Button 
-          variant="outline" 
-          onClick={onLogout}
-          className="touch-target"
-          size="md"
-        >
-          Logout
-        </Button>
-      </div>
-    </div>
-  );
-});
-
 const Dashboard = () => {
   const { user, signIn, signUpWithProfile, logout, isAuthenticated, loading: authLoading } = useAuth();
   const { members, loading: membersLoading, addMember, updateMember, deleteMember } = useMembers({ realTime: false });
@@ -863,7 +812,6 @@ const Dashboard = () => {
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showTournamentDetailModal, setShowTournamentDetailModal] = useState(false);
   const [showLeagueDetailModal, setShowLeagueDetailModal] = useState(false);
-  const [showNotificationModal, setShowNotificationModal] = useState(false);
   
   // Enhanced tournament state management
   const [editingTournament, setEditingTournament] = useState(null);
@@ -904,7 +852,7 @@ const Dashboard = () => {
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  // Event handlers (keeping all existing handlers)
+  // Event handlers
   const handleViewTournament = useCallback((tournament) => {
     console.log('Viewing tournament:', tournament);
     setViewingTournament(tournament);
@@ -936,27 +884,6 @@ const Dashboard = () => {
     setEditingMember(member);
     setShowMemberModal(true);
   }, []);
-
-  // Handle notification navigation
-  const handleNotificationNavigation = useCallback((notification) => {
-    const { eventId, eventType, commentId } = notification.data || {};
-    
-    if (eventType === 'tournament') {
-      const tournament = tournaments.find(t => t.id === eventId);
-      if (tournament) {
-        setViewingTournament(tournament);
-        setShowTournamentDetailModal(true);
-      }
-    } else if (eventType === 'league') {
-      const league = leagues.find(l => l.id === eventId);
-      if (league) {
-        setViewingLeague(league);
-        setShowLeagueDetailModal(true);
-      }
-    }
-    
-    setShowNotificationModal(false);
-  }, [tournaments, leagues]);
 
   // Sorting functions
   const getSortedTournaments = useCallback(() => {
@@ -1628,7 +1555,14 @@ const Dashboard = () => {
     <div className="min-h-screen bg-gray-50">
       <DashboardStyles />
       
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
+      {/* Sticky Navigation */}
+      <StickyNavigation 
+        activeSection={activeSection}
+        onNavigate={scrollToSection}
+        navItems={navItems}
+      />
+      
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-4">
         {/* Alert notification */}
         {alert && (
           <div className="mb-4 sm:mb-6">
@@ -1641,23 +1575,16 @@ const Dashboard = () => {
           </div>
         )}
 
-        {/* Sticky Navigation */}
-        <StickyNavigation 
-          activeSection={activeSection}
-          onNavigate={scrollToSection}
-          navItems={navItems}
-        />
-
-        {/* Header */}
-        <DashboardHeader 
-          currentUserMember={currentUserMember}
-          user={user}
-          onNotificationClick={() => setShowNotificationModal(true)}
-          onLogout={logout}
-        />
+        {/* Dashboard Title */}
+        <div className="mb-6">
+          <h2 className="text-2xl sm:text-3xl font-bold text-gray-900">Dashboard</h2>
+          <p className="text-gray-600 text-sm sm:text-base mt-1">
+            Welcome back, {currentUserMember?.firstName || user.email.split('@')[0]}!
+          </p>
+        </div>
 
         {/* Stats Cards - Responsive Grid */}
-        <div ref={refs.statsRef} className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6 mb-6 sm:mb-8">
+        <div ref={refs.statsRef} className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-8 sm:mb-8">
           <div className="bg-white rounded-lg border shadow-sm p-4 sm:p-6 text-center">
             <Trophy className="h-6 w-6 sm:h-8 sm:w-8 text-green-600 mx-auto mb-2" />
             <div className="text-xl sm:text-3xl font-bold text-gray-900">
@@ -1692,8 +1619,8 @@ const Dashboard = () => {
         </div>
 
         {/* Quick Actions - Responsive */}
-        <Card ref={refs.actionsRef} title="Quick Actions" className="mb-6 sm:mb-8">
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        <Card ref={refs.actionsRef} title="Quick Actions" className="mb-8 sm:mb-8">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-4">
             <Button 
               variant="outline" 
               onClick={() => setShowMemberModal(true)}
@@ -1752,7 +1679,7 @@ const Dashboard = () => {
               New
             </Button>
           ]}
-          className="mb-6 sm:mb-8"
+          className="mb-8 sm:mb-8"
         >
           <ResponsiveTournamentList 
             data={sortedTournaments}
@@ -1778,7 +1705,7 @@ const Dashboard = () => {
               New
             </Button>
           ]}
-          className="mb-6 sm:mb-8"
+          className="mb-8 sm:mb-8"
         >
           <ResponsiveLeagueList 
             data={sortedLeagues}
@@ -1804,7 +1731,7 @@ const Dashboard = () => {
               New
             </Button>
           ]}
-          className="mb-6 sm:mb-8"
+          className="mb-8 sm:mb-8"
         >
           <ResponsiveMemberList 
             data={members}
@@ -1813,16 +1740,6 @@ const Dashboard = () => {
             hasMore={members.length > visibleMembers}
           />
         </Card>
-
-        {/* All existing modals remain the same... */}
-        {/* Notification Modal */}
-        {showNotificationModal && (
-          <NotificationCenter
-            isModal={true}
-            onClose={() => setShowNotificationModal(false)}
-            onNavigate={handleNotificationNavigation}
-          />
-        )}
 
         {/* Tournament Modal */}
         <Modal
@@ -1957,7 +1874,7 @@ const Dashboard = () => {
           />
         </Modal>
 
-        {/* Payment Modal - keeping the existing implementation */}
+        {/* Payment Modal */}
         <Modal
           isOpen={showPaymentModal}
           onClose={() => setShowPaymentModal(false)}
@@ -1989,7 +1906,7 @@ const Dashboard = () => {
               </div>
             </div>
 
-            {/* Rest of payment modal content - keeping existing implementation */}
+            {/* Tournament Payment Section */}
             <div className="bg-white border-2 border-gray-200 rounded-lg p-6">
               <div className="border-b border-gray-200 pb-4 mb-6">
                 <h3 className="text-xl font-semibold text-gray-900 flex items-center">
@@ -2052,6 +1969,7 @@ const Dashboard = () => {
               </div>
             </div>
 
+            {/* League Payment Section */}
             <div className="bg-white border-2 border-gray-200 rounded-lg p-6">
               <div className="border-b border-gray-200 pb-4 mb-6">
                 <h3 className="text-xl font-semibold text-gray-900 flex items-center">
