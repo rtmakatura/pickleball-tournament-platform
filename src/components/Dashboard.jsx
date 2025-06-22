@@ -1,4 +1,4 @@
-// src/components/Dashboard.jsx (FULLY UPDATED - WITH WORKING NOTIFICATION SYSTEM)
+// src/components/Dashboard.jsx (UPDATED WITH SMOOTH NAVIGATION)
 import React, { useState, useMemo, useCallback } from 'react';
 import { 
   Plus, 
@@ -20,6 +20,7 @@ import {
   useAuth, 
   useNotificationBadge 
 } from '../hooks';
+import { useSmoothNavigation } from '../hooks/useSmoothNavigation'; // NEW: Navigation hook
 import { 
   SKILL_LEVELS, 
   TOURNAMENT_STATUS, 
@@ -30,6 +31,7 @@ import {
 import { calculateTournamentPaymentSummary, calculateOverallPaymentSummary } from '../utils/paymentUtils';
 import { generateGoogleMapsLink, generateDirectionsLink, openLinkSafely, extractDomain } from '../utils/linkUtils';
 import { NotificationBadge, NotificationCenter } from './notifications';
+import StickyNavigation from './StickyNavigation'; // NEW: Navigation component
 
 // Import our UI components
 import { 
@@ -525,6 +527,9 @@ const Dashboard = () => {
   const { leagues, loading: leaguesLoading, addLeague, updateLeague, deleteLeague } = useLeagues({ realTime: false });
   const { tournaments, loading: tournamentsLoading, addTournament, updateTournament, deleteTournament } = useTournaments({ realTime: false });
 
+  // NEW: Smooth navigation hook
+  const { activeSection, scrollToSection, navItems, refs } = useSmoothNavigation();
+
   // Modal states
   const [showTournamentModal, setShowTournamentModal] = useState(false);
   const [showLeagueModal, setShowLeagueModal] = useState(false);
@@ -766,7 +771,7 @@ const Dashboard = () => {
 
   // League table with pagination
   // Enhanced League Table Component - Fixed for No Horizontal Scroll
-    const EnhancedLeagueTable = ({ data, visibleCount, onLoadMore, hasMore }) => {
+  const EnhancedLeagueTable = ({ data, visibleCount, onLoadMore, hasMore }) => {
     const displayData = data.slice(0, visibleCount);
     
     if (!data || data.length === 0) {
@@ -1140,6 +1145,13 @@ const Dashboard = () => {
           </div>
         )}
 
+        {/* NEW: Sticky Navigation */}
+        <StickyNavigation 
+          activeSection={activeSection}
+          onNavigate={scrollToSection}
+          navItems={navItems}
+        />
+
         {/* Header with Real Notifications */}
         <DashboardHeader 
           currentUserMember={currentUserMember}
@@ -1148,8 +1160,8 @@ const Dashboard = () => {
           onLogout={logout}
         />
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+        {/* Stats Cards - UPDATED with ref */}
+        <div ref={refs.statsRef} className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
           <div className="bg-white rounded-lg border shadow-sm p-6 text-center">
             <h3 className="text-sm font-medium text-gray-500 mb-2">Total Tournaments</h3>
             <div className="flex items-center justify-center">
@@ -1191,8 +1203,8 @@ const Dashboard = () => {
           </div>
         </div>
 
-        {/* Quick Actions */}
-        <Card title="Quick Actions" className="mb-8">
+        {/* Quick Actions - UPDATED with ref */}
+        <Card ref={refs.actionsRef} title="Quick Actions" className="mb-8">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <Button 
               variant="outline" 
@@ -1232,8 +1244,9 @@ const Dashboard = () => {
           </div>
         </Card>
 
-        {/* Tournaments Section with pagination */}
+        {/* Tournaments Section - UPDATED with ref */}
         <Card 
+          ref={refs.tournamentsRef}
           title="Tournaments"
           subtitle={`Manage your pickleball tournaments with divisions (showing ${Math.min(visibleTournaments, sortedTournaments.length)} of ${sortedTournaments.length})`}
           actions={[
@@ -1255,8 +1268,9 @@ const Dashboard = () => {
           />
         </Card>
 
-        {/* Leagues Section with pagination */}
+        {/* Leagues Section - UPDATED with ref */}
         <Card 
+          ref={refs.leaguesRef}
           title="Leagues"
           subtitle={`Manage ongoing pickleball leagues (showing ${Math.min(visibleLeagues, sortedLeagues.length)} of ${sortedLeagues.length})`}
           actions={[
@@ -1268,7 +1282,7 @@ const Dashboard = () => {
               New League
             </Button>
           ]}
-          className="mb-8"
+          className="mb-8 min-h-[400px]"
         >
           <EnhancedLeagueTable 
             data={sortedLeagues}
@@ -1278,8 +1292,9 @@ const Dashboard = () => {
           />
         </Card>
 
-        {/* Members Section */}
+        {/* Members Section - UPDATED with ref */}
         <Card 
+          ref={refs.membersRef}
           title="Members"
           subtitle="Manage pickleball community members"
           actions={[
@@ -1291,7 +1306,7 @@ const Dashboard = () => {
               New Member
             </Button>
           ]}
-          className="mb-8"
+          className="mb-8 min-h-[400px]"
         >
           <div className="border rounded-lg overflow-hidden">
             <div className="overflow-x-auto">

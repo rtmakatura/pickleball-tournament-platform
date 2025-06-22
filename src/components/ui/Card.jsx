@@ -3,22 +3,28 @@ import React from 'react';
 
 /**
  * Card Component - A container for organizing content
- * 
+ *
  * Props:
  * - title: string - Card header title
  * - subtitle: string - Card header subtitle
  * - children: React nodes - Card content
  * - actions: React node - Header action buttons
  * - className: string - Additional CSS classes
+ * - ref: React ref - For navigation and scrolling support
  */
-export const Card = ({ 
-  title, 
-  subtitle, 
-  children, 
+export const Card = React.forwardRef(({
+  title,
+  subtitle,
+  children,
   actions,
-  className = '' 
-}) => (
-  <div className={`bg-white rounded-lg border shadow-sm ${className}`}>
+  className = '',
+  ...props
+}, ref) => (
+  <div 
+    ref={ref}
+    className={`bg-white rounded-lg border shadow-sm ${className}`}
+    {...props}
+  >
     {/* Card Header - only show if title or actions provided */}
     {(title || actions) && (
       <div className="px-6 py-4 border-b border-gray-200">
@@ -43,13 +49,15 @@ export const Card = ({
         </div>
       </div>
     )}
-
     {/* Card Body */}
     <div className="px-6 py-4">
       {children}
     </div>
   </div>
-);
+));
+
+// Add displayName for React DevTools
+Card.displayName = 'Card';
 
 /**
  * CardGrid Component - For laying out multiple cards
