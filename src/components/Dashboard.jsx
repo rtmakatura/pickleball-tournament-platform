@@ -1,4 +1,4 @@
-// src/components/Dashboard.jsx (UPDATED WITH SMOOTH NAVIGATION)
+// src/components/Dashboard.jsx (FIXED - Tournament Update & Modal State Issues)
 import React, { useState, useMemo, useCallback } from 'react';
 import { 
   Plus, 
@@ -20,7 +20,7 @@ import {
   useAuth, 
   useNotificationBadge 
 } from '../hooks';
-import { useSmoothNavigation } from '../hooks/useSmoothNavigation'; // NEW: Navigation hook
+import { useSmoothNavigation } from '../hooks/useSmoothNavigation';
 import { 
   SKILL_LEVELS, 
   TOURNAMENT_STATUS, 
@@ -31,7 +31,7 @@ import {
 import { calculateTournamentPaymentSummary, calculateOverallPaymentSummary } from '../utils/paymentUtils';
 import { generateGoogleMapsLink, generateDirectionsLink, openLinkSafely, extractDomain } from '../utils/linkUtils';
 import { NotificationBadge, NotificationCenter } from './notifications';
-import StickyNavigation from './StickyNavigation'; // NEW: Navigation component
+import StickyNavigation from './StickyNavigation';
 
 // Import our UI components
 import { 
@@ -300,7 +300,7 @@ const TournamentRow = React.memo(({ tournament, onView, onEdit }) => {
   );
 });
 
-// Memoized League Row Component
+// Memoized League Row Component (unchanged for brevity)
 const LeagueRow = React.memo(({ league, onView, onEdit }) => {
   // Helper function to format event type for display
   const formatEventType = (eventType) => {
@@ -483,9 +483,8 @@ const LeagueRow = React.memo(({ league, onView, onEdit }) => {
   );
 });
 
-// UPDATED Dashboard Header Component with Real Notification System
+// Dashboard Header Component
 const DashboardHeader = React.memo(({ currentUserMember, user, onNotificationClick, onLogout }) => {
-  // Use the real notification badge hook
   const {
     count,
     hasHighPriority,
@@ -527,7 +526,7 @@ const Dashboard = () => {
   const { leagues, loading: leaguesLoading, addLeague, updateLeague, deleteLeague } = useLeagues({ realTime: false });
   const { tournaments, loading: tournamentsLoading, addTournament, updateTournament, deleteTournament } = useTournaments({ realTime: false });
 
-  // NEW: Smooth navigation hook
+  // Smooth navigation hook
   const { activeSection, scrollToSection, navItems, refs } = useSmoothNavigation();
 
   // Modal states
@@ -538,6 +537,8 @@ const Dashboard = () => {
   const [showTournamentDetailModal, setShowTournamentDetailModal] = useState(false);
   const [showLeagueDetailModal, setShowLeagueDetailModal] = useState(false);
   const [showNotificationModal, setShowNotificationModal] = useState(false);
+  
+  // FIXED: Enhanced tournament state management with better tracking
   const [editingTournament, setEditingTournament] = useState(null);
   const [editingLeague, setEditingLeague] = useState(null);
   const [editingMember, setEditingMember] = useState(null);
@@ -564,27 +565,38 @@ const Dashboard = () => {
 
   // Memoized event handlers
   const handleViewTournament = useCallback((tournament) => {
+    console.log('Viewing tournament:', tournament);
     setViewingTournament(tournament);
     setShowTournamentDetailModal(true);
   }, []);
 
   const handleViewLeague = useCallback((league) => {
+    console.log('Viewing league:', league);
     setViewingLeague(league);
     setShowLeagueDetailModal(true);
   }, []);
 
+  // FIXED: Enhanced tournament editing with better state management
   const handleEditTournament = useCallback((tournament) => {
-    setEditingTournament(tournament);
+    console.log('Editing tournament:', tournament);
+    
+    // Ensure we have the latest tournament data
+    const latestTournament = tournaments.find(t => t.id === tournament.id) || tournament;
+    console.log('Using latest tournament data:', latestTournament);
+    
+    setEditingTournament(latestTournament);
     setShowTournamentModal(true);
-  }, []);
+  }, [tournaments]);
 
   const handleEditLeague = useCallback((league) => {
+    console.log('Editing league:', league);
     setEditingLeague(league);
     setSelectedLeagueMembers(league.participants || []);
     setShowLeagueModal(true);
   }, []);
 
   const handleEditMember = useCallback((member) => {
+    console.log('Editing member:', member);
     setEditingMember(member);
     setShowMemberModal(true);
   }, []);
@@ -610,80 +622,45 @@ const Dashboard = () => {
     setShowNotificationModal(false);
   }, [tournaments, leagues]);
 
-  // Get tournament status priority for sorting (lower = higher priority)
-  const getTournamentStatusPriority = useCallback((status, eventDate, now) => {
-    const isUpcoming = eventDate > now;
-    
-    switch (status) {
-      case TOURNAMENT_STATUS.REGISTRATION_OPEN:
-        return isUpcoming ? 1 : 3;
-      case TOURNAMENT_STATUS.IN_PROGRESS:
-        return 2;
-      case TOURNAMENT_STATUS.REGISTRATION_CLOSED:
-        return isUpcoming ? 3 : 4;
-      case TOURNAMENT_STATUS.COMPLETED:
-        return 5;
-      case TOURNAMENT_STATUS.CANCELLED:
-        return 6;
-      case TOURNAMENT_STATUS.DRAFT:
-        return isUpcoming ? 2 : 4;
-      default:
-        return 4;
-    }
-  }, []);
-
-  // Get league status priority for sorting (lower = higher priority)
-  const getLeagueStatusPriority = useCallback((status, startDate, now) => {
-    switch (status) {
-      case LEAGUE_STATUS.ACTIVE:
-        return 1;
-      case LEAGUE_STATUS.COMPLETED:
-        return 2;
-      default:
-        return 3;
-    }
-  }, []);
-
-  // Helper functions memoized
+  // FIXED: Simple tournament sorting - earliest event dates first (chronological order)
   const getSortedTournaments = useCallback(() => {
-    const now = new Date();
-    
     return [...tournaments].sort((a, b) => {
-      const dateA = a.eventDate ? (a.eventDate.seconds ? new Date(a.eventDate.seconds * 1000) : new Date(a.eventDate)) : new Date(0);
-      const dateB = b.eventDate ? (b.eventDate.seconds ? new Date(b.eventDate.seconds * 1000) : new Date(b.eventDate)) : new Date(0);
+      // Primary sort: Event date (earliest first)
+      const dateA = a.eventDate ? (a.eventDate.seconds ? new Date(a.eventDate.seconds * 1000) : new Date(a.eventDate)) : new Date('2099-12-31'); // Put events without dates at the end
+      const dateB = b.eventDate ? (b.eventDate.seconds ? new Date(b.eventDate.seconds * 1000) : new Date(b.eventDate)) : new Date('2099-12-31');
       
-      // Prioritize by status first (upcoming/active tournaments first)
-      const statusPriorityA = getTournamentStatusPriority(a.status, dateA, now);
-      const statusPriorityB = getTournamentStatusPriority(b.status, dateB, now);
-      
-      if (statusPriorityA !== statusPriorityB) {
-        return statusPriorityA - statusPriorityB;
+      // Sort by event date ascending (earliest first)
+      if (dateA.getTime() !== dateB.getTime()) {
+        return dateA - dateB; // FIXED: Ascending order (earliest first)
       }
       
-      // Then sort by date
-      return dateA - dateB;
+      // Secondary sort: Creation date (most recently created first for same event dates)
+      const createdA = a.createdAt ? (a.createdAt.seconds ? new Date(a.createdAt.seconds * 1000) : new Date(a.createdAt)) : new Date(0);
+      const createdB = b.createdAt ? (b.createdAt.seconds ? new Date(b.createdAt.seconds * 1000) : new Date(b.createdAt)) : new Date(0);
+      
+      return createdB - createdA; // Most recently created first
     });
-  }, [tournaments.length]);
+  }, [tournaments]);
 
+  // FIXED: Simple league sorting - earliest start dates first (chronological order)
   const getSortedLeagues = useCallback(() => {
-    const now = new Date();
-    
     return [...leagues].sort((a, b) => {
-      const dateA = a.startDate ? (a.startDate.seconds ? new Date(a.startDate.seconds * 1000) : new Date(a.startDate)) : new Date(0);
-      const dateB = b.startDate ? (b.startDate.seconds ? new Date(b.startDate.seconds * 1000) : new Date(b.startDate)) : new Date(0);
+      // Primary sort: Start date (earliest first)
+      const dateA = a.startDate ? (a.startDate.seconds ? new Date(a.startDate.seconds * 1000) : new Date(a.startDate)) : new Date('2099-12-31'); // Put leagues without dates at the end
+      const dateB = b.startDate ? (b.startDate.seconds ? new Date(b.startDate.seconds * 1000) : new Date(b.startDate)) : new Date('2099-12-31');
       
-      // Prioritize by status first (active leagues first)
-      const statusPriorityA = getLeagueStatusPriority(a.status, dateA, now);
-      const statusPriorityB = getLeagueStatusPriority(b.status, dateB, now);
-      
-      if (statusPriorityA !== statusPriorityB) {
-        return statusPriorityA - statusPriorityB;
+      // Sort by start date ascending (earliest first)
+      if (dateA.getTime() !== dateB.getTime()) {
+        return dateA - dateB; // FIXED: Ascending order (earliest first)
       }
       
-      // Then sort by date
-      return dateA - dateB;
+      // Secondary sort: Creation date (most recently created first for same start dates)
+      const createdA = a.createdAt ? (a.createdAt.seconds ? new Date(a.createdAt.seconds * 1000) : new Date(a.createdAt)) : new Date(0);
+      const createdB = b.createdAt ? (b.createdAt.seconds ? new Date(b.createdAt.seconds * 1000) : new Date(b.createdAt)) : new Date(0);
+      
+      return createdB - createdA; // Most recently created first
     });
-  }, [leagues.length]);
+  }, [leagues]);
 
   // Memoized sorted data to prevent recalculation on every render
   const sortedTournaments = useMemo(() => getSortedTournaments(), [getSortedTournaments]);
@@ -691,6 +668,7 @@ const Dashboard = () => {
 
   // Show alert message
   const showAlert = useCallback((type, title, message) => {
+    console.log(`Alert: ${type} - ${title}: ${message}`);
     setAlert({ type, title, message });
     setTimeout(() => setAlert(null), 5000);
   }, []);
@@ -769,8 +747,7 @@ const Dashboard = () => {
     );
   };
 
-  // League table with pagination
-  // Enhanced League Table Component - Fixed for No Horizontal Scroll
+  // Enhanced League Table Component
   const EnhancedLeagueTable = ({ data, visibleCount, onLoadMore, hasMore }) => {
     const displayData = data.slice(0, visibleCount);
     
@@ -790,7 +767,6 @@ const Dashboard = () => {
             <table className="w-full enhanced-table">
                 <thead>
                 <tr className="bg-gray-50 border-b border-gray-200">
-                    {/* FIXED: Changed from w-[35%] to w-[30%] to match tournaments */}
                     <th className="text-left py-3 px-4 font-medium text-gray-700 text-sm uppercase tracking-wider w-[30%]">
                     League
                     </th>
@@ -803,7 +779,6 @@ const Dashboard = () => {
                     <th className="text-left py-3 px-4 font-medium text-gray-700 text-sm uppercase tracking-wider w-[15%] hidden lg:table-cell">
                     Status
                     </th>
-                    {/* FIXED: Changed from w-[5%] to w-[10%] to match tournaments and give enough space for buttons */}
                     <th className="text-right py-3 px-4 font-medium text-gray-700 text-sm uppercase tracking-wider w-[10%]">
                     Actions
                     </th>
@@ -844,11 +819,13 @@ const Dashboard = () => {
         )}
         </div>
     );
-    };
+  };
 
   // Handle division participant changes
   const handleDivisionParticipantsChange = (divisionId, participants) => {
     if (!editingTournament) return;
+    
+    console.log('Updating division participants:', divisionId, participants);
     
     const updatedDivisions = editingTournament.divisions.map(division => 
       division.id === divisionId 
@@ -883,29 +860,51 @@ const Dashboard = () => {
     }
   };
 
-  // Tournament functions
+  // FIXED: Tournament functions with enhanced error handling and state management
   const handleCreateTournament = async (tournamentData) => {
     setFormLoading(true);
+    console.log('Creating tournament:', tournamentData);
+    
     try {
-      await addTournament(tournamentData);
+      const tournamentId = await addTournament(tournamentData);
+      console.log('Tournament created successfully:', tournamentId);
+      
+      // Close modal only on success
       setShowTournamentModal(false);
+      setEditingTournament(null);
+      
       showAlert('success', 'Tournament created!', `${tournamentData.name} has been created successfully with ${tournamentData.divisions.length} division${tournamentData.divisions.length !== 1 ? 's' : ''}`);
     } catch (err) {
+      console.error('Tournament creation failed:', err);
       showAlert('error', 'Failed to create tournament', err.message);
+      // Don't close modal on error - let user try again
     } finally {
       setFormLoading(false);
     }
   };
 
   const handleUpdateTournament = async (tournamentData) => {
+    if (!editingTournament) {
+      console.error('No tournament being edited');
+      return;
+    }
+    
     setFormLoading(true);
+    console.log('Updating tournament:', editingTournament.id, tournamentData);
+    
     try {
       await updateTournament(editingTournament.id, tournamentData);
+      console.log('Tournament updated successfully');
+      
+      // Close modal only on success
       setShowTournamentModal(false);
       setEditingTournament(null);
+      
       showAlert('success', 'Tournament updated!', `${tournamentData.name} has been updated successfully`);
     } catch (err) {
+      console.error('Tournament update failed:', err);
       showAlert('error', 'Failed to update tournament', err.message);
+      // Don't close modal on error - let user try again
     } finally {
       setFormLoading(false);
     }
@@ -913,13 +912,21 @@ const Dashboard = () => {
 
   const handleDeleteTournament = async (tournamentId) => {
     setDeleteLoading(true);
+    console.log('Deleting tournament:', tournamentId);
+    
     try {
       await deleteTournament(tournamentId);
+      console.log('Tournament deleted successfully');
+      
+      // Close modal only on success
       setShowTournamentModal(false);
       setEditingTournament(null);
+      
       showAlert('success', 'Tournament deleted!', 'Tournament has been successfully deleted');
     } catch (err) {
+      console.error('Tournament deletion failed:', err);
       showAlert('error', 'Failed to delete tournament', err.message);
+      // Don't close modal on error
     } finally {
       setDeleteLoading(false);
     }
@@ -1084,6 +1091,32 @@ const Dashboard = () => {
     }
   ], [handleEditMember]);
 
+  // FIXED: Enhanced modal close handlers that prevent accidental closure
+  const handleTournamentModalClose = useCallback(() => {
+    if (!formLoading && !deleteLoading) {
+      console.log('Closing tournament modal');
+      setShowTournamentModal(false);
+      setEditingTournament(null);
+    }
+  }, [formLoading, deleteLoading]);
+
+  const handleLeagueModalClose = useCallback(() => {
+    if (!formLoading && !deleteLoading) {
+      console.log('Closing league modal');
+      setShowLeagueModal(false);
+      setEditingLeague(null);
+      setSelectedLeagueMembers([]);
+    }
+  }, [formLoading, deleteLoading]);
+
+  const handleMemberModalClose = useCallback(() => {
+    if (!formLoading && !deleteLoading) {
+      console.log('Closing member modal');
+      setShowMemberModal(false);
+      setEditingMember(null);
+    }
+  }, [formLoading, deleteLoading]);
+
   // Show loading state while auth is initializing
   if (authLoading) {
     return (
@@ -1145,7 +1178,7 @@ const Dashboard = () => {
           </div>
         )}
 
-        {/* NEW: Sticky Navigation */}
+        {/* Sticky Navigation */}
         <StickyNavigation 
           activeSection={activeSection}
           onNavigate={scrollToSection}
@@ -1160,7 +1193,7 @@ const Dashboard = () => {
           onLogout={logout}
         />
 
-        {/* Stats Cards - UPDATED with ref */}
+        {/* Stats Cards */}
         <div ref={refs.statsRef} className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
           <div className="bg-white rounded-lg border shadow-sm p-6 text-center">
             <h3 className="text-sm font-medium text-gray-500 mb-2">Total Tournaments</h3>
@@ -1203,7 +1236,7 @@ const Dashboard = () => {
           </div>
         </div>
 
-        {/* Quick Actions - UPDATED with ref */}
+        {/* Quick Actions */}
         <Card ref={refs.actionsRef} title="Quick Actions" className="mb-8">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <Button 
@@ -1244,11 +1277,11 @@ const Dashboard = () => {
           </div>
         </Card>
 
-        {/* Tournaments Section - UPDATED with ref */}
+        {/* Tournaments Section */}
         <Card 
           ref={refs.tournamentsRef}
           title="Tournaments"
-          subtitle={`Manage your pickleball tournaments with divisions (showing ${Math.min(visibleTournaments, sortedTournaments.length)} of ${sortedTournaments.length})`}
+          subtitle={`Manage your pickleball tournaments with divisions (showing ${Math.min(visibleTournaments, sortedTournaments.length)} of ${sortedTournaments.length}, sorted by earliest event date first)`}
           actions={[
             <Button 
               key="add-tournament"
@@ -1268,11 +1301,11 @@ const Dashboard = () => {
           />
         </Card>
 
-        {/* Leagues Section - UPDATED with ref */}
+        {/* Leagues Section */}
         <Card 
           ref={refs.leaguesRef}
           title="Leagues"
-          subtitle={`Manage ongoing pickleball leagues (showing ${Math.min(visibleLeagues, sortedLeagues.length)} of ${sortedLeagues.length})`}
+          subtitle={`Manage ongoing pickleball leagues (showing ${Math.min(visibleLeagues, sortedLeagues.length)} of ${sortedLeagues.length}, sorted by earliest start date first)`}
           actions={[
             <Button 
               key="add-league"
@@ -1292,7 +1325,7 @@ const Dashboard = () => {
           />
         </Card>
 
-        {/* Members Section - UPDATED with ref */}
+        {/* Members Section */}
         <Card 
           ref={refs.membersRef}
           title="Members"
@@ -1357,13 +1390,10 @@ const Dashboard = () => {
           />
         )}
 
-        {/* Tournament Modal with Division Support */}
+        {/* FIXED: Tournament Modal with better error handling and state management */}
         <Modal
           isOpen={showTournamentModal}
-          onClose={() => {
-            setShowTournamentModal(false);
-            setEditingTournament(null);
-          }}
+          onClose={handleTournamentModalClose}
           title={editingTournament ? 'Edit Tournament' : 'Create New Tournament'}
           size="xl"
         >
@@ -1371,11 +1401,9 @@ const Dashboard = () => {
             <TournamentForm
               tournament={editingTournament}
               onSubmit={editingTournament ? handleUpdateTournament : handleCreateTournament}
-              onCancel={() => {
-                setShowTournamentModal(false);
-                setEditingTournament(null);
-              }}
+              onCancel={handleTournamentModalClose}
               onDelete={editingTournament ? handleDeleteTournament : null}
+              onUpdateTournament={updateTournament} // NEW: Pass direct update function for divisions
               loading={formLoading}
               deleteLoading={deleteLoading}
             />
@@ -1419,11 +1447,7 @@ const Dashboard = () => {
         {/* League Modal */}
         <Modal
           isOpen={showLeagueModal}
-          onClose={() => {
-            setShowLeagueModal(false);
-            setEditingLeague(null);
-            setSelectedLeagueMembers([]);
-          }}
+          onClose={handleLeagueModalClose}
           title={editingLeague ? 'Edit League' : 'Create New League'}
           size="lg"
         >
@@ -1431,11 +1455,7 @@ const Dashboard = () => {
             <LeagueForm
               league={editingLeague}
               onSubmit={editingLeague ? handleUpdateLeague : handleCreateLeague}
-              onCancel={() => {
-                setShowLeagueModal(false);
-                setEditingLeague(null);
-                setSelectedLeagueMembers([]);
-              }}
+              onCancel={handleLeagueModalClose}
               onDelete={editingLeague ? handleDeleteLeague : null}
               loading={formLoading}
               deleteLoading={deleteLoading}
@@ -1477,20 +1497,14 @@ const Dashboard = () => {
         {/* Member Modal */}
         <Modal
           isOpen={showMemberModal}
-          onClose={() => {
-            setShowMemberModal(false);
-            setEditingMember(null);
-          }}
+          onClose={handleMemberModalClose}
           title={editingMember ? 'Edit Member' : 'Add New Member'}
           size="lg"
         >
           <MemberForm
             member={editingMember}
             onSubmit={editingMember ? handleUpdateMember : handleCreateMember}
-            onCancel={() => {
-              setShowMemberModal(false);
-              setEditingMember(null);
-            }}
+            onCancel={handleMemberModalClose}
             onDelete={editingMember ? handleDeleteMember : null}
             loading={formLoading}
             deleteLoading={deleteLoading}

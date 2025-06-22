@@ -1,5 +1,5 @@
-// src/components/tournament/TournamentForm.jsx (UPDATED - Division Support)
-import React, { useState } from 'react';
+// src/components/tournament/TournamentForm.jsx (COMPLETELY FIXED - Nested Form & State Issues)
+import React, { useState, useEffect, useCallback } from 'react';
 import { Trash2, ExternalLink, MapPin, Plus, Edit3, Users, DollarSign, Trophy } from 'lucide-react';
 import { Input, Select, Button, Alert, ConfirmDialog, Card, Modal } from '../ui';
 import { 
@@ -14,22 +14,20 @@ import {
 import { formatWebsiteUrl, isValidUrl, generateGoogleMapsLink, openLinkSafely } from '../../utils/linkUtils';
 
 /**
- * TournamentForm Component - For creating/editing tournaments with division support
- * UPDATED: Now supports multiple divisions within a single tournament
- * 
- * Props:
- * - tournament: object - Existing tournament data (for editing)
- * - onSubmit: function - Called when form is submitted
- * - onCancel: function - Called when form is cancelled
- * - onDelete: function - Called when tournament is deleted
- * - loading: boolean - Whether form is submitting
- * - deleteLoading: boolean - Whether delete is in progress
+ * TournamentForm Component - COMPLETELY FIXED
+ * Fixed Issues:
+ * 1. Nested form conflicts causing page reloads
+ * 2. State synchronization problems
+ * 3. Modal state management
+ * 4. Form submission handling
+ * 5. Division updates now save immediately to database
  */
 const TournamentForm = ({ 
   tournament = null, 
   onSubmit, 
   onCancel, 
   onDelete,
+  onUpdateTournament, // NEW: Direct database update function
   loading = false,
   deleteLoading = false
 }) => {
@@ -66,22 +64,24 @@ const TournamentForm = ({
   };
 
   // Initialize divisions from tournament data
-  const initializeDivisions = () => {
-    if (tournament?.divisions && Array.isArray(tournament.divisions)) {
-      return tournament.divisions;
+  const initializeDivisions = useCallback((tournamentData = null) => {
+    const sourceData = tournamentData || tournament;
+    
+    if (sourceData?.divisions && Array.isArray(sourceData.divisions)) {
+      return [...sourceData.divisions]; // Create a copy to avoid mutation
     }
     
     // Legacy support: if tournament has old structure, create single division
-    if (tournament && (tournament.skillLevel || tournament.eventType || tournament.entryFee >= 0)) {
+    if (sourceData && (sourceData.skillLevel || sourceData.eventType || sourceData.entryFee >= 0)) {
       return [createTournamentDivision({
-        name: `${tournament.eventType || 'Mixed Doubles'} - ${tournament.skillLevel || 'Open'}`,
-        eventType: tournament.eventType || EVENT_TYPES.MIXED_DOUBLES,
-        skillLevel: tournament.skillLevel || SKILL_LEVELS.INTERMEDIATE,
-        entryFee: tournament.entryFee || 0,
-        maxParticipants: tournament.maxParticipants || null,
-        paymentMode: tournament.paymentMode || PAYMENT_MODES.INDIVIDUAL,
-        participants: tournament.participants || [],
-        paymentData: tournament.paymentData || {}
+        name: `${sourceData.eventType || 'Mixed Doubles'} - ${sourceData.skillLevel || 'Open'}`,
+        eventType: sourceData.eventType || EVENT_TYPES.MIXED_DOUBLES,
+        skillLevel: sourceData.skillLevel || SKILL_LEVELS.INTERMEDIATE,
+        entryFee: sourceData.entryFee || 0,
+        maxParticipants: sourceData.maxParticipants || null,
+        paymentMode: sourceData.paymentMode || PAYMENT_MODES.INDIVIDUAL,
+        participants: sourceData.participants || [],
+        paymentData: sourceData.paymentData || {}
       })];
     }
     
@@ -91,28 +91,74 @@ const TournamentForm = ({
       eventType: EVENT_TYPES.MIXED_DOUBLES,
       skillLevel: SKILL_LEVELS.INTERMEDIATE
     })];
-  };
+  }, [tournament]);
 
   // Form state
   const [formData, setFormData] = useState({
-    name: tournament?.name || '',
-    description: tournament?.description || '',
-    status: tournament?.status || TOURNAMENT_STATUS.DRAFT,
-    eventDate: formatDateForInput(tournament?.eventDate),
-    registrationDeadline: formatDateForInput(tournament?.registrationDeadline),
-    location: tournament?.location || '',
-    website: tournament?.website || ''
+    name: '',
+    description: '',
+    status: TOURNAMENT_STATUS.DRAFT,
+    eventDate: '',
+    registrationDeadline: '',
+    location: '',
+    website: ''
   });
 
-  const [divisions, setDivisions] = useState(initializeDivisions());
+  const [divisions, setDivisions] = useState([]);
   const [errors, setErrors] = useState({});
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showDivisionModal, setShowDivisionModal] = useState(false);
   const [editingDivisionIndex, setEditingDivisionIndex] = useState(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [divisionSaving, setDivisionSaving] = useState(false); // NEW: Track division save state
+
+  // CRITICAL FIX: Proper state synchronization
+  useEffect(() => {
+    console.log('Tournament prop changed:', tournament?.id);
+    
+    if (tournament) {
+      // Update form data
+      const newFormData = {
+        name: tournament.name || '',
+        description: tournament.description || '',
+        status: tournament.status || TOURNAMENT_STATUS.DRAFT,
+        eventDate: formatDateForInput(tournament.eventDate),
+        registrationDeadline: formatDateForInput(tournament.registrationDeadline),
+        location: tournament.location || '',
+        website: tournament.website || ''
+      };
+      
+      console.log('Setting form data:', newFormData);
+      setFormData(newFormData);
+      
+      // Update divisions - CRITICAL: Use callback to ensure we get fresh data
+      const newDivisions = initializeDivisions(tournament);
+      console.log('Setting divisions:', newDivisions);
+      setDivisions(newDivisions);
+    } else {
+      // Reset form for new tournament
+      setFormData({
+        name: '',
+        description: '',
+        status: TOURNAMENT_STATUS.DRAFT,
+        eventDate: '',
+        registrationDeadline: '',
+        location: '',
+        website: ''
+      });
+      setDivisions(initializeDivisions(null));
+    }
+    
+    // Clear errors and submission state
+    setErrors({});
+    setIsSubmitting(false);
+  }, [tournament, initializeDivisions]);
 
   // Handle input changes
-  const handleChange = (field) => (e) => {
+  const handleChange = useCallback((field) => (e) => {
     const value = e.target.value;
+    console.log(`Field ${field} changed to:`, value);
+    
     setFormData(prev => ({
       ...prev,
       [field]: value
@@ -124,43 +170,97 @@ const TournamentForm = ({
         [field]: null
       }));
     }
-  };
+  }, [errors]);
 
-  // Division management
-  const addDivision = () => {
+  // FIXED: Division management with better state handling
+  const addDivision = useCallback(() => {
+    console.log('Adding new division');
     setEditingDivisionIndex(null);
     setShowDivisionModal(true);
-  };
+  }, []);
 
-  const editDivision = (index) => {
+  const editDivision = useCallback((index) => {
+    console.log('Editing division at index:', index);
     setEditingDivisionIndex(index);
     setShowDivisionModal(true);
-  };
+  }, []);
 
-  const deleteDivision = (index) => {
+  const deleteDivision = useCallback(async (index) => {
     if (divisions.length > 1) {
-      setDivisions(prev => prev.filter((_, i) => i !== index));
+      console.log('Deleting division at index:', index);
+      
+      setDivisionSaving(true);
+      
+      try {
+        const updatedDivisions = divisions.filter((_, i) => i !== index);
+        
+        // Update local state
+        setDivisions(updatedDivisions);
+        
+        // NEW: If editing existing tournament, save immediately to database
+        if (tournament && tournament.id && onUpdateTournament) {
+          console.log('Saving division deletion to database immediately');
+          await onUpdateTournament(tournament.id, { divisions: updatedDivisions });
+          console.log('Division deletion saved to database successfully');
+        }
+        
+      } catch (error) {
+        console.error('Error deleting division:', error);
+        setErrors({ divisionDelete: `Failed to delete division: ${error.message}` });
+        // Revert local state on error
+        setDivisions(divisions);
+      } finally {
+        setDivisionSaving(false);
+      }
     }
-  };
+  }, [divisions, tournament, onUpdateTournament]);
 
-  const handleDivisionSave = (divisionData) => {
-    if (editingDivisionIndex !== null) {
-      // Edit existing division
-      setDivisions(prev => prev.map((div, index) => 
-        index === editingDivisionIndex ? { ...div, ...divisionData } : div
-      ));
-    } else {
-      // Add new division
-      const newDivision = createTournamentDivision(divisionData);
-      setDivisions(prev => [...prev, newDivision]);
-    }
+  // CRITICAL FIX: Division save with immediate database update
+  const handleDivisionSave = useCallback(async (divisionData) => {
+    console.log('Saving division data:', divisionData, 'at index:', editingDivisionIndex);
     
-    setShowDivisionModal(false);
-    setEditingDivisionIndex(null);
-  };
+    setDivisionSaving(true);
+    
+    try {
+      let updatedDivisions;
+      
+      if (editingDivisionIndex !== null) {
+        // Edit existing division
+        updatedDivisions = divisions.map((div, index) => 
+          index === editingDivisionIndex ? { ...div, ...divisionData } : div
+        );
+      } else {
+        // Add new division
+        const newDivision = createTournamentDivision(divisionData);
+        updatedDivisions = [...divisions, newDivision];
+      }
+      
+      // Update local state
+      setDivisions(updatedDivisions);
+      
+      // NEW: If editing existing tournament, save immediately to database
+      if (tournament && tournament.id && onUpdateTournament) {
+        console.log('Saving division changes to database immediately');
+        await onUpdateTournament(tournament.id, { divisions: updatedDivisions });
+        console.log('Division changes saved to database successfully');
+      }
+      
+      // Close modal
+      setShowDivisionModal(false);
+      setEditingDivisionIndex(null);
+      
+    } catch (error) {
+      console.error('Error saving division:', error);
+      setErrors({ divisionSave: `Failed to save division: ${error.message}` });
+      // Don't close modal on error
+    } finally {
+      setDivisionSaving(false);
+    }
+  }, [editingDivisionIndex, divisions, tournament, onUpdateTournament]);
 
-  // Form validation
-  const validateForm = () => {
+  // Enhanced form validation
+  const validateForm = useCallback(() => {
+    console.log('Validating tournament form');
     const newErrors = {};
 
     if (!formData.name.trim()) {
@@ -191,53 +291,81 @@ const TournamentForm = ({
       });
     }
 
+    console.log('Validation errors:', newErrors);
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
-  };
+  }, [formData, divisions]);
 
-  // Handle form submission
-  const handleSubmit = (e) => {
+  // CRITICAL FIX: Proper form submission handling
+  const handleSubmit = useCallback(async (e) => {
     e.preventDefault();
+    e.stopPropagation();
+    
+    console.log('Tournament form submission started');
+    
+    if (isSubmitting) {
+      console.log('Already submitting, ignoring duplicate submission');
+      return;
+    }
     
     if (!validateForm()) {
+      console.log('Form validation failed');
       return;
     }
 
-    const submissionData = {
-      ...formData,
-      eventDate: new Date(formData.eventDate),
-      registrationDeadline: formData.registrationDeadline 
-        ? new Date(formData.registrationDeadline) 
-        : null,
-      website: formData.website ? formatWebsiteUrl(formData.website) : '',
-      divisions: divisions
-    };
+    setIsSubmitting(true);
+    
+    try {
+      const submissionData = {
+        ...formData,
+        eventDate: new Date(formData.eventDate),
+        registrationDeadline: formData.registrationDeadline 
+          ? new Date(formData.registrationDeadline) 
+          : null,
+        website: formData.website ? formatWebsiteUrl(formData.website) : '',
+        divisions: divisions
+      };
 
-    onSubmit(submissionData);
-  };
+      console.log('Submitting tournament data:', submissionData);
+      await onSubmit(submissionData);
+      console.log('Tournament submission completed successfully');
+      
+    } catch (error) {
+      console.error('Tournament submission error:', error);
+      setErrors({ submit: error.message });
+    } finally {
+      setIsSubmitting(false);
+    }
+  }, [formData, divisions, isSubmitting, validateForm, onSubmit]);
 
   // Handle delete action
-  const handleDelete = () => {
-    if (onDelete) {
-      onDelete(tournament.id);
+  const handleDelete = useCallback(async () => {
+    if (onDelete && tournament) {
+      try {
+        console.log('Deleting tournament:', tournament.id);
+        await onDelete(tournament.id);
+      } catch (error) {
+        console.error('Delete error:', error);
+        setErrors({ delete: error.message });
+      }
     }
     setShowDeleteConfirm(false);
-  };
+  }, [onDelete, tournament]);
 
   // Handle link testing
-  const handleTestWebsite = () => {
+  const handleTestWebsite = useCallback(() => {
     if (formData.website) {
       const formattedUrl = formatWebsiteUrl(formData.website);
       openLinkSafely(formattedUrl, 'Please enter a valid website URL first');
     }
-  };
+  }, [formData.website]);
 
-  const handleTestLocation = () => {
+  const handleTestLocation = useCallback(() => {
     if (formData.location) {
       const mapsUrl = generateGoogleMapsLink(formData.location);
       openLinkSafely(mapsUrl, 'Please enter a location first');
     }
-  };
+  }, [formData.location]);
 
   // Format display values
   const formatEventType = (eventType) => {
@@ -247,17 +375,17 @@ const TournamentForm = ({
   };
 
   // Calculate summary stats
-  const getTotalParticipants = () => {
+  const getTotalParticipants = useCallback(() => {
     return divisions.reduce((total, div) => total + (div.participants?.length || 0), 0);
-  };
+  }, [divisions]);
 
-  const getTotalExpected = () => {
+  const getTotalExpected = useCallback(() => {
     return divisions.reduce((total, div) => {
       const participants = div.participants?.length || 0;
       const fee = div.entryFee || 0;
       return total + (participants * fee);
     }, 0);
-  };
+  }, [divisions]);
 
   // Dropdown options
   const statusOptions = Object.entries(TOURNAMENT_STATUS).map(([key, value]) => ({
@@ -268,113 +396,177 @@ const TournamentForm = ({
   }));
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-8">
-      {/* Tournament Basic Info */}
-      <Card title="Tournament Information">
-        <div className="space-y-4">
-          <Input
-            label="Tournament Name"
-            type="text"
-            value={formData.name}
-            onChange={handleChange('name')}
-            error={errors.name}
-            required
-            placeholder="Enter tournament name"
-          />
+    <div className="space-y-8">
+      {/* Show submission errors */}
+      {errors.submit && (
+        <Alert type="error" title="Submission Error" message={errors.submit} />
+      )}
+      
+      {errors.delete && (
+        <Alert type="error" title="Delete Error" message={errors.delete} />
+      )}
+      
+      {/* NEW: Show division save errors */}
+      {errors.divisionSave && (
+        <Alert type="error" title="Division Save Error" message={errors.divisionSave} onClose={() => setErrors(prev => ({ ...prev, divisionSave: null }))} />
+      )}
+      
+      {errors.divisionDelete && (
+        <Alert type="error" title="Division Delete Error" message={errors.divisionDelete} onClose={() => setErrors(prev => ({ ...prev, divisionDelete: null }))} />
+      )}
 
-          <Input
-            label="Description"
-            type="text"
-            value={formData.description}
-            onChange={handleChange('description')}
-            placeholder="Brief description of the tournament"
-          />
-
-          <Select
-            label="Status"
-            value={formData.status}
-            onChange={handleChange('status')}
-            options={statusOptions}
-            helperText="Current tournament status"
-          />
-        </div>
-      </Card>
-
-      {/* Tournament Details */}
-      <Card title="Event Details">
-        <div className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {/* CRITICAL: Single form element with proper submit handling */}
+      <form onSubmit={handleSubmit} className="space-y-8">
+        {/* Tournament Basic Info */}
+        <Card title="Tournament Information">
+          <div className="space-y-4">
             <Input
-              label="Event Date"
-              type="date"
-              value={formData.eventDate}
-              onChange={handleChange('eventDate')}
-              error={errors.eventDate}
-              required
-              helperText="Tournament can be backdated if needed"
-            />
-
-            <Input
-              label="Registration Deadline"
-              type="date"
-              value={formData.registrationDeadline}
-              onChange={handleChange('registrationDeadline')}
-              helperText="Optional - when registration closes"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Input
-              label="Location"
+              label="Tournament Name"
               type="text"
-              value={formData.location}
-              onChange={handleChange('location')}
-              error={errors.location}
+              value={formData.name}
+              onChange={handleChange('name')}
+              error={errors.name}
               required
-              placeholder="Tournament venue or location"
-              helperText="Enter venue name or full address for best mapping results"
+              placeholder="Enter tournament name"
+              disabled={isSubmitting}
             />
-            {formData.location && (
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={handleTestLocation}
-                className="mt-2"
-              >
-                <MapPin className="h-4 w-4 mr-1" />
-                Preview Location on Map
-              </Button>
-            )}
-          </div>
 
-          <div className="space-y-2">
             <Input
-              label="Tournament Website"
-              type="url"
-              value={formData.website}
-              onChange={handleChange('website')}
-              error={errors.website}
-              placeholder="https://example.com/tournament-info"
-              helperText="Optional - Link to tournament registration, rules, or information page"
+              label="Description"
+              type="text"
+              value={formData.description}
+              onChange={handleChange('description')}
+              placeholder="Brief description of the tournament"
+              disabled={isSubmitting}
             />
-            {formData.website && (
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={handleTestWebsite}
-                className="mt-2"
-              >
-                <ExternalLink className="h-4 w-4 mr-1" />
-                Test Website Link
-              </Button>
-            )}
+
+            <Select
+              label="Status"
+              value={formData.status}
+              onChange={handleChange('status')}
+              options={statusOptions}
+              helperText="Current tournament status"
+              disabled={isSubmitting}
+            />
+          </div>
+        </Card>
+
+        {/* Tournament Details */}
+        <Card title="Event Details">
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Input
+                label="Event Date"
+                type="date"
+                value={formData.eventDate}
+                onChange={handleChange('eventDate')}
+                error={errors.eventDate}
+                required
+                helperText="Tournament can be backdated if needed"
+                disabled={isSubmitting}
+              />
+
+              <Input
+                label="Registration Deadline"
+                type="date"
+                value={formData.registrationDeadline}
+                onChange={handleChange('registrationDeadline')}
+                helperText="Optional - when registration closes"
+                disabled={isSubmitting}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Input
+                label="Location"
+                type="text"
+                value={formData.location}
+                onChange={handleChange('location')}
+                error={errors.location}
+                required
+                placeholder="Tournament venue or location"
+                helperText="Enter venue name or full address for best mapping results"
+                disabled={isSubmitting}
+              />
+              {formData.location && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleTestLocation}
+                  className="mt-2"
+                  disabled={isSubmitting}
+                >
+                  <MapPin className="h-4 w-4 mr-1" />
+                  Preview Location on Map
+                </Button>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Input
+                label="Tournament Website"
+                type="url"
+                value={formData.website}
+                onChange={handleChange('website')}
+                error={errors.website}
+                placeholder="https://example.com/tournament-info"
+                helperText="Optional - Link to tournament registration, rules, or information page"
+                disabled={isSubmitting}
+              />
+              {formData.website && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleTestWebsite}
+                  className="mt-2"
+                  disabled={isSubmitting}
+                >
+                  <ExternalLink className="h-4 w-4 mr-1" />
+                  Test Website Link
+                </Button>
+              )}
+            </div>
+          </div>
+        </Card>
+
+        {/* Form Actions - MOVED BEFORE DIVISIONS to prevent nested form issues */}
+        <div className="flex justify-between items-center pt-6 border-t">
+          {tournament && onDelete && (
+            <Button
+              type="button"
+              variant="danger"
+              onClick={() => setShowDeleteConfirm(true)}
+              disabled={loading || deleteLoading || isSubmitting}
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              Delete Tournament
+            </Button>
+          )}
+          
+          <div className={`flex space-x-3 ${tournament && onDelete ? '' : 'ml-auto'}`}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={onCancel}
+              disabled={loading || deleteLoading || isSubmitting}
+            >
+              Cancel
+            </Button>
+            
+            <Button
+              type="submit"
+              loading={loading || isSubmitting}
+              disabled={loading || deleteLoading || isSubmitting}
+            >
+              {tournament ? 'Update Tournament' : 'Create Tournament'}
+            </Button>
           </div>
         </div>
-      </Card>
+      </form>
 
-      {/* Divisions Management */}
+      {/* CRITICAL FIX: Divisions Management OUTSIDE the form to prevent nesting */}
       <Card 
         title="Tournament Divisions"
         subtitle="Manage different event categories within this tournament"
@@ -384,6 +576,7 @@ const TournamentForm = ({
             type="button"
             onClick={addDivision}
             variant="outline"
+            disabled={isSubmitting || divisionSaving}
           >
             <Plus className="h-4 w-4 mr-2" />
             Add Division
@@ -442,6 +635,7 @@ const TournamentForm = ({
                       variant="outline"
                       size="sm"
                       onClick={() => editDivision(index)}
+                      disabled={isSubmitting || divisionSaving}
                     >
                       <Edit3 className="h-4 w-4" />
                     </Button>
@@ -451,6 +645,8 @@ const TournamentForm = ({
                         variant="outline"
                         size="sm"
                         onClick={() => deleteDivision(index)}
+                        disabled={isSubmitting || divisionSaving}
+                        loading={divisionSaving}
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
@@ -468,44 +664,15 @@ const TournamentForm = ({
           {errors.divisions && (
             <Alert type="error" title="Division Error" message={errors.divisions} />
           )}
+          
+          {/* Show division-specific errors */}
+          {Object.entries(errors).filter(([key]) => key.startsWith('division_')).map(([key, error]) => (
+            <Alert key={key} type="error" title="Division Error" message={error} />
+          ))}
         </div>
       </Card>
 
-      {/* Form Actions */}
-      <div className="flex justify-between items-center pt-6 border-t">
-        {tournament && onDelete && (
-          <Button
-            type="button"
-            variant="danger"
-            onClick={() => setShowDeleteConfirm(true)}
-            disabled={loading || deleteLoading}
-          >
-            <Trash2 className="h-4 w-4 mr-2" />
-            Delete Tournament
-          </Button>
-        )}
-        
-        <div className={`flex space-x-3 ${tournament && onDelete ? '' : 'ml-auto'}`}>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={onCancel}
-            disabled={loading || deleteLoading}
-          >
-            Cancel
-          </Button>
-          
-          <Button
-            type="submit"
-            loading={loading}
-            disabled={loading || deleteLoading}
-          >
-            {tournament ? 'Update Tournament' : 'Create Tournament'}
-          </Button>
-        </div>
-      </div>
-
-      {/* Division Modal */}
+      {/* CRITICAL FIX: Division Modal - NO FORM ELEMENT, just content */}
       <DivisionFormModal
         isOpen={showDivisionModal}
         onClose={() => {
@@ -515,6 +682,8 @@ const TournamentForm = ({
         onSave={handleDivisionSave}
         division={editingDivisionIndex !== null ? divisions[editingDivisionIndex] : null}
         title={editingDivisionIndex !== null ? 'Edit Division' : 'Add Division'}
+        isSaving={divisionSaving}
+        isEditing={tournament && tournament.id} // NEW: Tell modal if we're editing existing tournament
       />
 
       {/* Delete Confirmation Dialog */}
@@ -529,14 +698,15 @@ const TournamentForm = ({
         type="danger"
         loading={deleteLoading}
       />
-    </form>
+    </div>
   );
 };
 
 /**
- * DivisionFormModal - Modal for adding/editing divisions
+ * CRITICAL FIX: DivisionFormModal - NO FORM ELEMENT to prevent nesting
+ * NEW: Immediate save functionality for existing tournaments
  */
-const DivisionFormModal = ({ isOpen, onClose, onSave, division, title }) => {
+const DivisionFormModal = ({ isOpen, onClose, onSave, division, title, isSaving = false, isEditing = false }) => {
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -547,12 +717,15 @@ const DivisionFormModal = ({ isOpen, onClose, onSave, division, title }) => {
     paymentMode: PAYMENT_MODES.INDIVIDUAL
   });
   const [errors, setErrors] = useState({});
+  // Removed local isSubmitting state - now handled by parent
 
-  // Initialize form when division or modal state changes
-  React.useEffect(() => {
+  // Initialize form data when modal opens/closes or division changes
+  useEffect(() => {
     if (isOpen) {
+      console.log('Division modal opened with division:', division);
+      
       if (division) {
-        setFormData({
+        const newFormData = {
           name: division.name || '',
           description: division.description || '',
           eventType: division.eventType || EVENT_TYPES.MIXED_DOUBLES,
@@ -560,9 +733,12 @@ const DivisionFormModal = ({ isOpen, onClose, onSave, division, title }) => {
           entryFee: division.entryFee || 0,
           maxParticipants: division.maxParticipants || '',
           paymentMode: division.paymentMode || PAYMENT_MODES.INDIVIDUAL
-        });
+        };
+        console.log('Setting division form data:', newFormData);
+        setFormData(newFormData);
       } else {
-        setFormData({
+        // Reset form for new division
+        const defaultFormData = {
           name: '',
           description: '',
           eventType: EVENT_TYPES.MIXED_DOUBLES,
@@ -570,28 +746,36 @@ const DivisionFormModal = ({ isOpen, onClose, onSave, division, title }) => {
           entryFee: 0,
           maxParticipants: '',
           paymentMode: PAYMENT_MODES.INDIVIDUAL
-        });
+        };
+        console.log('Resetting division form data to defaults:', defaultFormData);
+        setFormData(defaultFormData);
       }
+      
+      // Clear errors when modal opens
       setErrors({});
     }
   }, [isOpen, division]);
 
-  const handleChange = (field) => (e) => {
+  const handleChange = useCallback((field) => (e) => {
     const value = e.target.value;
+    console.log(`Division field ${field} changed to:`, value);
+    
     setFormData(prev => ({
       ...prev,
       [field]: value
     }));
     
+    // Clear error for this field
     if (errors[field]) {
       setErrors(prev => ({
         ...prev,
         [field]: null
       }));
     }
-  };
+  }, [errors]);
 
-  const validateForm = () => {
+  const validateForm = useCallback(() => {
+    console.log('Validating division form:', formData);
     const newErrors = {};
 
     if (!formData.name.trim()) {
@@ -614,25 +798,50 @@ const DivisionFormModal = ({ isOpen, onClose, onSave, division, title }) => {
       newErrors.maxParticipants = 'Max participants must be at least 1';
     }
 
+    console.log('Division validation errors:', newErrors);
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
-  };
+  }, [formData]);
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
+  // CRITICAL FIX: Button click handler with parent-managed saving state
+  const handleSave = useCallback(async () => {
+    console.log('Division save button clicked');
+    
+    if (isSaving) {
+      console.log('Already saving division, ignoring duplicate');
+      return;
+    }
     
     if (!validateForm()) {
+      console.log('Division form validation failed');
       return;
     }
 
-    const submissionData = {
-      ...formData,
-      entryFee: parseFloat(formData.entryFee),
-      maxParticipants: formData.maxParticipants ? parseInt(formData.maxParticipants) : null
-    };
+    try {
+      const submissionData = {
+        ...formData,
+        entryFee: parseFloat(formData.entryFee),
+        maxParticipants: formData.maxParticipants ? parseInt(formData.maxParticipants) : null
+      };
 
-    onSave(submissionData);
-  };
+      console.log('Calling parent save with division data:', submissionData);
+      await onSave(submissionData);
+      console.log('Division save completed');
+      
+    } catch (error) {
+      console.error('Division save error:', error);
+      setErrors({ submit: error.message });
+    }
+  }, [formData, isSaving, validateForm, onSave]);
+
+  // Close handler
+  const handleClose = useCallback(() => {
+    if (!isSaving) {
+      console.log('Closing division modal');
+      setErrors({});
+      onClose();
+    }
+  }, [isSaving, onClose]);
 
   // Dropdown options
   const skillLevelOptions = Object.entries(SKILL_LEVELS).map(([key, value]) => ({
@@ -650,11 +859,17 @@ const DivisionFormModal = ({ isOpen, onClose, onSave, division, title }) => {
   return (
     <Modal
       isOpen={isOpen}
-      onClose={onClose}
+      onClose={handleClose}
       title={title}
       size="lg"
     >
-      <form onSubmit={handleSubmit} className="space-y-6">
+      {/* CRITICAL: NO FORM ELEMENT - just div container */}
+      <div className="space-y-6">
+        {/* Show submission errors */}
+        {errors.submit && (
+          <Alert type="error" title="Save Error" message={errors.submit} />
+        )}
+        
         <div className="space-y-4">
           <Input
             label="Division Name"
@@ -664,6 +879,7 @@ const DivisionFormModal = ({ isOpen, onClose, onSave, division, title }) => {
             error={errors.name}
             required
             placeholder="e.g., Men's Singles, Mixed Doubles"
+            disabled={isSaving}
           />
 
           <Input
@@ -672,6 +888,7 @@ const DivisionFormModal = ({ isOpen, onClose, onSave, division, title }) => {
             value={formData.description}
             onChange={handleChange('description')}
             placeholder="Optional description of this division"
+            disabled={isSaving}
           />
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -682,6 +899,7 @@ const DivisionFormModal = ({ isOpen, onClose, onSave, division, title }) => {
               options={eventTypeOptions}
               error={errors.eventType}
               required
+              disabled={isSaving}
             />
 
             <Select
@@ -691,6 +909,7 @@ const DivisionFormModal = ({ isOpen, onClose, onSave, division, title }) => {
               options={skillLevelOptions}
               error={errors.skillLevel}
               required
+              disabled={isSaving}
             />
           </div>
 
@@ -704,6 +923,7 @@ const DivisionFormModal = ({ isOpen, onClose, onSave, division, title }) => {
               min="0"
               step="0.01"
               placeholder="0.00"
+              disabled={isSaving}
             />
 
             <Input
@@ -714,6 +934,7 @@ const DivisionFormModal = ({ isOpen, onClose, onSave, division, title }) => {
               error={errors.maxParticipants}
               min="1"
               placeholder="Optional"
+              disabled={isSaving}
             />
           </div>
 
@@ -726,6 +947,7 @@ const DivisionFormModal = ({ isOpen, onClose, onSave, division, title }) => {
               { value: PAYMENT_MODES.GROUP, label: 'Group Payment (One Payer)' }
             ]}
             helperText="How participants will handle payments for this division"
+            disabled={isSaving}
           />
         </div>
 
@@ -733,16 +955,23 @@ const DivisionFormModal = ({ isOpen, onClose, onSave, division, title }) => {
           <Button
             type="button"
             variant="outline"
-            onClick={onClose}
+            onClick={handleClose}
+            disabled={isSaving}
           >
             Cancel
           </Button>
           
-          <Button type="submit">
-            {division ? 'Update Division' : 'Add Division'}
+          {/* CRITICAL: Button click handler with immediate save messaging */}
+          <Button 
+            type="button"
+            onClick={handleSave}
+            loading={isSaving}
+            disabled={isSaving}
+          >
+            {division ? (isEditing ? 'Update & Save Division' : 'Update Division') : (isEditing ? 'Add & Save Division' : 'Add Division')}
           </Button>
         </div>
-      </form>
+      </div>
     </Modal>
   );
 };
