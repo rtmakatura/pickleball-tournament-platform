@@ -1,9 +1,9 @@
-// src/components/ui/Modal.jsx
+// src/components/ui/Modal.jsx - Updated to support header actions
 import React from 'react';
 import { X } from 'lucide-react';
 
 /**
- * Modal Component - A reusable popup dialog
+ * Modal Component - A reusable popup dialog with support for header actions
  * 
  * Props:
  * - isOpen: boolean - Controls if modal is visible
@@ -11,13 +11,17 @@ import { X } from 'lucide-react';
  * - title: string - Modal header title
  * - children: React nodes - Content inside the modal
  * - size: 'sm' | 'md' | 'lg' | 'xl' - Modal width
+ * - headerAction: React node - Optional action button/element for header (like Update button)
+ * - footerActions: React node - Optional footer actions
  */
 const Modal = ({ 
   isOpen, 
   onClose, 
   title, 
   children, 
-  size = 'md' 
+  size = 'md',
+  headerAction = null,
+  footerActions = null
 }) => {
   // Size classes for different modal widths
   const sizeClasses = {
@@ -77,23 +81,40 @@ const Modal = ({
           max-h-[90vh] overflow-hidden flex flex-col
         `}
       >
-        {/* Modal Header */}
-        <div className="flex items-center justify-between p-4 border-b">
-          <h2 className="text-lg font-semibold text-gray-900">
+        {/* Modal Header with support for header actions */}
+        <div className="flex items-center justify-between p-4 border-b bg-white">
+          <h2 className="text-lg font-semibold text-gray-900 flex-1">
             {title}
           </h2>
-          <button
-            onClick={onClose}
-            className="p-1 hover:bg-gray-100 rounded-full transition-colors"
-          >
-            <X className="h-5 w-5 text-gray-400" />
-          </button>
+          
+          {/* Header action area (for Update and Delete buttons) */}
+          <div className="flex items-center space-x-3">
+            {headerAction && (
+              <div className="flex items-center space-x-2">
+                {headerAction}
+              </div>
+            )}
+            
+            <button
+              onClick={onClose}
+              className="p-1 hover:bg-gray-100 rounded-full transition-colors flex-shrink-0"
+            >
+              <X className="h-5 w-5 text-gray-400" />
+            </button>
+          </div>
         </div>
 
         {/* Modal Body - scrollable if content is too long */}
-        <div className="flex-1 overflow-y-auto p-4">
+        <div className="flex-1 overflow-y-auto">
           {children}
         </div>
+
+        {/* Optional Footer Actions */}
+        {footerActions && (
+          <div className="border-t bg-gray-50 px-4 py-3">
+            {footerActions}
+          </div>
+        )}
       </div>
     </div>
   );

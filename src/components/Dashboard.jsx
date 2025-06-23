@@ -1,4 +1,4 @@
-// src/components/Dashboard.jsx (RESPONSIVE DESIGN - Mobile + Desktop Optimized)
+// src/components/Dashboard.jsx (FIXED - Modal Header Actions)
 import React, { useState, useMemo, useCallback } from 'react';
 import { 
   Plus, 
@@ -14,7 +14,8 @@ import {
   Layers,
   Phone,
   Clock,
-  CheckCircle
+  CheckCircle,
+  Trash2
 } from 'lucide-react';
 import { 
   useMembers, 
@@ -40,7 +41,8 @@ import {
   Modal, 
   Card, 
   TableActions, 
-  Alert 
+  Alert,
+  ConfirmDialog
 } from './ui';
 import TournamentForm from './tournament/TournamentForm';
 import DivisionMemberSelector from './tournament/DivisionMemberSelector';
@@ -812,6 +814,8 @@ const Dashboard = () => {
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showTournamentDetailModal, setShowTournamentDetailModal] = useState(false);
   const [showLeagueDetailModal, setShowLeagueDetailModal] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showLeagueDeleteConfirm, setShowLeagueDeleteConfirm] = useState(false);
   
   // Enhanced tournament state management
   const [editingTournament, setEditingTournament] = useState(null);
@@ -1741,19 +1745,41 @@ const Dashboard = () => {
           />
         </Card>
 
-        {/* Tournament Modal */}
+        {/* FIXED: Tournament Modal with Header Actions for Update and Delete Buttons */}
         <Modal
           isOpen={showTournamentModal}
           onClose={handleTournamentModalClose}
           title={editingTournament ? 'Edit Tournament' : 'Create New Tournament'}
           size="xl"
+          headerAction={editingTournament ? (
+            <>
+              <Button
+                type="button"
+                variant="danger"
+                onClick={() => setShowDeleteConfirm(true)}
+                disabled={formLoading || deleteLoading}
+                className="mobile-touch-button"
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                Delete
+              </Button>
+              <Button
+                type="submit"
+                form="tournament-form"
+                loading={formLoading}
+                disabled={formLoading || deleteLoading}
+                className="mobile-touch-button"
+              >
+                Update Tournament
+              </Button>
+            </>
+          ) : null}
         >
           <div className="space-y-6">
             <TournamentForm
               tournament={editingTournament}
               onSubmit={editingTournament ? handleUpdateTournament : handleCreateTournament}
               onCancel={handleTournamentModalClose}
-              onDelete={editingTournament ? handleDeleteTournament : null}
               onUpdateTournament={updateTournament}
               loading={formLoading}
               deleteLoading={deleteLoading}
@@ -1788,6 +1814,42 @@ const Dashboard = () => {
           </div>
         </Modal>
 
+        {/* Tournament Delete Confirmation Dialog */}
+        <ConfirmDialog
+          isOpen={showDeleteConfirm}
+          onClose={() => setShowDeleteConfirm(false)}
+          onConfirm={() => {
+            if (editingTournament) {
+              handleDeleteTournament(editingTournament.id);
+            }
+            setShowDeleteConfirm(false);
+          }}
+          title="Delete Tournament"
+          message={`Are you sure you want to delete "${editingTournament?.name}"? This action cannot be undone and will remove all associated data including all divisions, participant registrations, and payment information.`}
+          confirmText="Delete Tournament"
+          cancelText="Keep Tournament"
+          type="danger"
+          loading={deleteLoading}
+        />
+
+        {/* League Delete Confirmation Dialog */}
+        <ConfirmDialog
+          isOpen={showLeagueDeleteConfirm}
+          onClose={() => setShowLeagueDeleteConfirm(false)}
+          onConfirm={() => {
+            if (editingLeague) {
+              handleDeleteLeague(editingLeague.id);
+            }
+            setShowLeagueDeleteConfirm(false);
+          }}
+          title="Delete League"
+          message={`Are you sure you want to delete "${editingLeague?.name}"? This action cannot be undone and will remove all associated data including participant registrations and standings.`}
+          confirmText="Delete League"
+          cancelText="Keep League"
+          type="danger"
+          loading={deleteLoading}
+        />
+
         {/* Tournament Detail Modal */}
         <Modal
           isOpen={showTournamentDetailModal}
@@ -1807,19 +1869,41 @@ const Dashboard = () => {
           )}
         </Modal>
 
-        {/* League Modal */}
+        {/* FIXED: League Modal with Header Actions for Update and Delete Buttons */}
         <Modal
           isOpen={showLeagueModal}
           onClose={handleLeagueModalClose}
           title={editingLeague ? 'Edit League' : 'Create New League'}
           size="lg"
+          headerAction={editingLeague ? (
+            <>
+              <Button
+                type="button"
+                variant="danger"
+                onClick={() => setShowLeagueDeleteConfirm(true)}
+                disabled={formLoading || deleteLoading}
+                className="mobile-league-touch-button"
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                Delete
+              </Button>
+              <Button
+                type="submit"
+                form="league-form"
+                loading={formLoading}
+                disabled={formLoading || deleteLoading}
+                className="mobile-league-touch-button"
+              >
+                Update League
+              </Button>
+            </>
+          ) : null}
         >
           <div className="space-y-6">
             <LeagueForm
               league={editingLeague}
               onSubmit={editingLeague ? handleUpdateLeague : handleCreateLeague}
               onCancel={handleLeagueModalClose}
-              onDelete={editingLeague ? handleDeleteLeague : null}
               loading={formLoading}
               deleteLoading={deleteLoading}
             />
