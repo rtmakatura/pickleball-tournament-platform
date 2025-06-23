@@ -1,4 +1,4 @@
-// src/components/league/LeagueForm.jsx (MOBILE-FIRST OPTIMIZED)
+// src/components/league/LeagueForm.jsx (UPDATED - Mobile Collapsed + Top Banner)
 import React, { useState, useEffect, useCallback } from 'react';
 import { 
   Trash2, 
@@ -168,32 +168,48 @@ const StyleSheet = () => (
 );
 
 /**
- * Mobile-Optimized League Form Component
- * Key Mobile Improvements:
- * 1. Progressive disclosure with expandable sections
- * 2. Single-column layouts on mobile with responsive grids
- * 3. Larger touch targets (52px minimum)
- * 4. Enhanced visual feedback and animations
- * 5. Better information hierarchy and spacing
- * 6. Touch-friendly interactions throughout
- * 7. Smart form validation with mobile-friendly error display
+ * Mobile-Optimized League Form Component with Updated Layout
+ * Key Updates:
+ * 1. Sections collapsed by default on mobile
+ * 2. Update button moved to top banner
+ * 3. Delete button moved to bottom
+ * 4. Better mobile responsiveness
  */
 const LeagueForm = ({ 
   league = null, 
   onSubmit, 
   onCancel, 
   onDelete,
+  onShowDeleteConfirm, // New prop for handling delete confirmation from parent
   loading = false,
   deleteLoading = false
 }) => {
   // Mobile state management
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
-  const [expandedSections, setExpandedSections] = useState({
-    basic: true,
-    schedule: true,
-    details: true,
-    settings: true
-  });
+  
+  // UPDATED: Smart section expansion based on mobile/desktop and new/edit context
+  const getInitialSectionState = useCallback(() => {
+    // Desktop: Always expanded
+    if (!isMobile) {
+      return {
+        basic: true,
+        schedule: true,
+        details: true,
+        settings: true
+      };
+    }
+    
+    // Mobile: Expanded for new entries, collapsed for editing
+    const isNewEntry = !league;
+    return {
+      basic: isNewEntry,
+      schedule: isNewEntry,
+      details: isNewEntry,
+      settings: isNewEntry
+    };
+  }, [isMobile, league]);
+
+  const [expandedSections, setExpandedSections] = useState(getInitialSectionState());
 
   // Helper function to safely convert date to string
   const formatDateForInput = (date) => {
@@ -247,15 +263,26 @@ const LeagueForm = ({
   const [errors, setErrors] = useState({});
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
-  // Mobile detection
+  // Mobile detection and section state update
   useEffect(() => {
     const checkMobile = () => {
-      setIsMobile(window.innerWidth < 768);
+      const mobile = window.innerWidth < 768;
+      setIsMobile(mobile);
+      
+      // Update section states when switching between mobile/desktop
+      if (mobile !== isMobile) {
+        setExpandedSections(getInitialSectionState());
+      }
     };
     
     window.addEventListener('resize', checkMobile);
     return () => window.removeEventListener('resize', checkMobile);
-  }, []);
+  }, [isMobile, getInitialSectionState]);
+
+  // Update section states when league prop changes (new vs edit)
+  useEffect(() => {
+    setExpandedSections(getInitialSectionState());
+  }, [getInitialSectionState]);
 
   // Section toggle for mobile progressive disclosure
   const toggleSection = useCallback((section) => {
@@ -445,7 +472,23 @@ const LeagueForm = ({
     <div className="mobile-league-form">
       <StyleSheet />
       
-      <form onSubmit={handleSubmit} className="space-y-6">
+      {/* Header with Title and Update Button */}
+      {league && (
+        <div className="flex items-center justify-between mb-6 p-4 bg-white border border-gray-200 rounded-lg">
+          <h2 className="text-xl font-semibold text-gray-900">Edit League</h2>
+          <Button
+            type="submit"
+            form="league-form"
+            loading={loading}
+            disabled={loading || deleteLoading}
+            className="mobile-league-touch-button"
+          >
+            Update League
+          </Button>
+        </div>
+      )}
+      
+      <form id="league-form" onSubmit={handleSubmit} className="space-y-10">
         {/* League Basic Information */}
         <div className="mobile-league-section">
           <div 
@@ -572,7 +615,7 @@ const LeagueForm = ({
                 </div>
               </div>
 
-              {/* League Duration & Status Display - REDESIGNED */}
+              {/* League Duration & Status Display */}
               {formData.startDate && formData.endDate && !errors.endDate && (
                 <div className="league-info-card">
                   <div className="flex items-center justify-between mb-4">
@@ -859,24 +902,11 @@ const LeagueForm = ({
           </div>
         </div>
 
-        {/* Mobile-optimized Form Actions */}
-        <div className="mobile-league-section">
-          <div className="mobile-league-content">
-            <div className={`${isMobile ? 'space-y-4' : 'flex justify-between items-center'}`}>
-              {league && onDelete && (
-                <Button
-                  type="button"
-                  variant="danger"
-                  onClick={() => setShowDeleteConfirm(true)}
-                  disabled={loading || deleteLoading}
-                  className="mobile-league-touch-button w-full sm:w-auto"
-                >
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  Delete League
-                </Button>
-              )}
-              
-              <div className={`${isMobile ? 'grid grid-cols-2 gap-3' : 'flex space-x-3'} ${league && onDelete ? '' : 'w-full'}`}>
+        {/* Cancel Button for New Leagues */}
+        {!league && (
+          <div className="mobile-league-section">
+            <div className="mobile-league-content">
+              <div className="grid grid-cols-2 gap-3">
                 <Button
                   type="button"
                   variant="outline"
@@ -893,12 +923,12 @@ const LeagueForm = ({
                   disabled={loading || deleteLoading}
                   className="mobile-league-touch-button"
                 >
-                  {league ? 'Update League' : 'Create League'}
+                  Create League
                 </Button>
               </div>
             </div>
           </div>
-        </div>
+        )}
       </form>
 
       {/* Delete Confirmation Dialog */}
@@ -913,6 +943,40 @@ const LeagueForm = ({
         type="danger"
         loading={deleteLoading}
       />
+    </div>
+  );
+};
+
+// Separate Danger Zone component to be rendered by parent at the very bottom
+export const LeagueDangerZone = ({ 
+  league, 
+  onDelete, 
+  loading = false, 
+  deleteLoading = false,
+  onShowDeleteConfirm 
+}) => {
+  if (!league || !onDelete) return null;
+
+  return (
+    <div className="bg-red-50 border border-red-200 rounded-lg p-6 mt-8">
+      <div className="text-center">
+        <h4 className="text-lg font-semibold text-red-900 mb-3">Danger Zone</h4>
+        <p className="text-sm text-red-700 mb-6">
+          Deleting this league will permanently remove all data including participant registrations, 
+          standings, and payment records. This action cannot be undone.
+        </p>
+        
+        <Button
+          type="button"
+          variant="danger"
+          onClick={onShowDeleteConfirm}
+          disabled={loading || deleteLoading}
+          className="mobile-league-touch-button"
+        >
+          <Trash2 className="h-4 w-4 mr-2" />
+          Delete League
+        </Button>
+      </div>
     </div>
   );
 };

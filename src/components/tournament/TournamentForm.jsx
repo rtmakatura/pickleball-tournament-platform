@@ -1,4 +1,4 @@
-// src/components/tournament/TournamentForm.jsx (FIXED - Proper State Synchronization)
+// src/components/tournament/TournamentForm.jsx (UPDATED - Mobile Collapsed + Top Banner)
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { 
   Trash2, 
@@ -41,19 +41,25 @@ const mobileFormStyles = `
     background: white;
     border-radius: 16px;
     border: 1px solid #e5e7eb;
-    margin-bottom: 24px; /* Increased spacing */
+    margin-bottom: 24px;
     overflow: hidden;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
   }
   
   .mobile-form-header {
-    padding: 24px; /* Increased padding */
+    padding: 24px;
     border-bottom: 1px solid #e5e7eb;
     background: #f9fafb;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+  }
+  
+  .mobile-form-header:active {
+    background: #f3f4f6;
   }
   
   .mobile-form-content {
-    padding: 24px; /* Increased padding */
+    padding: 24px;
   }
   
   .mobile-touch-button {
@@ -61,6 +67,7 @@ const mobileFormStyles = `
     min-width: 52px;
     transition: all 0.2s ease;
     -webkit-tap-highlight-color: transparent;
+    border-radius: 12px;
   }
   
   .mobile-touch-button:active {
@@ -68,21 +75,21 @@ const mobileFormStyles = `
   }
   
   .mobile-input-group {
-    margin-bottom: 28px; /* Increased spacing */
+    margin-bottom: 28px;
   }
   
   .mobile-division-card {
     background: white;
     border: 2px solid #e5e7eb;
-    border-radius: 16px; /* Increased border radius */
-    padding: 20px; /* Increased padding */
-    margin-bottom: 20px; /* Increased spacing */
+    border-radius: 16px;
+    padding: 20px;
+    margin-bottom: 20px;
     transition: all 0.2s ease;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
   }
   
   .mobile-division-card:active {
-    transform: scale(0.99); /* Less aggressive transform */
+    transform: scale(0.99);
     border-color: #3b82f6;
     box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
   }
@@ -165,14 +172,14 @@ const mobileFormStyles = `
     -webkit-overflow-scrolling: touch;
   }
   
-  /* Division summary cards - FIXED */
+  /* Division summary cards */
   .division-summary-card {
     background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
     color: white;
     border-radius: 16px;
     padding: 20px;
     margin-bottom: 24px;
-    overflow: hidden; /* Prevent bleeding */
+    overflow: hidden;
     box-sizing: border-box;
   }
   
@@ -230,6 +237,15 @@ const mobileFormStyles = `
     white-space: nowrap;
     text-align: center;
   }
+
+  /* Bottom section styles */
+  .tournament-form-bottom {
+    background: #f9fafb;
+    border: 1px solid #e5e7eb;
+    border-radius: 16px;
+    padding: 24px;
+    margin-top: 32px;
+  }
 `;
 
 const StyleSheet = () => (
@@ -237,13 +253,12 @@ const StyleSheet = () => (
 );
 
 /**
- * FIXED: Mobile-Optimized Tournament Form Component with Proper State Synchronization
- * Key Fixes:
- * 1. Improved date handling with consistent formatting
- * 2. Better tournament prop synchronization
- * 3. Proper form state reset and updates
- * 4. Fixed division management persistence
- * 5. Added debugging for better troubleshooting
+ * FIXED: Mobile-Optimized Tournament Form Component with Updated Layout
+ * Key Updates:
+ * 1. Sections collapsed by default on mobile
+ * 2. Update button moved to top banner
+ * 3. Delete button moved to bottom
+ * 4. Better mobile responsiveness
  */
 const TournamentForm = ({ 
   tournament = null, 
@@ -334,11 +349,28 @@ const TournamentForm = ({
 
   // Mobile state management
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
-  const [expandedSections, setExpandedSections] = useState({
-    basic: true,
-    details: true,
-    divisions: true
-  });
+  
+  // UPDATED: Smart section expansion based on mobile/desktop and new/edit context
+  const getInitialSectionState = useCallback(() => {
+    // Desktop: Always expanded
+    if (!isMobile) {
+      return {
+        basic: true,
+        details: true,
+        divisions: true
+      };
+    }
+    
+    // Mobile: Expanded for new entries, collapsed for editing
+    const isNewEntry = !tournament;
+    return {
+      basic: isNewEntry,
+      details: isNewEntry,
+      divisions: isNewEntry
+    };
+  }, [isMobile, tournament]);
+
+  const [expandedSections, setExpandedSections] = useState(getInitialSectionState());
 
   // FIXED: Form state with better initial values
   const [formData, setFormData] = useState({
@@ -359,15 +391,26 @@ const TournamentForm = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [divisionSaving, setDivisionSaving] = useState(false);
 
-  // Mobile detection
+  // Mobile detection and section state update
   useEffect(() => {
     const checkMobile = () => {
-      setIsMobile(window.innerWidth < 768);
+      const mobile = window.innerWidth < 768;
+      setIsMobile(mobile);
+      
+      // Update section states when switching between mobile/desktop
+      if (mobile !== isMobile) {
+        setExpandedSections(getInitialSectionState());
+      }
     };
     
     window.addEventListener('resize', checkMobile);
     return () => window.removeEventListener('resize', checkMobile);
-  }, []);
+  }, [isMobile, getInitialSectionState]);
+
+  // Update section states when tournament prop changes (new vs edit)
+  useEffect(() => {
+    setExpandedSections(getInitialSectionState());
+  }, [getInitialSectionState]);
 
   // FIXED: Improved state synchronization with debugging
   useEffect(() => {
@@ -651,8 +694,9 @@ const TournamentForm = ({
     <div className="mobile-form-container">
       <StyleSheet />
       
+      {/* Note: Update button should be integrated into modal header */}
+      {/* The Modal component should include the Update button in its header when tournament exists */}
 
-      
       {/* Mobile-optimized alert section */}
       <div className="space-y-4">
         {errors.submit && (
@@ -684,11 +728,11 @@ const TournamentForm = ({
         )}
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-8">
+      <form id="tournament-form" onSubmit={handleSubmit} className="space-y-10">
         {/* Basic Information Section */}
         <div className="mobile-form-section">
           <div 
-            className="mobile-form-header cursor-pointer"
+            className="mobile-form-header"
             onClick={() => toggleSection('basic')}
           >
             <div className="flex items-center justify-between">
@@ -747,7 +791,7 @@ const TournamentForm = ({
         {/* Event Details Section */}
         <div className="mobile-form-section">
           <div 
-            className="mobile-form-header cursor-pointer"
+            className="mobile-form-header"
             onClick={() => toggleSection('details')}
           >
             <div className="flex items-center justify-between">
@@ -846,23 +890,10 @@ const TournamentForm = ({
           </div>
         </div>
 
-        {/* Mobile-optimized action buttons */}
-        <div className="mobile-form-section">
-          <div className="mobile-form-content">
-            <div className="space-y-4">
-              {tournament && onDelete && (
-                <Button
-                  type="button"
-                  variant="danger"
-                  onClick={() => setShowDeleteConfirm(true)}
-                  disabled={loading || deleteLoading || isSubmitting}
-                  className="mobile-touch-button w-full"
-                >
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  Delete Tournament
-                </Button>
-              )}
-              
+        {/* Cancel Button for New Tournaments */}
+        {!tournament && (
+          <div className="mobile-form-section">
+            <div className="mobile-form-content">
               <div className="grid grid-cols-2 gap-4">
                 <Button
                   type="button"
@@ -880,18 +911,18 @@ const TournamentForm = ({
                   disabled={loading || deleteLoading || isSubmitting}
                   className="mobile-touch-button"
                 >
-                  {tournament ? 'Update Tournament' : 'Create Tournament'}
+                  Create Tournament
                 </Button>
               </div>
             </div>
           </div>
-        </div>
+        )}
       </form>
 
       {/* Divisions Management Section */}
       <div className="mobile-form-section">
         <div 
-          className="mobile-form-header cursor-pointer"
+          className="mobile-form-header"
           onClick={() => toggleSection('divisions')}
         >
           <div className="flex items-center justify-between">
@@ -908,7 +939,7 @@ const TournamentForm = ({
         
         <div className={`mobile-expandable ${expandedSections.divisions ? 'expanded' : 'collapsed'}`}>
           <div className="mobile-form-content">
-            {/* Division Summary Card - IMPROVED LAYOUT */}
+            {/* Division Summary Card */}
             <div className="division-summary-card">
               <h4 className="text-lg font-semibold mb-4">Tournament Overview</h4>
               <div className="division-quick-stats">
@@ -940,7 +971,7 @@ const TournamentForm = ({
                               {division.eventType.split('_').map(word => 
                                 word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
                               ).join(' ')} • {division.skillLevel.charAt(0).toUpperCase() + division.skillLevel.slice(1)}
-                              {division.entryFee > 0 && ` • ${division.entryFee}`}
+                              {division.entryFee > 0 && ` • $${division.entryFee}`}
                             </p>
                           </div>
                           <div className="text-right flex-shrink-0 ml-3">
@@ -996,6 +1027,30 @@ const TournamentForm = ({
         </div>
       </div>
 
+      {/* Bottom Section with Delete Button (Only for existing tournaments) */}
+      {tournament && onDelete && (
+        <div className="tournament-form-bottom">
+          <div className="text-center">
+            <h4 className="text-lg font-semibold text-gray-900 mb-3">Danger Zone</h4>
+            <p className="text-sm text-gray-600 mb-6">
+              Deleting this tournament will permanently remove all data including all divisions, 
+              participant registrations, and payment records. This action cannot be undone.
+            </p>
+            
+            <Button
+              type="button"
+              variant="danger"
+              onClick={() => setShowDeleteConfirm(true)}
+              disabled={loading || deleteLoading || isSubmitting}
+              className="mobile-touch-button"
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              Delete Tournament
+            </Button>
+          </div>
+        </div>
+      )}
+
       {/* Mobile-Optimized Division Modal */}
       <MobileDivisionFormModal
         isOpen={showDivisionModal}
@@ -1027,7 +1082,7 @@ const TournamentForm = ({
 };
 
 /**
- * Mobile-Optimized Division Card Component - IMPROVED LAYOUT
+ * Mobile-Optimized Division Card Component
  */
 const MobileDivisionCard = ({ division, index, onEdit, onDelete, canDelete, disabled, loading }) => {
   const formatEventType = (eventType) => {
