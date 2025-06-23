@@ -89,19 +89,6 @@ const mobileFirstStyles = `
     transform: scale(0.98);
   }
   
-  .quick-action-fab {
-    position: fixed;
-    bottom: 24px;
-    right: 24px;
-    z-index: 40;
-    transition: all 0.3s ease;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
-  }
-  
-  .quick-action-fab:active {
-    transform: scale(0.9);
-  }
-  
   /* Pull-to-refresh styling */
   .pull-to-refresh {
     transition: transform 0.3s ease;
@@ -1609,17 +1596,6 @@ const Dashboard = () => {
             )}
           </div>
         </DashboardSection>
-
-        {/* Floating Action Button (Mobile Only) */}
-        {isMobile && !showQuickActions && (
-          <button
-            onClick={() => setShowQuickActions(true)}
-            className="quick-action-fab bg-blue-600 hover:bg-blue-700 text-white rounded-full p-4"
-            title="Quick Actions"
-          >
-            <Plus className="h-6 w-6" />
-          </button>
-        )}
 
         {/* All existing modals with enhanced mobile optimization */}
         {/* Tournament Modal */}

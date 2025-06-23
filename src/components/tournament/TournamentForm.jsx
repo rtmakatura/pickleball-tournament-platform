@@ -1,5 +1,5 @@
-// src/components/tournament/TournamentForm.jsx (MOBILE-FIRST OPTIMIZED)
-import React, { useState, useEffect, useCallback } from 'react';
+// src/components/tournament/TournamentForm.jsx (FIXED - Proper State Synchronization)
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { 
   Trash2, 
   ExternalLink, 
@@ -237,14 +237,13 @@ const StyleSheet = () => (
 );
 
 /**
- * Mobile-Optimized Tournament Form Component
- * Key Mobile Improvements:
- * 1. Single-column layouts on mobile with responsive grids
- * 2. Larger touch targets (52px minimum)
- * 3. Progressive disclosure for complex sections
- * 4. Touch-friendly interactions with visual feedback
- * 5. Better visual hierarchy and spacing
- * 6. Simplified division management for mobile
+ * FIXED: Mobile-Optimized Tournament Form Component with Proper State Synchronization
+ * Key Fixes:
+ * 1. Improved date handling with consistent formatting
+ * 2. Better tournament prop synchronization
+ * 3. Proper form state reset and updates
+ * 4. Fixed division management persistence
+ * 5. Added debugging for better troubleshooting
  */
 const TournamentForm = ({ 
   tournament = null, 
@@ -255,20 +254,30 @@ const TournamentForm = ({
   loading = false,
   deleteLoading = false
 }) => {
-  // Helper function to safely convert date to string
-  const formatDateForInput = (date) => {
+  const isInitialMount = useRef(true);
+  const tournamentIdRef = useRef(null);
+
+  // FIXED: Improved date formatting with better error handling
+  const formatDateForInput = useCallback((date) => {
     if (!date) return '';
     
     try {
       let dateObj;
       
-      if (date.seconds) {
+      // Handle Firestore Timestamp
+      if (date && typeof date === 'object' && date.seconds) {
         dateObj = new Date(date.seconds * 1000);
-      } else if (date instanceof Date) {
+      } 
+      // Handle regular Date object
+      else if (date instanceof Date) {
         dateObj = date;
-      } else if (typeof date === 'string') {
+      } 
+      // Handle string dates
+      else if (typeof date === 'string') {
         dateObj = new Date(date);
-      } else if (typeof date === 'number') {
+      } 
+      // Handle number timestamps
+      else if (typeof date === 'number') {
         dateObj = new Date(date);
       } else {
         console.warn('Unknown date format:', date);
@@ -280,19 +289,25 @@ const TournamentForm = ({
         return '';
       }
       
+      // Format as YYYY-MM-DD for HTML date input
       return dateObj.toISOString().split('T')[0];
     } catch (error) {
       console.error('Error formatting date:', error, date);
       return '';
     }
-  };
+  }, []);
 
-  // Initialize divisions from tournament data
+  // FIXED: Better division initialization with proper deep copy
   const initializeDivisions = useCallback((tournamentData = null) => {
     const sourceData = tournamentData || tournament;
     
     if (sourceData?.divisions && Array.isArray(sourceData.divisions)) {
-      return [...sourceData.divisions];
+      // Deep copy to prevent mutation issues
+      return sourceData.divisions.map(div => ({
+        ...div,
+        participants: [...(div.participants || [])],
+        paymentData: { ...(div.paymentData || {}) }
+      }));
     }
     
     // Legacy support
@@ -304,8 +319,8 @@ const TournamentForm = ({
         entryFee: sourceData.entryFee || 0,
         maxParticipants: sourceData.maxParticipants || null,
         paymentMode: sourceData.paymentMode || PAYMENT_MODES.INDIVIDUAL,
-        participants: sourceData.participants || [],
-        paymentData: sourceData.paymentData || {}
+        participants: [...(sourceData.participants || [])],
+        paymentData: { ...(sourceData.paymentData || {}) }
       })];
     }
     
@@ -325,7 +340,7 @@ const TournamentForm = ({
     divisions: true
   });
 
-  // Form state
+  // FIXED: Form state with better initial values
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -354,11 +369,18 @@ const TournamentForm = ({
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  // State synchronization
+  // FIXED: Improved state synchronization with debugging
   useEffect(() => {
-    console.log('Tournament prop changed:', tournament?.id);
+    console.log('TournamentForm: Tournament prop changed', {
+      tournamentId: tournament?.id,
+      previousId: tournamentIdRef.current,
+      isInitialMount: isInitialMount.current
+    });
     
-    if (tournament) {
+    // Always update when tournament changes or on initial mount
+    if (tournament && tournament.id !== tournamentIdRef.current) {
+      console.log('TournamentForm: Updating form data for tournament', tournament.id);
+      
       const newFormData = {
         name: tournament.name || '',
         description: tournament.description || '',
@@ -369,10 +391,19 @@ const TournamentForm = ({
         website: tournament.website || ''
       };
       
+      console.log('TournamentForm: New form data', newFormData);
+      
       setFormData(newFormData);
+      
       const newDivisions = initializeDivisions(tournament);
+      console.log('TournamentForm: New divisions', newDivisions);
       setDivisions(newDivisions);
-    } else {
+      
+      // Update ref to track current tournament
+      tournamentIdRef.current = tournament.id;
+    } else if (!tournament) {
+      // Reset form when tournament is null
+      console.log('TournamentForm: Resetting form (no tournament)');
       setFormData({
         name: '',
         description: '',
@@ -383,11 +414,13 @@ const TournamentForm = ({
         website: ''
       });
       setDivisions(initializeDivisions(null));
+      tournamentIdRef.current = null;
     }
     
     setErrors({});
     setIsSubmitting(false);
-  }, [tournament, initializeDivisions]);
+    isInitialMount.current = false;
+  }, [tournament, formatDateForInput, initializeDivisions]);
 
   // Section toggle for mobile
   const toggleSection = useCallback((section) => {
@@ -397,14 +430,20 @@ const TournamentForm = ({
     }));
   }, []);
 
-  // Handle input changes
+  // FIXED: Handle input changes with better state management
   const handleChange = useCallback((field) => (e) => {
     const value = e.target.value;
     
-    setFormData(prev => ({
-      ...prev,
-      [field]: value
-    }));
+    console.log(`TournamentForm: Field ${field} changed to:`, value);
+    
+    setFormData(prev => {
+      const newData = {
+        ...prev,
+        [field]: value
+      };
+      console.log('TournamentForm: Updated form data:', newData);
+      return newData;
+    });
     
     if (errors[field]) {
       setErrors(prev => ({
@@ -434,6 +473,7 @@ const TournamentForm = ({
         setDivisions(updatedDivisions);
         
         if (tournament && tournament.id && onUpdateTournament) {
+          console.log('TournamentForm: Deleting division and updating tournament');
           await onUpdateTournament(tournament.id, { divisions: updatedDivisions });
         }
         
@@ -462,9 +502,11 @@ const TournamentForm = ({
         updatedDivisions = [...divisions, newDivision];
       }
       
+      console.log('TournamentForm: Saving division', { divisionData, updatedDivisions });
       setDivisions(updatedDivisions);
       
       if (tournament && tournament.id && onUpdateTournament) {
+        console.log('TournamentForm: Updating tournament with new divisions');
         await onUpdateTournament(tournament.id, { divisions: updatedDivisions });
       }
       
@@ -514,7 +556,7 @@ const TournamentForm = ({
     return Object.keys(newErrors).length === 0;
   }, [formData, divisions]);
 
-  // Form submission
+  // FIXED: Form submission with better date handling
   const handleSubmit = useCallback(async (e) => {
     e.preventDefault();
     e.stopPropagation();
@@ -526,16 +568,20 @@ const TournamentForm = ({
     setIsSubmitting(true);
     
     try {
+      // FIXED: Better date parsing for submission
+      const eventDate = formData.eventDate ? new Date(formData.eventDate + 'T00:00:00') : null;
+      const registrationDeadline = formData.registrationDeadline ? 
+        new Date(formData.registrationDeadline + 'T00:00:00') : null;
+
       const submissionData = {
         ...formData,
-        eventDate: new Date(formData.eventDate),
-        registrationDeadline: formData.registrationDeadline 
-          ? new Date(formData.registrationDeadline) 
-          : null,
+        eventDate,
+        registrationDeadline,
         website: formData.website ? formatWebsiteUrl(formData.website) : '',
         divisions: divisions
       };
 
+      console.log('TournamentForm: Submitting data', submissionData);
       await onSubmit(submissionData);
       
     } catch (error) {
@@ -604,6 +650,8 @@ const TournamentForm = ({
   return (
     <div className="mobile-form-container">
       <StyleSheet />
+      
+
       
       {/* Mobile-optimized alert section */}
       <div className="space-y-4">
@@ -860,9 +908,9 @@ const TournamentForm = ({
         
         <div className={`mobile-expandable ${expandedSections.divisions ? 'expanded' : 'collapsed'}`}>
           <div className="mobile-form-content">
-            {/* Division Summary Card - FIXED LAYOUT */}
+            {/* Division Summary Card - IMPROVED LAYOUT */}
             <div className="division-summary-card">
-              <h4 className="text-lg font-semibold mb-4">Division Overview</h4>
+              <h4 className="text-lg font-semibold mb-4">Tournament Overview</h4>
               <div className="division-quick-stats">
                 <div className="division-stat-item">
                   <div className="division-stat-number">{divisions.length}</div>
@@ -877,6 +925,34 @@ const TournamentForm = ({
                   <div className="division-stat-label">Entry Fees</div>
                 </div>
               </div>
+              
+              {/* Clean Division List */}
+              {divisions.length > 0 && (
+                <div className="mt-6">
+                  <h5 className="text-sm font-medium mb-3 opacity-90">Divisions:</h5>
+                  <div className="space-y-2">
+                    {divisions.map((division, index) => (
+                      <div key={division.id || index} className="bg-white bg-opacity-20 rounded-lg p-3">
+                        <div className="flex items-center justify-between">
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium text-sm truncate">{division.name}</p>
+                            <p className="text-xs opacity-75 mt-1">
+                              {division.eventType.split('_').map(word => 
+                                word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+                              ).join(' ')} • {division.skillLevel.charAt(0).toUpperCase() + division.skillLevel.slice(1)}
+                              {division.entryFee > 0 && ` • ${division.entryFee}`}
+                            </p>
+                          </div>
+                          <div className="text-right flex-shrink-0 ml-3">
+                            <p className="text-sm font-medium">{division.participants?.length || 0}</p>
+                            <p className="text-xs opacity-75">players</p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Add Division Button */}
