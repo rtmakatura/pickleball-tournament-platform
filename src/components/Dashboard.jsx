@@ -1,5 +1,5 @@
-// src/components/Dashboard.jsx (RESPONSIVE DESIGN - Mobile + Desktop Optimized)
-import React, { useState, useMemo, useCallback } from 'react';
+// src/components/Dashboard.jsx (MOBILE-FIRST COMPLETE REDESIGN)
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { 
   Plus, 
   Calendar, 
@@ -14,7 +14,28 @@ import {
   Layers,
   Phone,
   Clock,
-  CheckCircle
+  CheckCircle,
+  Search,
+  Filter,
+  MoreHorizontal,
+  TrendingUp,
+  Target,
+  Zap,
+  ChevronDown,
+  ChevronRight,
+  Star,
+  Award,
+  BarChart3,
+  RefreshCw,
+  Settings,
+  Bell,
+  Menu,
+  X,
+  ArrowUp,
+  ArrowDown,
+  Info,
+  AlertCircle,
+  CheckCircle2
 } from 'lucide-react';
 import { 
   useMembers, 
@@ -34,7 +55,7 @@ import { calculateTournamentPaymentSummary, calculateOverallPaymentSummary } fro
 import { generateGoogleMapsLink, generateDirectionsLink, openLinkSafely, extractDomain } from '../utils/linkUtils';
 import StickyNavigation from './StickyNavigation';
 
-// Import our UI components
+// Import UI components
 import { 
   Button, 
   Modal, 
@@ -51,121 +72,188 @@ import { SignUpForm } from './auth';
 import SignInForm from './auth/SignInForm';
 import { CommentSection } from './comments';
 
-// CSS for responsive optimizations
-const dashboardStyles = `
-  /* Mobile-first optimizations */
-  .mobile-card {
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
+// Mobile-First Dashboard Styles
+const mobileFirstStyles = `
+  /* Mobile-first touch optimizations */
+  .dashboard-container {
+    -webkit-overflow-scrolling: touch;
+    scroll-behavior: smooth;
   }
   
-  .mobile-card:active {
+  .touch-card {
+    transition: all 0.2s ease;
+    -webkit-tap-highlight-color: transparent;
+  }
+  
+  .touch-card:active {
     transform: scale(0.98);
   }
   
+  .quick-action-fab {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    z-index: 40;
+    transition: all 0.3s ease;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+  }
+  
+  .quick-action-fab:active {
+    transform: scale(0.9);
+  }
+  
+  /* Pull-to-refresh styling */
+  .pull-to-refresh {
+    transition: transform 0.3s ease;
+  }
+  
+  .pull-to-refresh.pulling {
+    transform: translateY(20px);
+  }
+  
+  /* Progressive disclosure animations */
+  .section-content {
+    transition: max-height 0.3s ease, opacity 0.2s ease;
+    overflow: hidden;
+  }
+  
+  .section-content.collapsed {
+    max-height: 0;
+    opacity: 0;
+  }
+  
+  .section-content.expanded {
+    max-height: 2000px;
+    opacity: 1;
+  }
+  
+  /* Mobile stats grid */
+  .stats-grid-mobile {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+  
+  @media (min-width: 640px) {
+    .stats-grid-mobile {
+      grid-template-columns: repeat(4, 1fr);
+    }
+  }
+  
+  /* Card hover states for mobile */
   @media (max-width: 768px) {
-    .touch-target {
-      min-height: 48px;
-      min-width: 48px;
-    }
-    
-    .mobile-action-button {
-      min-height: 52px;
-      min-width: 120px;
+    .mobile-card-hover:active {
+      background-color: rgb(249 250 251);
+      transform: scale(0.98);
     }
   }
   
-  /* Desktop table optimizations */
-  @media (min-width: 769px) {
-    .tournament-row, .league-row {
-      transition: background-color 0.15s ease;
-    }
-    
-    .tournament-row:hover, .league-row:hover {
-      background-color: rgb(249 250 251) !important;
-    }
-    
-    .enhanced-table {
-      table-layout: fixed;
-    }
-    
-    .table-actions {
-      opacity: 1 !important;
-      transition: none !important;
-    }
+  /* Smooth section transitions */
+  .dashboard-section {
+    scroll-margin-top: 120px;
   }
   
-  /* Prevent text selection on touch for better mobile UX */
-  @media (max-width: 768px) {
-    .no-select {
-      -webkit-user-select: none;
-      -moz-user-select: none;
-      -ms-user-select: none;
-      user-select: none;
-    }
+  /* Better touch targets */
+  .touch-target-large {
+    min-height: 56px;
+    min-width: 56px;
   }
   
-  /* Smooth scrolling for mobile */
-  .mobile-scroll {
-    -webkit-overflow-scrolling: touch;
+  /* Loading states */
+  .skeleton-card {
+    background: linear-gradient(90deg, #f0f0f0 25%, transparent 37%, #f0f0f0 63%);
+    background-size: 400% 100%;
+    animation: skeleton 1.5s ease-in-out infinite;
+  }
+  
+  @keyframes skeleton {
+    0% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+  }
+  
+  /* Mobile navigation improvements */
+  .mobile-nav-indicator {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, #3b82f6, #8b5cf6);
+    border-radius: 2px;
+    transform: scaleX(0);
+    transition: transform 0.3s ease;
+  }
+  
+  .mobile-nav-indicator.active {
+    transform: scaleX(1);
   }
 `;
 
-const DashboardStyles = () => (
-  <style dangerouslySetInnerHTML={{ __html: dashboardStyles }} />
+const StyleSheet = () => (
+  <style dangerouslySetInnerHTML={{ __html: mobileFirstStyles }} />
 );
 
-// Mobile-First Tournament Card Component (for mobile only)
-const TournamentCard = React.memo(({ tournament, onView, onEdit }) => {
+// Mobile-First Tournament Card with Enhanced Touch UX
+const MobileTournamentCard = React.memo(({ tournament, onView, onEdit, onManage }) => {
+  const [expanded, setExpanded] = useState(false);
   const totalParticipants = getTournamentTotalParticipants(tournament);
   const totalExpected = getTournamentTotalExpected(tournament);
   const divisionCount = tournament.divisions?.length || 0;
-  
+
   const getStatusConfig = (status) => {
     switch (status) {
       case TOURNAMENT_STATUS.DRAFT:
-        return { color: 'text-gray-600 bg-gray-100', icon: Clock, label: 'Draft' };
+        return { color: 'bg-gray-100 text-gray-700 border-gray-200', icon: Clock, label: 'Draft', emoji: '📝' };
       case TOURNAMENT_STATUS.REGISTRATION_OPEN:
-        return { color: 'text-green-700 bg-green-100', icon: CheckCircle, label: 'Open' };
+        return { color: 'bg-green-100 text-green-700 border-green-200', icon: CheckCircle, label: 'Open', emoji: '🔓' };
       case TOURNAMENT_STATUS.IN_PROGRESS:
-        return { color: 'text-blue-700 bg-blue-100', icon: Activity, label: 'In Progress' };
+        return { color: 'bg-blue-100 text-blue-700 border-blue-200', icon: Activity, label: 'In Progress', emoji: '🏃' };
       case TOURNAMENT_STATUS.COMPLETED:
-        return { color: 'text-purple-700 bg-purple-100', icon: Trophy, label: 'Completed' };
+        return { color: 'bg-purple-100 text-purple-700 border-purple-200', icon: Trophy, label: 'Completed', emoji: '🏆' };
       default:
-        return { color: 'text-gray-600 bg-gray-100', icon: Clock, label: 'Unknown' };
+        return { color: 'bg-gray-100 text-gray-700 border-gray-200', icon: Clock, label: 'Unknown', emoji: '❓' };
     }
   };
 
   const statusConfig = getStatusConfig(tournament.status);
-  const StatusIcon = statusConfig.icon;
 
   const formatDate = (date) => {
     if (!date) return 'TBD';
     const dateObj = date.seconds ? new Date(date.seconds * 1000) : new Date(date);
+    const now = new Date();
+    const diffTime = dateObj.getTime() - now.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    if (diffDays === 0) return 'Today';
+    if (diffDays === 1) return 'Tomorrow';
+    if (diffDays > 0 && diffDays <= 7) return `In ${diffDays} days`;
+    if (diffDays < 0 && diffDays >= -7) return `${Math.abs(diffDays)} days ago`;
+    
     return dateObj.toLocaleDateString('en-US', {
       month: 'short',
       day: 'numeric',
-      year: 'numeric'
+      year: dateObj.getFullYear() !== now.getFullYear() ? 'numeric' : undefined
     });
   };
 
   return (
-    <div className="mobile-card bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden">
+    <div className="touch-card mobile-card-hover bg-white rounded-2xl border shadow-sm overflow-hidden">
       {/* Card Header */}
-      <div className="p-4 pb-3">
+      <div className="p-4">
         <div className="flex items-start justify-between mb-3">
-          <div className="flex-1 min-w-0">
-            <h3 className="text-lg font-semibold text-gray-900 truncate">
+          <div className="flex-1 min-w-0 pr-3">
+            <h3 className="text-lg font-semibold text-gray-900 leading-tight mb-2">
               {tournament.name}
             </h3>
-            <div className="flex items-center space-x-2 mt-2">
-              <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${statusConfig.color}`}>
-                <StatusIcon className="h-3 w-3 mr-1" />
+            <div className="flex items-center space-x-2 mb-3">
+              <span className={`inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium border ${statusConfig.color}`}>
+                <span className="mr-1.5">{statusConfig.emoji}</span>
                 {statusConfig.label}
               </span>
               {divisionCount > 0 && (
-                <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
+                <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200">
                   <Layers className="h-3 w-3 mr-1" />
-                  {divisionCount} division{divisionCount !== 1 ? 's' : ''}
+                  {divisionCount}
                 </span>
               )}
             </div>
@@ -173,293 +261,161 @@ const TournamentCard = React.memo(({ tournament, onView, onEdit }) => {
         </div>
 
         {/* Quick Info Grid */}
-        <div className="grid grid-cols-2 gap-3 text-sm">
-          <div className="flex items-center text-gray-600">
-            <Calendar className="h-4 w-4 mr-2 text-gray-400" />
-            <span className="text-xs">{formatDate(tournament.eventDate)}</span>
+        <div className="grid grid-cols-2 gap-3 mb-4">
+          <div className="bg-gray-50 rounded-lg p-3 text-center">
+            <Calendar className="h-4 w-4 text-gray-400 mx-auto mb-1" />
+            <div className="text-sm font-medium text-gray-900">{formatDate(tournament.eventDate)}</div>
+            <div className="text-xs text-gray-500">Event Date</div>
           </div>
-          <div className="flex items-center text-gray-600">
-            <Users className="h-4 w-4 mr-2 text-gray-400" />
-            <span className="text-xs">{totalParticipants} people</span>
+          <div className="bg-blue-50 rounded-lg p-3 text-center">
+            <Users className="h-4 w-4 text-blue-400 mx-auto mb-1" />
+            <div className="text-sm font-medium text-blue-900">{totalParticipants}</div>
+            <div className="text-xs text-blue-600">Participants</div>
           </div>
-          {tournament.location && (
-            <div className="col-span-2 flex items-center text-gray-600">
-              <MapPin className="h-4 w-4 mr-2 text-gray-400" />
-              <span className="truncate text-xs">{tournament.location}</span>
-            </div>
-          )}
         </div>
 
-        {/* Expected Revenue */}
+        {/* Location */}
+        {tournament.location && (
+          <div className="flex items-center text-sm text-gray-600 mb-4 p-2 bg-gray-50 rounded-lg">
+            <MapPin className="h-4 w-4 mr-2 text-gray-400 flex-shrink-0" />
+            <span className="truncate flex-1">{tournament.location}</span>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                openLinkSafely(generateGoogleMapsLink(tournament.location));
+              }}
+              className="touch-target-large p-2 rounded-md hover:bg-gray-200 transition-colors ml-2"
+              title="View on Maps"
+            >
+              <ExternalLink className="h-4 w-4 text-gray-500" />
+            </button>
+          </div>
+        )}
+
+        {/* Revenue Display */}
         {totalExpected > 0 && (
-          <div className="mt-3 flex items-center justify-between p-3 bg-green-50 rounded-lg">
-            <span className="text-sm text-green-700 font-medium">Expected Revenue</span>
+          <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg border border-green-200 mb-4">
+            <div className="flex items-center">
+              <DollarSign className="h-4 w-4 text-green-600 mr-2" />
+              <span className="text-sm text-green-700 font-medium">Expected Revenue</span>
+            </div>
             <span className="text-lg font-bold text-green-800">${totalExpected}</span>
           </div>
         )}
-      </div>
 
-      {/* Action Buttons */}
-      <div className="px-4 pb-4 flex space-x-2">
-        <Button
-          onClick={(e) => {
-            e.stopPropagation();
-            onView(tournament);
-          }}
-          className="mobile-action-button flex-1 bg-blue-600 hover:bg-blue-700 text-white"
-          size="md"
-        >
-          <MessageSquare className="h-4 w-4 mr-2" />
-          Discuss
-        </Button>
-        <Button
-          onClick={(e) => {
-            e.stopPropagation();
-            onEdit(tournament);
-          }}
-          variant="outline"
-          className="mobile-action-button flex-1"
-          size="md"
-        >
-          <Trophy className="h-4 w-4 mr-2" />
-          Manage
-        </Button>
-      </div>
-
-      {/* Quick Actions Bar */}
-      {tournament.location && (
-        <div className="border-t border-gray-100 px-4 py-3 bg-gray-50">
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-gray-600 font-medium">Quick Actions</span>
-            <div className="flex space-x-2">
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  openLinkSafely(generateGoogleMapsLink(tournament.location));
-                }}
-                className="touch-target p-2 rounded-md hover:bg-gray-200 transition-colors"
-                title="View on Maps"
-              >
-                <MapPin className="h-4 w-4 text-gray-500" />
-              </button>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  openLinkSafely(generateDirectionsLink(tournament.location));
-                }}
-                className="touch-target p-2 rounded-md hover:bg-gray-200 transition-colors"
-                title="Directions"
-              >
-                <Navigation className="h-4 w-4 text-gray-500" />
-              </button>
-              {tournament.website && (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    openLinkSafely(tournament.website);
-                  }}
-                  className="touch-target p-2 rounded-md hover:bg-gray-200 transition-colors"
-                  title="Website"
-                >
-                  <ExternalLink className="h-4 w-4 text-gray-500" />
-                </button>
-              )}
-            </div>
-          </div>
+        {/* Action Buttons */}
+        <div className="grid grid-cols-2 gap-3">
+          <Button
+            onClick={(e) => {
+              e.stopPropagation();
+              onView(tournament);
+            }}
+            className="touch-target-large bg-blue-600 hover:bg-blue-700 text-white font-medium"
+            size="md"
+          >
+            <MessageSquare className="h-4 w-4 mr-2" />
+            Discuss
+          </Button>
+          <Button
+            onClick={(e) => {
+              e.stopPropagation();
+              onEdit(tournament);
+            }}
+            variant="outline"
+            className="touch-target-large font-medium"
+            size="md"
+          >
+            <Settings className="h-4 w-4 mr-2" />
+            Manage
+          </Button>
         </div>
-      )}
+
+        {/* Expandable Details */}
+        {expanded && (
+          <div className="mt-4 pt-4 border-t border-gray-100 space-y-3">
+            {tournament.description && (
+              <p className="text-sm text-gray-600">{tournament.description}</p>
+            )}
+            
+            {/* Division Details */}
+            {divisionCount > 0 && (
+              <div>
+                <h4 className="text-sm font-medium text-gray-900 mb-2">Divisions</h4>
+                <div className="space-y-2">
+                  {tournament.divisions.slice(0, 3).map((division, index) => (
+                    <div key={division.id || index} className="bg-gray-50 rounded-lg p-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium text-gray-800">{division.name}</span>
+                        <div className="flex items-center space-x-2 text-xs text-gray-600">
+                          <span>{division.participants?.length || 0} players</span>
+                          {division.entryFee > 0 && (
+                            <span className="text-green-600 font-medium">${division.entryFee}</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                  {divisionCount > 3 && (
+                    <div className="text-xs text-gray-500 text-center py-2">
+                      +{divisionCount - 3} more divisions
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Quick Links */}
+            {(tournament.website || tournament.location) && (
+              <div className="flex space-x-2">
+                {tournament.website && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      openLinkSafely(tournament.website);
+                    }}
+                    className="flex-1"
+                  >
+                    <ExternalLink className="h-3 w-3 mr-1" />
+                    Website
+                  </Button>
+                )}
+                {tournament.location && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      openLinkSafely(generateDirectionsLink(tournament.location));
+                    }}
+                    className="flex-1"
+                  >
+                    <Navigation className="h-3 w-3 mr-1" />
+                    Directions
+                  </Button>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Expand/Collapse Button */}
+        <button
+          onClick={() => setExpanded(!expanded)}
+          className="w-full mt-3 p-2 text-center text-sm text-gray-500 hover:text-gray-700 transition-colors rounded-lg hover:bg-gray-50"
+        >
+          <ChevronDown className={`h-4 w-4 mx-auto transition-transform ${expanded ? 'rotate-180' : ''}`} />
+          <span className="sr-only">{expanded ? 'Show less' : 'Show more'}</span>
+        </button>
+      </div>
     </div>
   );
 });
 
-// Desktop Tournament Row Component (for desktop tables)
-const TournamentRow = React.memo(({ tournament, onView, onEdit }) => {
-  const totalParticipants = getTournamentTotalParticipants(tournament);
-  const totalExpected = getTournamentTotalExpected(tournament);
-  const divisionCount = tournament.divisions?.length || 0;
-  
-  const getRegistrationDeadlineText = (tournament) => {
-    if (tournament.registrationDeadline) {
-      const deadline = tournament.registrationDeadline.seconds 
-        ? new Date(tournament.registrationDeadline.seconds * 1000)
-        : new Date(tournament.registrationDeadline);
-      
-      return `Until ${deadline.toLocaleDateString('en-US', { 
-        month: 'short', 
-        day: 'numeric' 
-      })}`;
-    }
-    return 'Until event date';
-  };
-
-  const handleViewClick = useCallback((e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    onView(tournament);
-  }, [tournament, onView]);
-
-  const handleEditClick = useCallback((e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    onEdit(tournament);
-  }, [tournament, onEdit]);
-
-  return (
-    <tr key={tournament.id} className="tournament-row">
-      {/* Name Column */}
-      <td className="py-4 px-4 align-top">
-        <div className="space-y-2">
-          <div className="font-medium text-gray-900 leading-5 break-words">
-            {tournament.name}
-          </div>
-          
-          {/* Quick indicators */}
-          <div className="flex items-center space-x-4 text-xs">
-            <div className="flex items-center text-gray-500">
-              <Users className="h-3 w-3 mr-1" />
-              <span>{totalParticipants} total</span>
-            </div>
-            {divisionCount > 0 && (
-              <div className="flex items-center text-blue-600">
-                <Layers className="h-3 w-3 mr-1" />
-                <span>{divisionCount} divisions</span>
-              </div>
-            )}
-            {totalExpected > 0 && (
-              <div className="flex items-center text-green-600 font-medium">
-                <span>${totalExpected}</span>
-              </div>
-            )}
-            {tournament.commentCount > 0 && (
-              <div className="flex items-center text-gray-400">
-                <MessageSquare className="h-3 w-3 mr-1" />
-                <span>{tournament.commentCount}</span>
-              </div>
-            )}
-          </div>
-        </div>
-      </td>
-
-      {/* Date & Divisions Column */}
-      <td className="py-4 px-4 align-top">
-        <div className="space-y-2">
-          <div className="flex items-center text-sm text-gray-900">
-            <Calendar className="h-4 w-4 mr-2 text-gray-400" />
-            <span className="font-medium">
-              {tournament.eventDate 
-                ? new Date(tournament.eventDate.seconds * 1000).toLocaleDateString('en-US', {
-                    month: 'short',
-                    day: 'numeric',
-                    year: 'numeric'
-                  })
-                : 'TBD'
-              }
-            </span>
-          </div>
-          <div className="flex items-center text-sm text-gray-600">
-            <Layers className="h-4 w-4 mr-2 text-gray-400" />
-            <span>{divisionCount} division{divisionCount !== 1 ? 's' : ''}</span>
-          </div>
-          <div className="flex items-center text-sm text-gray-600">
-            <Users className="h-4 w-4 mr-2 text-gray-400" />
-            <span>{totalParticipants} participants</span>
-          </div>
-        </div>
-      </td>
-
-      {/* Location Column */}
-      <td className="py-4 px-4 align-top">
-        <div className="space-y-2">
-          {tournament.location ? (
-            <>
-              <div className="text-sm text-gray-900 leading-5 break-words">
-                {tournament.location}
-              </div>
-              <div className="flex items-center space-x-1">
-                <button 
-                  className="inline-flex items-center px-2 py-1 text-xs bg-blue-50 text-blue-700 rounded-md hover:bg-blue-100 transition-colors"
-                  onClick={() => openLinkSafely(generateGoogleMapsLink(tournament.location))}
-                  title="View on Maps"
-                  type="button"
-                >
-                  <MapPin className="h-3 w-3 mr-1" />
-                  Maps
-                </button>
-                {tournament.website && (
-                  <button 
-                    className="inline-flex items-center px-2 py-1 text-xs bg-gray-50 text-gray-700 rounded-md hover:bg-gray-100 transition-colors"
-                    onClick={() => openLinkSafely(tournament.website)}
-                    title="Visit Website"
-                    type="button"
-                  >
-                    <ExternalLink className="h-3 w-3 mr-1" />
-                    Site
-                  </button>
-                )}
-              </div>
-            </>
-          ) : (
-            <span className="text-gray-400 text-sm">No location</span>
-          )}
-        </div>
-      </td>
-
-      {/* Status Column */}
-      <td className="py-4 px-4 align-top">
-        <div className="space-y-2">
-          <span className={`
-            inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium
-            ${tournament.status === TOURNAMENT_STATUS.DRAFT ? 'bg-gray-100 text-gray-800' :
-              tournament.status === TOURNAMENT_STATUS.REGISTRATION_OPEN ? 'bg-green-100 text-green-800' :
-              tournament.status === TOURNAMENT_STATUS.IN_PROGRESS ? 'bg-blue-100 text-blue-800' :
-              tournament.status === TOURNAMENT_STATUS.COMPLETED ? 'bg-purple-100 text-purple-800' :
-              'bg-gray-100 text-gray-800'
-            }
-          `}>
-            <div className={`
-              w-1.5 h-1.5 rounded-full mr-1.5
-              ${tournament.status === TOURNAMENT_STATUS.REGISTRATION_OPEN ? 'bg-green-400' :
-                tournament.status === TOURNAMENT_STATUS.IN_PROGRESS ? 'bg-blue-400' :
-                tournament.status === TOURNAMENT_STATUS.COMPLETED ? 'bg-purple-400' :
-                'bg-gray-400'
-              }
-            `}></div>
-            {tournament.status.replace('_', ' ')}
-          </span>
-          <div className="text-xs text-gray-500">
-            {tournament.status === TOURNAMENT_STATUS.REGISTRATION_OPEN 
-              ? getRegistrationDeadlineText(tournament) 
-              : ''
-            }
-          </div>
-        </div>
-      </td>
-
-      {/* Actions Column */}
-      <td className="py-4 px-4 align-top">
-        <div className="flex flex-col space-y-1 table-actions">
-          <button 
-            className="inline-flex items-center justify-center px-3 py-1.5 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors w-20"
-            onClick={handleViewClick}
-            type="button"
-          >
-            Discuss
-          </button>
-          <button 
-            className="inline-flex items-center justify-center px-3 py-1.5 text-sm bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors w-20"
-            onClick={handleEditClick}
-            type="button"
-          >
-            Edit
-          </button>
-        </div>
-      </td>
-    </tr>
-  );
-});
-
-// League Card Component (mobile only)
-const LeagueCard = React.memo(({ league, onView, onEdit }) => {
+// Mobile-First League Card
+const MobileLeagueCard = React.memo(({ league, onView, onEdit }) => {
+  const [expanded, setExpanded] = useState(false);
   const participantCount = league.participants?.length || 0;
   
   const formatEventType = (eventType) => {
@@ -472,311 +428,215 @@ const LeagueCard = React.memo(({ league, onView, onEdit }) => {
     const start = startDate.seconds ? new Date(startDate.seconds * 1000) : new Date(startDate);
     const end = endDate.seconds ? new Date(endDate.seconds * 1000) : new Date(endDate);
     
-    return `${start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${end.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
+    const now = new Date();
+    const isActive = start <= now && end >= now;
+    
+    return {
+      range: `${start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${end.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`,
+      isActive
+    };
   };
 
   const getStatusColor = (status) => {
     switch (status) {
       case LEAGUE_STATUS.ACTIVE:
-        return 'text-green-700 bg-green-100';
+        return 'bg-green-100 text-green-700 border-green-200';
       case LEAGUE_STATUS.COMPLETED:
-        return 'text-purple-700 bg-purple-100';
+        return 'bg-purple-100 text-purple-700 border-purple-200';
       default:
-        return 'text-gray-600 bg-gray-100';
+        return 'bg-gray-100 text-gray-700 border-gray-200';
     }
   };
 
+  const dateInfo = formatDateRange(league.startDate, league.endDate);
+
   return (
-    <div className="mobile-card bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden">
-      {/* Card Header */}
-      <div className="p-4 pb-3">
+    <div className="touch-card mobile-card-hover bg-white rounded-2xl border shadow-sm overflow-hidden">
+      <div className="p-4">
         <div className="flex items-start justify-between mb-3">
-          <div className="flex-1 min-w-0">
-            <h3 className="text-lg font-semibold text-gray-900 truncate">
+          <div className="flex-1 min-w-0 pr-3">
+            <h3 className="text-lg font-semibold text-gray-900 leading-tight mb-2">
               {league.name}
             </h3>
-            <div className="flex items-center space-x-2 mt-2">
-              <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${getStatusColor(league.status)}`}>
-                {league.status.replace('_', ' ')}
+            <div className="flex items-center space-x-2 mb-3">
+              <span className={`inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium border ${getStatusColor(league.status)}`}>
+                {league.status === LEAGUE_STATUS.ACTIVE ? '🟢' : '🏁'} {league.status.replace('_', ' ')}
               </span>
-              <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700 capitalize">
+              <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200 capitalize">
                 {league.skillLevel}
               </span>
             </div>
           </div>
         </div>
 
-        {/* League Info */}
-        <div className="space-y-2 text-sm">
-          <div className="flex items-center text-gray-600">
-            <Calendar className="h-4 w-4 mr-2 text-gray-400" />
-            <span className="text-xs">{formatDateRange(league.startDate, league.endDate)}</span>
-          </div>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center text-gray-600">
-              <Users className="h-4 w-4 mr-2 text-gray-400" />
-              <span className="text-xs">{participantCount} member{participantCount !== 1 ? 's' : ''}</span>
+        {/* Quick Info Grid */}
+        <div className="grid grid-cols-2 gap-3 mb-4">
+          <div className={`rounded-lg p-3 text-center ${dateInfo.isActive ? 'bg-green-50' : 'bg-gray-50'}`}>
+            <Calendar className={`h-4 w-4 mx-auto mb-1 ${dateInfo.isActive ? 'text-green-400' : 'text-gray-400'}`} />
+            <div className={`text-sm font-medium ${dateInfo.isActive ? 'text-green-900' : 'text-gray-900'}`}>
+              {dateInfo.range}
             </div>
-            <div className="flex items-center text-gray-600">
-              <Trophy className="h-4 w-4 mr-2 text-gray-400" />
-              <span className="text-xs">{formatEventType(league.eventType)}</span>
+            <div className={`text-xs ${dateInfo.isActive ? 'text-green-600' : 'text-gray-500'}`}>
+              {dateInfo.isActive ? 'Active Now' : 'Schedule'}
             </div>
           </div>
-          {league.location && (
-            <div className="flex items-center text-gray-600">
-              <MapPin className="h-4 w-4 mr-2 text-gray-400" />
-              <span className="truncate text-xs">{league.location}</span>
+          <div className="bg-blue-50 rounded-lg p-3 text-center">
+            <Users className="h-4 w-4 text-blue-400 mx-auto mb-1" />
+            <div className="text-sm font-medium text-blue-900">{participantCount}</div>
+            <div className="text-xs text-blue-600">Members</div>
+          </div>
+        </div>
+
+        {/* League Type & Fee */}
+        <div className="flex items-center justify-between mb-4 p-2 bg-gray-50 rounded-lg">
+          <div className="flex items-center text-sm text-gray-600">
+            <Trophy className="h-4 w-4 mr-2 text-gray-400" />
+            <span>{formatEventType(league.eventType)}</span>
+          </div>
+          {league.registrationFee > 0 && (
+            <div className="flex items-center text-sm text-green-600 font-medium">
+              <DollarSign className="h-4 w-4 mr-1" />
+              <span>${league.registrationFee}</span>
             </div>
           )}
         </div>
 
-        {/* Registration Fee */}
-        {league.registrationFee > 0 && (
-          <div className="mt-3 flex items-center justify-between p-3 bg-green-50 rounded-lg">
-            <span className="text-sm text-green-700 font-medium">Registration Fee</span>
-            <span className="text-lg font-bold text-green-800">${league.registrationFee}</span>
+        {/* Location */}
+        {league.location && (
+          <div className="flex items-center text-sm text-gray-600 mb-4 p-2 bg-gray-50 rounded-lg">
+            <MapPin className="h-4 w-4 mr-2 text-gray-400 flex-shrink-0" />
+            <span className="truncate flex-1">{league.location}</span>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                openLinkSafely(generateGoogleMapsLink(league.location));
+              }}
+              className="touch-target-large p-2 rounded-md hover:bg-gray-200 transition-colors ml-2"
+              title="View on Maps"
+            >
+              <ExternalLink className="h-4 w-4 text-gray-500" />
+            </button>
           </div>
         )}
-      </div>
 
-      {/* Action Buttons */}
-      <div className="px-4 pb-4 flex space-x-2">
-        <Button
-          onClick={(e) => {
-            e.stopPropagation();
-            onView(league);
-          }}
-          className="mobile-action-button flex-1 bg-blue-600 hover:bg-blue-700 text-white"
-          size="md"
-        >
-          <MessageSquare className="h-4 w-4 mr-2" />
-          Discuss
-        </Button>
-        <Button
-          onClick={(e) => {
-            e.stopPropagation();
-            onEdit(league);
-          }}
-          variant="outline"
-          className="mobile-action-button flex-1"
-          size="md"
-        >
-          <Activity className="h-4 w-4 mr-2" />
-          Manage
-        </Button>
+        {/* Action Buttons */}
+        <div className="grid grid-cols-2 gap-3">
+          <Button
+            onClick={(e) => {
+              e.stopPropagation();
+              onView(league);
+            }}
+            className="touch-target-large bg-blue-600 hover:bg-blue-700 text-white font-medium"
+            size="md"
+          >
+            <MessageSquare className="h-4 w-4 mr-2" />
+            Discuss
+          </Button>
+          <Button
+            onClick={(e) => {
+              e.stopPropagation();
+              onEdit(league);
+            }}
+            variant="outline"
+            className="touch-target-large font-medium"
+            size="md"
+          >
+            <Activity className="h-4 w-4 mr-2" />
+            Manage
+          </Button>
+        </div>
+
+        {/* Expandable Details */}
+        {expanded && league.description && (
+          <div className="mt-4 pt-4 border-t border-gray-100">
+            <p className="text-sm text-gray-600">{league.description}</p>
+          </div>
+        )}
+
+        {/* Expand/Collapse Button */}
+        {league.description && (
+          <button
+            onClick={() => setExpanded(!expanded)}
+            className="w-full mt-3 p-2 text-center text-sm text-gray-500 hover:text-gray-700 transition-colors rounded-lg hover:bg-gray-50"
+          >
+            <ChevronDown className={`h-4 w-4 mx-auto transition-transform ${expanded ? 'rotate-180' : ''}`} />
+            <span className="sr-only">{expanded ? 'Show less' : 'Show more'}</span>
+          </button>
+        )}
       </div>
     </div>
   );
 });
 
-// Desktop League Row Component (for desktop tables)
-const LeagueRow = React.memo(({ league, onView, onEdit }) => {
-  const formatEventType = (eventType) => {
-    if (!eventType) return '';
-    return eventType.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase());
-  };
-
-  const handleViewClick = useCallback((e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    onView(league);
-  }, [league, onView]);
-
-  const handleEditClick = useCallback((e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    onEdit(league);
-  }, [league, onEdit]);
+// Mobile-First Member Card
+const MobileMemberCard = React.memo(({ member, onEdit }) => {
+  const [showContact, setShowContact] = useState(false);
 
   return (
-    <tr key={league.id} className="league-row">
-      {/* Name Column */}
-      <td className="py-4 px-4 align-top">
-        <div className="space-y-2">
-          <div className="font-medium text-gray-900 leading-5 break-words">
-            {league.name}
-          </div>
-          
-          <div className="flex items-center space-x-4 text-xs">
-            <div className="flex items-center text-gray-500">
-              <span>Type: {formatEventType(league.eventType)}</span>
-            </div>
-            {league.registrationFee > 0 && (
-              <div className="flex items-center text-green-600 font-medium">
-                <span>${league.registrationFee}</span>
-              </div>
-            )}
-            {league.commentCount > 0 && (
-              <div className="flex items-center text-gray-400">
-                <MessageSquare className="h-3 w-3 mr-1" />
-                <span>{league.commentCount}</span>
-              </div>
-            )}
-          </div>
-        </div>
-      </td>
-
-      <td className="py-4 px-4 align-top">
-        <div className="space-y-2">
-          <div className="flex items-center text-sm text-gray-900">
-            <Calendar className="h-4 w-4 mr-2 text-gray-400" />
-            <span className="font-medium">
-              {league.startDate && league.endDate
-                ? `${new Date(league.startDate.seconds * 1000).toLocaleDateString('en-US', {
-                    month: 'short',
-                    day: 'numeric'
-                  })} to ${new Date(league.endDate.seconds * 1000).toLocaleDateString('en-US', {
-                    month: 'short',
-                    day: 'numeric'
-                  })}`
-                : 'TBD'
-              }
+    <div className="touch-card mobile-card-hover bg-white rounded-2xl border shadow-sm overflow-hidden">
+      <div className="p-4">
+        <div className="flex items-center space-x-3 mb-3">
+          <div className="h-12 w-12 bg-gradient-to-br from-blue-400 to-purple-500 rounded-full flex items-center justify-center flex-shrink-0">
+            <span className="text-white font-semibold text-lg">
+              {member.firstName.charAt(0)}{member.lastName.charAt(0)}
             </span>
           </div>
-          <div className="flex items-center text-sm text-gray-600">
-            <Trophy className="h-4 w-4 mr-2 text-gray-400" />
-            <span className="capitalize">{league.skillLevel}</span>
-          </div>
-          <div className="flex items-center text-sm text-gray-600">
-            <Users className="h-4 w-4 mr-2 text-gray-400" />
-            <span>{league.participants?.length || 0} members</span>
-          </div>
-        </div>
-      </td>
-
-      <td className="py-4 px-4 align-top">
-        <div className="space-y-2">
-          {league.location ? (
-            <>
-              <div className="text-sm text-gray-900 leading-5 break-words">
-                {league.location}
-              </div>
-              <div className="flex items-center space-x-1">
-                <button 
-                  className="inline-flex items-center px-2 py-1 text-xs bg-blue-50 text-blue-700 rounded-md hover:bg-blue-100 transition-colors"
-                  onClick={() => openLinkSafely(generateGoogleMapsLink(league.location))}
-                  title="View on Maps"
-                  type="button"
-                >
-                  <MapPin className="h-3 w-3 mr-1" />
-                  Maps
-                </button>
-                {league.website && (
-                  <button 
-                    className="inline-flex items-center px-2 py-1 text-xs bg-gray-50 text-gray-700 rounded-md hover:bg-gray-100 transition-colors"
-                    onClick={() => openLinkSafely(league.website)}
-                    title="Visit Website"
-                    type="button"
-                  >
-                    <ExternalLink className="h-3 w-3 mr-1" />
-                    Site
-                  </button>
-                )}
-              </div>
-            </>
-          ) : (
-            <span className="text-gray-400 text-sm">No location</span>
-          )}
-        </div>
-      </td>
-
-      <td className="py-4 px-4 align-top">
-        <div className="space-y-2">
-          <span className={`
-            inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium
-            ${league.status === LEAGUE_STATUS.ACTIVE ? 'bg-green-100 text-green-800' :
-              league.status === LEAGUE_STATUS.COMPLETED ? 'bg-purple-100 text-purple-800' :
-              'bg-gray-100 text-gray-800'
-            }
-          `}>
-            <div className={`
-              w-1.5 h-1.5 rounded-full mr-1.5
-              ${league.status === LEAGUE_STATUS.ACTIVE ? 'bg-green-400' :
-                league.status === LEAGUE_STATUS.COMPLETED ? 'bg-purple-400' :
-                'bg-gray-400'
-              }
-            `}></div>
-            {league.status.replace('_', ' ')}
-          </span>
-          <div className="text-xs text-gray-500">
-            {league.status === LEAGUE_STATUS.ACTIVE ? 'Ongoing' : ''}
-          </div>
-        </div>
-      </td>
-
-      <td className="py-4 px-4 align-top">
-        <div className="flex flex-col space-y-1 table-actions">
-          <button 
-            className="inline-flex items-center justify-center px-3 py-1.5 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors w-20"
-            onClick={handleViewClick}
-            type="button"
-          >
-            Discuss
-          </button>
-          <button 
-            className="inline-flex items-center justify-center px-3 py-1.5 text-sm bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors w-20"
-            onClick={handleEditClick}
-            type="button"
-          >
-            Edit
-          </button>
-        </div>
-      </td>
-    </tr>
-  );
-});
-
-// Member Card Component (for mobile)
-const MemberCard = React.memo(({ member, onEdit }) => {
-  return (
-    <div className="mobile-card bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden">
-      <div className="p-4">
-        <div className="flex items-start justify-between mb-3">
-          <div className="flex items-center space-x-3 flex-1 min-w-0">
-            <div className="h-12 w-12 bg-gradient-to-r from-blue-400 to-purple-500 rounded-full flex items-center justify-center flex-shrink-0">
-              <span className="text-white font-semibold text-lg">
-                {member.firstName.charAt(0)}{member.lastName.charAt(0)}
+          <div className="flex-1 min-w-0">
+            <h3 className="text-base font-semibold text-gray-900 truncate">
+              {member.firstName} {member.lastName}
+            </h3>
+            <div className="flex items-center space-x-2 mt-1">
+              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700 capitalize">
+                {member.skillLevel}
+              </span>
+              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700 capitalize">
+                {member.role}
               </span>
             </div>
-            <div className="min-w-0 flex-1">
-              <h3 className="text-base font-semibold text-gray-900 truncate">
-                {member.firstName} {member.lastName}
-              </h3>
-              <p className="text-sm text-gray-600 truncate">{member.email}</p>
-              <div className="flex items-center space-x-2 mt-2">
-                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700 capitalize">
-                  {member.skillLevel}
-                </span>
-                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700 capitalize">
-                  {member.role}
-                </span>
-              </div>
-            </div>
           </div>
+          <span className={`w-3 h-3 rounded-full ${member.isActive ? 'bg-green-400' : 'bg-red-400'}`} />
         </div>
 
-        {/* Contact Info */}
-        <div className="space-y-2 text-sm">
-          {member.phoneNumber && (
-            <div className="flex items-center text-gray-600">
-              <Phone className="h-3 w-3 mr-2 text-gray-400" />
-              <span className="text-xs">{member.phoneNumber}</span>
-            </div>
-          )}
-          {member.venmoHandle && (
-            <div className="flex items-center text-gray-600">
-              <DollarSign className="h-3 w-3 mr-2 text-gray-400" />
-              <span className="text-xs">@{member.venmoHandle}</span>
-            </div>
-          )}
-        </div>
+        {/* Contact Info Toggle */}
+        <button
+          onClick={() => setShowContact(!showContact)}
+          className="w-full p-2 text-left text-sm text-gray-600 hover:bg-gray-50 rounded-lg transition-colors mb-3"
+        >
+          <div className="flex items-center justify-between">
+            <span>Contact Information</span>
+            <ChevronDown className={`h-4 w-4 transition-transform ${showContact ? 'rotate-180' : ''}`} />
+          </div>
+        </button>
 
-        {/* Status and Actions */}
-        <div className="flex items-center justify-between mt-4">
-          <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-            member.isActive ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+        {showContact && (
+          <div className="space-y-2 mb-4 p-3 bg-gray-50 rounded-lg">
+            <div className="flex items-center text-sm text-gray-600">
+              <Mail className="h-4 w-4 mr-2 text-gray-400" />
+              <span className="truncate">{member.email}</span>
+            </div>
+            {member.phoneNumber && (
+              <div className="flex items-center text-sm text-gray-600">
+                <Phone className="h-4 w-4 mr-2 text-gray-400" />
+                <span>{member.phoneNumber}</span>
+              </div>
+            )}
+            {member.venmoHandle && (
+              <div className="flex items-center text-sm text-green-600">
+                <DollarSign className="h-4 w-4 mr-2 text-green-400" />
+                <span>@{member.venmoHandle}</span>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Status and Action */}
+        <div className="flex items-center justify-between">
+          <span className={`inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium ${
+            member.isActive 
+              ? 'bg-green-100 text-green-700 border border-green-200' 
+              : 'bg-red-100 text-red-700 border border-red-200'
           }`}>
-            {member.isActive ? 'Active' : 'Inactive'}
+            {member.isActive ? '✅ Active' : '❌ Inactive'}
           </span>
           
           <Button
@@ -786,8 +646,9 @@ const MemberCard = React.memo(({ member, onEdit }) => {
             }}
             variant="outline"
             size="sm"
-            className="touch-target"
+            className="touch-target-large"
           >
+            <Settings className="h-4 w-4 mr-1" />
             Edit
           </Button>
         </div>
@@ -796,14 +657,112 @@ const MemberCard = React.memo(({ member, onEdit }) => {
   );
 });
 
+// Mobile-First Dashboard Section Component
+const DashboardSection = ({ 
+  title, 
+  subtitle, 
+  children, 
+  actions, 
+  loading = false,
+  error = null,
+  emptyMessage = "No items found",
+  emptyIcon: EmptyIcon = Activity,
+  collapsible = false,
+  defaultExpanded = true,
+  sectionRef
+}) => {
+  const [expanded, setExpanded] = useState(defaultExpanded);
+
+  if (loading) {
+    return (
+      <div ref={sectionRef} className="dashboard-section mb-8">
+        <div className="bg-white rounded-2xl border shadow-sm overflow-hidden">
+          <div className="p-6 border-b">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="skeleton-card h-6 w-48 rounded mb-2"></div>
+                <div className="skeleton-card h-4 w-32 rounded"></div>
+              </div>
+              <div className="skeleton-card h-10 w-20 rounded"></div>
+            </div>
+          </div>
+          <div className="p-6 space-y-4">
+            {[1, 2, 3].map(i => (
+              <div key={i} className="skeleton-card h-24 rounded-xl"></div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div ref={sectionRef} className="dashboard-section mb-8">
+      <div className="bg-white rounded-2xl border shadow-sm overflow-hidden">
+        {/* Section Header */}
+        <div 
+          className={`p-6 border-b ${collapsible ? 'cursor-pointer' : ''}`}
+          onClick={collapsible ? () => setExpanded(!expanded) : undefined}
+        >
+          <div className="flex items-center justify-between">
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center">
+                <h2 className="text-xl font-bold text-gray-900">{title}</h2>
+                {collapsible && (
+                  <ChevronDown className={`h-5 w-5 ml-2 text-gray-400 transition-transform ${expanded ? 'rotate-180' : ''}`} />
+                )}
+              </div>
+              {subtitle && (
+                <p className="text-sm text-gray-600 mt-1">{subtitle}</p>
+              )}
+            </div>
+            {actions && !collapsible && (
+              <div className="flex space-x-2 ml-4">
+                {actions}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Section Content */}
+        <div className={`section-content ${expanded ? 'expanded' : 'collapsed'}`}>
+          <div className="p-6">
+            {error ? (
+              <Alert 
+                type="error" 
+                title="Error" 
+                message={error} 
+              />
+            ) : (
+              children || (
+                <div className="text-center py-12 text-gray-500">
+                  <EmptyIcon className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                  <p className="text-lg font-medium">No Data Available</p>
+                  <p className="text-sm mt-1">{emptyMessage}</p>
+                </div>
+              )
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Main Mobile-First Dashboard Component
 const Dashboard = () => {
   const { user, signIn, signUpWithProfile, logout, isAuthenticated, loading: authLoading } = useAuth();
   const { members, loading: membersLoading, addMember, updateMember, deleteMember } = useMembers({ realTime: false });
   const { leagues, loading: leaguesLoading, addLeague, updateLeague, deleteLeague } = useLeagues({ realTime: false });
   const { tournaments, loading: tournamentsLoading, addTournament, updateTournament, deleteTournament } = useTournaments({ realTime: false });
 
-  // Smooth navigation hook
+  // Navigation and UI state
   const { activeSection, scrollToSection, navItems, refs } = useSmoothNavigation();
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [showQuickActions, setShowQuickActions] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState(new Date());
 
   // Modal states
   const [showTournamentModal, setShowTournamentModal] = useState(false);
@@ -813,81 +772,90 @@ const Dashboard = () => {
   const [showTournamentDetailModal, setShowTournamentDetailModal] = useState(false);
   const [showLeagueDetailModal, setShowLeagueDetailModal] = useState(false);
   
-  // Enhanced tournament state management
+  // Form states
   const [editingTournament, setEditingTournament] = useState(null);
   const [editingLeague, setEditingLeague] = useState(null);
   const [editingMember, setEditingMember] = useState(null);
   const [viewingTournament, setViewingTournament] = useState(null);
   const [viewingLeague, setViewingLeague] = useState(null);
-  
-  const currentUserMember = useMemo(() => 
-    members.find(m => m.authUid === user?.uid), 
-    [members, user?.uid]
-  );
-
-  // Auth UI state
-  const [authMode, setAuthMode] = useState('signin');
-  
-  // RESPONSIVE PAGINATION: Different limits for mobile vs desktop
-  const [visibleTournaments, setVisibleTournaments] = useState(4);
-  const [visibleLeagues, setVisibleLeagues] = useState(4);
-  const [visibleMembers, setVisibleMembers] = useState(8);
-  
-  // Form states
   const [selectedLeagueMembers, setSelectedLeagueMembers] = useState([]);
   const [formLoading, setFormLoading] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [alert, setAlert] = useState(null);
 
-  // Detect screen size for responsive behavior
-  const [isMobile, setIsMobile] = useState(false);
+  // Auth UI state
+  const [authMode, setAuthMode] = useState('signin');
   
-  React.useEffect(() => {
+  // Pagination state
+  const [visibleTournaments, setVisibleTournaments] = useState(isMobile ? 3 : 6);
+  const [visibleLeagues, setVisibleLeagues] = useState(isMobile ? 3 : 6);
+  const [visibleMembers, setVisibleMembers] = useState(isMobile ? 6 : 12);
+
+  const currentUserMember = useMemo(() => 
+    members.find(m => m.authUid === user?.uid), 
+    [members, user?.uid]
+  );
+
+  // Responsive detection
+  useEffect(() => {
     const checkMobile = () => {
-      setIsMobile(window.innerWidth < 768);
+      const mobile = window.innerWidth < 768;
+      setIsMobile(mobile);
+      // Adjust pagination for mobile
+      if (mobile) {
+        setVisibleTournaments(prev => Math.min(prev, 3));
+        setVisibleLeagues(prev => Math.min(prev, 3));
+        setVisibleMembers(prev => Math.min(prev, 6));
+      }
     };
     
-    checkMobile();
     window.addEventListener('resize', checkMobile);
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
   // Event handlers
   const handleViewTournament = useCallback((tournament) => {
-    console.log('Viewing tournament:', tournament);
     setViewingTournament(tournament);
     setShowTournamentDetailModal(true);
   }, []);
 
   const handleViewLeague = useCallback((league) => {
-    console.log('Viewing league:', league);
     setViewingLeague(league);
     setShowLeagueDetailModal(true);
   }, []);
 
   const handleEditTournament = useCallback((tournament) => {
-    console.log('Editing tournament:', tournament);
     const latestTournament = tournaments.find(t => t.id === tournament.id) || tournament;
     setEditingTournament(latestTournament);
     setShowTournamentModal(true);
   }, [tournaments]);
 
   const handleEditLeague = useCallback((league) => {
-    console.log('Editing league:', league);
     setEditingLeague(league);
     setSelectedLeagueMembers(league.participants || []);
     setShowLeagueModal(true);
   }, []);
 
   const handleEditMember = useCallback((member) => {
-    console.log('Editing member:', member);
     setEditingMember(member);
     setShowMemberModal(true);
   }, []);
 
+  // Pull to refresh
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      // Trigger data refresh here
+      setLastUpdated(new Date());
+      await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate refresh
+    } finally {
+      setRefreshing(false);
+    }
+  }, []);
+
   // Sorting functions
   const getSortedTournaments = useCallback(() => {
-    return [...tournaments].sort((a, b) => {
+    let sorted = [...tournaments].sort((a, b) => {
       const dateA = a.eventDate ? (a.eventDate.seconds ? new Date(a.eventDate.seconds * 1000) : new Date(a.eventDate)) : new Date('2099-12-31');
       const dateB = b.eventDate ? (b.eventDate.seconds ? new Date(b.eventDate.seconds * 1000) : new Date(b.eventDate)) : new Date('2099-12-31');
       
@@ -900,10 +868,20 @@ const Dashboard = () => {
       
       return createdB - createdA;
     });
-  }, [tournaments]);
+
+    // Filter by search term
+    if (searchTerm) {
+      sorted = sorted.filter(t => 
+        t.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        t.location?.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+
+    return sorted;
+  }, [tournaments, searchTerm]);
 
   const getSortedLeagues = useCallback(() => {
-    return [...leagues].sort((a, b) => {
+    let sorted = [...leagues].sort((a, b) => {
       const dateA = a.startDate ? (a.startDate.seconds ? new Date(a.startDate.seconds * 1000) : new Date(a.startDate)) : new Date('2099-12-31');
       const dateB = b.startDate ? (b.startDate.seconds ? new Date(b.startDate.seconds * 1000) : new Date(b.startDate)) : new Date('2099-12-31');
       
@@ -916,405 +894,86 @@ const Dashboard = () => {
       
       return createdB - createdA;
     });
-  }, [leagues]);
+
+    // Filter by search term
+    if (searchTerm) {
+      sorted = sorted.filter(l => 
+        l.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        l.location?.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+
+    return sorted;
+  }, [leagues, searchTerm]);
+
+  const getSortedMembers = useCallback(() => {
+    let sorted = [...members].sort((a, b) => 
+      `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`)
+    );
+
+    // Filter by search term
+    if (searchTerm) {
+      sorted = sorted.filter(m => 
+        `${m.firstName} ${m.lastName}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        m.email.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+
+    return sorted;
+  }, [members, searchTerm]);
 
   const sortedTournaments = useMemo(() => getSortedTournaments(), [getSortedTournaments]);
   const sortedLeagues = useMemo(() => getSortedLeagues(), [getSortedLeagues]);
+  const sortedMembers = useMemo(() => getSortedMembers(), [getSortedMembers]);
 
-  // Show alert message
+  // Alert helper
   const showAlert = useCallback((type, title, message) => {
-    console.log(`Alert: ${type} - ${title}: ${message}`);
     setAlert({ type, title, message });
     setTimeout(() => setAlert(null), 5000);
   }, []);
 
-  // RESPONSIVE COMPONENTS: Show cards on mobile, tables on desktop
-  const ResponsiveTournamentList = ({ data, visibleCount, onLoadMore, hasMore }) => {
-    const displayData = data.slice(0, visibleCount);
-    
-    if (!data || data.length === 0) {
-      return (
-        <div className="text-center py-12 text-gray-500">
-          <Trophy className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-          <p className="text-lg font-medium">No tournaments yet</p>
-          <p className="text-sm mt-1">Create your first tournament to get started!</p>
-        </div>
-      );
-    }
+  // Calculate payment summary
+  const getPaymentSummary = useCallback(() => {
+    return calculateOverallPaymentSummary(tournaments, leagues);
+  }, [tournaments, leagues]);
 
-    if (isMobile) {
-      // Mobile: Show cards
-      return (
-        <div className="space-y-4">
-          <div className="grid grid-cols-1 gap-4">
-            {displayData.map((tournament) => (
-              <TournamentCard 
-                key={tournament.id}
-                tournament={tournament}
-                onView={handleViewTournament}
-                onEdit={handleEditTournament}
-              />
-            ))}
-          </div>
-          
-          {hasMore && (
-            <div className="text-center pt-4">
-              <Button
-                variant="outline"
-                onClick={onLoadMore}
-                className="mobile-action-button"
-                size="md"
-              >
-                Load More ({Math.min(4, data.length - visibleCount)} more)
-              </Button>
-            </div>
-          )}
-          
-          {data.length > 4 && (
-            <div className="text-center text-sm text-gray-500">
-              Showing {Math.min(visibleCount, data.length)} of {data.length} tournaments
-            </div>
-          )}
-        </div>
-      );
-    } else {
-      // Desktop: Show table
-      return (
-        <div className="space-y-4">
-          <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full enhanced-table">
-                <thead>
-                  <tr className="bg-gray-50 border-b border-gray-200">
-                    <th className="text-left py-3 px-4 font-medium text-gray-700 text-sm uppercase tracking-wider w-[30%]">
-                      Tournament
-                    </th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-700 text-sm uppercase tracking-wider w-[20%]">
-                      Date & Divisions
-                    </th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-700 text-sm uppercase tracking-wider w-[25%]">
-                      Location
-                    </th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-700 text-sm uppercase tracking-wider w-[15%]">
-                      Status
-                    </th>
-                    <th className="text-right py-3 px-4 font-medium text-gray-700 text-sm uppercase tracking-wider w-[10%]">
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {displayData.map((tournament) => (
-                    <TournamentRow 
-                      key={tournament.id}
-                      tournament={tournament}
-                      onView={handleViewTournament}
-                      onEdit={handleEditTournament}
-                    />
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-          
-          {hasMore && (
-            <div className="text-center">
-              <Button
-                variant="outline"
-                onClick={onLoadMore}
-                className="px-6 py-2"
-              >
-                Load More Tournaments ({Math.min(4, data.length - visibleCount)} more)
-              </Button>
-            </div>
-          )}
-          
-          {data.length > 4 && (
-            <div className="text-center text-sm text-gray-500">
-              Showing {Math.min(visibleCount, data.length)} of {data.length} tournaments
-            </div>
-          )}
-        </div>
-      );
-    }
+  const paymentSummary = useMemo(() => getPaymentSummary(), [getPaymentSummary]);
+
+  // Calculate enhanced stats
+  const getEnhancedStats = () => {
+    const activeTournaments = tournaments.filter(t => 
+      t.status === TOURNAMENT_STATUS.REGISTRATION_OPEN || t.status === TOURNAMENT_STATUS.IN_PROGRESS
+    ).length;
+    
+    const activeLeagues = leagues.filter(l => l.status === LEAGUE_STATUS.ACTIVE).length;
+    
+    const totalDivisions = tournaments.reduce((sum, t) => sum + (t.divisions?.length || 0), 0);
+    
+    const upcomingEvents = tournaments.filter(t => {
+      if (!t.eventDate) return false;
+      const eventDate = t.eventDate.seconds ? new Date(t.eventDate.seconds * 1000) : new Date(t.eventDate);
+      const now = new Date();
+      const diffDays = Math.ceil((eventDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+      return diffDays >= 0 && diffDays <= 30; // Next 30 days
+    }).length;
+
+    return {
+      tournaments: tournaments.length,
+      activeTournaments,
+      leagues: leagues.length,
+      activeLeagues,
+      totalDivisions,
+      members: members.length,
+      upcomingEvents,
+      totalRevenue: paymentSummary.totalExpected,
+      collectedRevenue: paymentSummary.totalCollected,
+      paymentRate: paymentSummary.paymentRate
+    };
   };
 
-  const ResponsiveLeagueList = ({ data, visibleCount, onLoadMore, hasMore }) => {
-    const displayData = data.slice(0, visibleCount);
-    
-    if (!data || data.length === 0) {
-      return (
-        <div className="text-center py-12 text-gray-500">
-          <Activity className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-          <p className="text-lg font-medium">No leagues yet</p>
-          <p className="text-sm mt-1">Create your first league to get started!</p>
-        </div>
-      );
-    }
+  const stats = getEnhancedStats();
 
-    if (isMobile) {
-      // Mobile: Show cards
-      return (
-        <div className="space-y-4">
-          <div className="grid grid-cols-1 gap-4">
-            {displayData.map((league) => (
-              <LeagueCard 
-                key={league.id}
-                league={league}
-                onView={handleViewLeague}
-                onEdit={handleEditLeague}
-              />
-            ))}
-          </div>
-          
-          {hasMore && (
-            <div className="text-center pt-4">
-              <Button
-                variant="outline"
-                onClick={onLoadMore}
-                className="mobile-action-button"
-                size="md"
-              >
-                Load More ({Math.min(4, data.length - visibleCount)} more)
-              </Button>
-            </div>
-          )}
-          
-          {data.length > 4 && (
-            <div className="text-center text-sm text-gray-500">
-              Showing {Math.min(visibleCount, data.length)} of {data.length} leagues
-            </div>
-          )}
-        </div>
-      );
-    } else {
-      // Desktop: Show table
-      return (
-        <div className="space-y-4">
-          <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full enhanced-table">
-                <thead>
-                  <tr className="bg-gray-50 border-b border-gray-200">
-                    <th className="text-left py-3 px-4 font-medium text-gray-700 text-sm uppercase tracking-wider w-[30%]">
-                      League
-                    </th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-700 text-sm uppercase tracking-wider w-[20%]">
-                      Duration & Details
-                    </th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-700 text-sm uppercase tracking-wider w-[25%]">
-                      Location
-                    </th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-700 text-sm uppercase tracking-wider w-[15%]">
-                      Status
-                    </th>
-                    <th className="text-right py-3 px-4 font-medium text-gray-700 text-sm uppercase tracking-wider w-[10%]">
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {displayData.map((league) => (
-                    <LeagueRow 
-                      key={league.id}
-                      league={league}
-                      onView={handleViewLeague}
-                      onEdit={handleEditLeague}
-                    />
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-          
-          {hasMore && (
-            <div className="text-center">
-              <Button
-                variant="outline"
-                onClick={onLoadMore}
-                className="px-6 py-2"
-              >
-                Load More Leagues ({Math.min(4, data.length - visibleCount)} more)
-              </Button>
-            </div>
-          )}
-          
-          {data.length > 4 && (
-            <div className="text-center text-sm text-gray-500">
-              Showing {Math.min(visibleCount, data.length)} of {data.length} leagues
-            </div>
-          )}
-        </div>
-      );
-    }
-  };
-
-  const ResponsiveMemberList = ({ data, visibleCount, onLoadMore, hasMore }) => {
-    const displayData = data.slice(0, visibleCount);
-    
-    if (!data || data.length === 0) {
-      return (
-        <div className="text-center py-12 text-gray-500">
-          <Users className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-          <p className="text-lg font-medium">No members yet</p>
-          <p className="text-sm mt-1">Add your first member to get started!</p>
-        </div>
-      );
-    }
-
-    if (isMobile) {
-      // Mobile: Show cards
-      return (
-        <div className="space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {displayData.map((member) => (
-              <MemberCard 
-                key={member.id}
-                member={member}
-                onEdit={handleEditMember}
-              />
-            ))}
-          </div>
-          
-          {hasMore && (
-            <div className="text-center pt-4">
-              <Button
-                variant="outline"
-                onClick={onLoadMore}
-                className="mobile-action-button"
-                size="md"
-              >
-                Load More ({Math.min(8, data.length - visibleCount)} more)
-              </Button>
-            </div>
-          )}
-          
-          {data.length > 8 && (
-            <div className="text-center text-sm text-gray-500">
-              Showing {Math.min(visibleCount, data.length)} of {data.length} members
-            </div>
-          )}
-        </div>
-      );
-    } else {
-      // Desktop: Show table
-      const memberColumns = [
-        {
-          key: 'displayName',
-          label: 'Name',
-          render: (_, member) => `${member.firstName} ${member.lastName}`
-        },
-        {
-          key: 'email',
-          label: 'Email'
-        },
-        {
-          key: 'skillLevel',
-          label: 'Skill Level',
-          render: (level) => <span className="capitalize">{level}</span>
-        },
-        {
-          key: 'role',
-          label: 'Role',
-          render: (role) => <span className="capitalize">{role}</span>
-        },
-        {
-          key: 'venmoHandle',
-          label: 'Venmo',
-          render: (handle) => handle ? `@${handle}` : '—'
-        },
-        {
-          key: 'isActive',
-          label: 'Status',
-          render: (isActive) => (
-            <span className={`
-              px-2 py-1 text-xs rounded-full
-              ${isActive ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}
-            `}>
-              {isActive ? 'Active' : 'Inactive'}
-            </span>
-          )
-        },
-        {
-          key: 'actions',
-          label: 'Actions',
-          render: (_, member) => (
-            <TableActions
-              actions={[
-                {
-                  label: 'Edit',
-                  onClick: () => handleEditMember(member)
-                }
-              ]}
-            />
-          )
-        }
-      ];
-
-      return (
-        <div className="space-y-4">
-          <div className="border rounded-lg overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    {memberColumns.map((column) => (
-                      <th
-                        key={column.key}
-                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                      >
-                        {column.label}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {displayData.map((row, rowIndex) => (
-                    <tr
-                      key={row.id || rowIndex}
-                      className="hover:bg-gray-50 transition-colors duration-150"
-                    >
-                      {memberColumns.map((column) => (
-                        <td
-                          key={column.key}
-                          className="px-6 py-4 whitespace-nowrap text-sm text-gray-900"
-                        >
-                          {column.render 
-                            ? column.render(row[column.key], row)
-                            : row[column.key]
-                          }
-                        </td>
-                      ))}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-          
-          {hasMore && (
-            <div className="text-center">
-              <Button
-                variant="outline"
-                onClick={onLoadMore}
-                className="px-6 py-2"
-              >
-                Load More Members ({Math.min(8, data.length - visibleCount)} more)
-              </Button>
-            </div>
-          )}
-          
-          {data.length > 8 && (
-            <div className="text-center text-sm text-gray-500">
-              Showing {Math.min(visibleCount, data.length)} of {data.length} members
-            </div>
-          )}
-        </div>
-      );
-    }
-  };
-
-  // All the form handling functions (keeping existing implementations)
+  // Form handlers [keeping existing implementations but with enhanced mobile UX]
   const handleCreateTournament = async (tournamentData) => {
     setFormLoading(true);
     try {
@@ -1358,7 +1017,7 @@ const Dashboard = () => {
     }
   };
 
-  // League functions (keeping existing implementations)
+  // League handlers [keeping existing implementations]
   const handleCreateLeague = async (leagueData) => {
     setFormLoading(true);
     try {
@@ -1414,7 +1073,7 @@ const Dashboard = () => {
     }
   };
 
-  // Member functions (keeping existing implementations)
+  // Member handlers [keeping existing implementations]
   const handleCreateMember = async (memberData) => {
     setFormLoading(true);
     try {
@@ -1456,14 +1115,7 @@ const Dashboard = () => {
     }
   };
 
-  // Payment tracking calculations - memoized
-  const getPaymentSummary = useCallback(() => {
-    return calculateOverallPaymentSummary(tournaments, leagues);
-  }, [tournaments, leagues]);
-
-  const paymentSummary = useMemo(() => getPaymentSummary(), [getPaymentSummary]);
-
-  // Handle auth functions
+  // Auth handlers
   const handleSignIn = async (credentials) => {
     try {
       await signIn(credentials.email, credentials.password);
@@ -1484,7 +1136,7 @@ const Dashboard = () => {
     }
   };
 
-  // Modal close handlers
+  // Modal close handlers [keeping existing implementations but enhanced for mobile]
   const handleTournamentModalClose = useCallback(() => {
     if (!formLoading && !deleteLoading) {
       setShowTournamentModal(false);
@@ -1507,7 +1159,7 @@ const Dashboard = () => {
     }
   }, [formLoading, deleteLoading]);
 
-  // Show loading state while auth is initializing
+  // Loading state
   if (authLoading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -1552,8 +1204,8 @@ const Dashboard = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <DashboardStyles />
+    <div className="min-h-screen bg-gray-50 dashboard-container">
+      <StyleSheet />
       
       {/* Sticky Navigation */}
       <StickyNavigation 
@@ -1562,10 +1214,10 @@ const Dashboard = () => {
         navItems={navItems}
       />
       
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-4">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 pb-24">
         {/* Alert notification */}
         {alert && (
-          <div className="mb-4 sm:mb-6">
+          <div className="mb-4 sm:mb-6 sticky top-20 z-30">
             <Alert
               type={alert.type}
               title={alert.title}
@@ -1575,172 +1227,401 @@ const Dashboard = () => {
           </div>
         )}
 
-        {/* Dashboard Title */}
+        {/* Mobile Header */}
         <div className="mb-6">
-          <h2 className="text-2xl sm:text-3xl font-bold text-gray-900">Dashboard</h2>
-          <p className="text-gray-600 text-sm sm:text-base mt-1">
-            Welcome back, {currentUserMember?.firstName || user.email.split('@')[0]}!
-          </p>
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Dashboard</h1>
+              <p className="text-gray-600 text-sm sm:text-base mt-1">
+                Welcome back, {currentUserMember?.firstName || user.email.split('@')[0]}!
+              </p>
+            </div>
+            
+            <div className="flex items-center space-x-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleRefresh}
+                loading={refreshing}
+                className="touch-target-large"
+                title="Refresh Data"
+              >
+                <RefreshCw className="h-4 w-4" />
+              </Button>
+              
+              {isMobile && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowQuickActions(!showQuickActions)}
+                  className="touch-target-large"
+                >
+                  {showQuickActions ? <X className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
+                </Button>
+              )}
+            </div>
+          </div>
+
+          {/* Mobile Search */}
+          {isMobile && (
+            <div className="relative mb-4">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Search tournaments, leagues, or members..."
+                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
+          )}
+
+          {/* Mobile Quick Actions */}
+          {isMobile && showQuickActions && (
+            <div className="grid grid-cols-2 gap-3 mb-4">
+              <Button 
+                onClick={() => {
+                  setShowMemberModal(true);
+                  setShowQuickActions(false);
+                }}
+                className="touch-target-large h-16 flex-col"
+                variant="outline"
+              >
+                <Users className="h-5 w-5 mb-1" />
+                <span className="text-xs">Add Member</span>
+              </Button>
+              
+              <Button 
+                onClick={() => {
+                  setShowTournamentModal(true);
+                  setShowQuickActions(false);
+                }}
+                className="touch-target-large h-16 flex-col"
+                variant="outline"
+              >
+                <Trophy className="h-5 w-5 mb-1" />
+                <span className="text-xs">New Tournament</span>
+              </Button>
+
+              <Button 
+                onClick={() => {
+                  setShowLeagueModal(true);
+                  setShowQuickActions(false);
+                }}
+                className="touch-target-large h-16 flex-col"
+                variant="outline"
+              >
+                <Activity className="h-5 w-5 mb-1" />
+                <span className="text-xs">New League</span>
+              </Button>
+              
+              <Button 
+                onClick={() => {
+                  setShowPaymentModal(true);
+                  setShowQuickActions(false);
+                }}
+                className="touch-target-large h-16 flex-col"
+                variant="outline"
+              >
+                <DollarSign className="h-5 w-5 mb-1" />
+                <span className="text-xs">Payment Tracker</span>
+              </Button>
+            </div>
+          )}
         </div>
 
-        {/* Stats Cards - Responsive Grid */}
-        <div ref={refs.statsRef} className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-8 sm:mb-8">
-          <div className="bg-white rounded-lg border shadow-sm p-4 sm:p-6 text-center">
-            <Trophy className="h-6 w-6 sm:h-8 sm:w-8 text-green-600 mx-auto mb-2" />
-            <div className="text-xl sm:text-3xl font-bold text-gray-900">
-              {tournaments.length}
-            </div>
-            <div className="text-xs sm:text-sm text-gray-500">Tournaments</div>
+        {/* Enhanced Stats Cards */}
+        <div ref={refs.statsRef} className="stats-grid-mobile mb-8">
+          <div className="bg-white rounded-2xl border shadow-sm p-4 text-center">
+            <Trophy className="h-6 w-6 text-green-600 mx-auto mb-2" />
+            <div className="text-2xl font-bold text-gray-900">{stats.tournaments}</div>
+            <div className="text-xs text-gray-500">Tournaments</div>
+            {stats.activeTournaments > 0 && (
+              <div className="text-xs text-green-600 font-medium mt-1">
+                {stats.activeTournaments} active
+              </div>
+            )}
           </div>
 
-          <div className="bg-white rounded-lg border shadow-sm p-4 sm:p-6 text-center">
-            <Layers className="h-6 w-6 sm:h-8 sm:w-8 text-blue-600 mx-auto mb-2" />
-            <div className="text-xl sm:text-3xl font-bold text-gray-900">
-              {tournaments.reduce((sum, t) => sum + (t.divisions?.length || 0), 0)}
-            </div>
-            <div className="text-xs sm:text-sm text-gray-500">Divisions</div>
+          <div className="bg-white rounded-2xl border shadow-sm p-4 text-center">
+            <Layers className="h-6 w-6 text-blue-600 mx-auto mb-2" />
+            <div className="text-2xl font-bold text-gray-900">{stats.totalDivisions}</div>
+            <div className="text-xs text-gray-500">Divisions</div>
+            {stats.upcomingEvents > 0 && (
+              <div className="text-xs text-blue-600 font-medium mt-1">
+                {stats.upcomingEvents} upcoming
+              </div>
+            )}
           </div>
 
-          <div className="bg-white rounded-lg border shadow-sm p-4 sm:p-6 text-center">
-            <Activity className="h-6 w-6 sm:h-8 sm:w-8 text-purple-600 mx-auto mb-2" />
-            <div className="text-xl sm:text-3xl font-bold text-gray-900">
-              {leagues.filter(l => l.status === LEAGUE_STATUS.ACTIVE).length}
-            </div>
-            <div className="text-xs sm:text-sm text-gray-500">Active Leagues</div>
+          <div className="bg-white rounded-2xl border shadow-sm p-4 text-center">
+            <Activity className="h-6 w-6 text-purple-600 mx-auto mb-2" />
+            <div className="text-2xl font-bold text-gray-900">{stats.leagues}</div>
+            <div className="text-xs text-gray-500">Leagues</div>
+            {stats.activeLeagues > 0 && (
+              <div className="text-xs text-purple-600 font-medium mt-1">
+                {stats.activeLeagues} active
+              </div>
+            )}
           </div>
 
-          <div className="bg-white rounded-lg border shadow-sm p-4 sm:p-6 text-center">
-            <Users className="h-6 w-6 sm:h-8 sm:w-8 text-indigo-600 mx-auto mb-2" />
-            <div className="text-xl sm:text-3xl font-bold text-gray-900">
-              {members.length}
-            </div>
-            <div className="text-xs sm:text-sm text-gray-500">Members</div>
+          <div className="bg-white rounded-2xl border shadow-sm p-4 text-center">
+            <Users className="h-6 w-6 text-indigo-600 mx-auto mb-2" />
+            <div className="text-2xl font-bold text-gray-900">{stats.members}</div>
+            <div className="text-xs text-gray-500">Members</div>
+            {stats.paymentRate > 0 && (
+              <div className="text-xs text-indigo-600 font-medium mt-1">
+                {stats.paymentRate}% paid
+              </div>
+            )}
           </div>
         </div>
 
-        {/* Quick Actions - Responsive */}
-        <Card ref={refs.actionsRef} title="Quick Actions" className="mb-8 sm:mb-8">
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-4">
-            <Button 
-              variant="outline" 
-              onClick={() => setShowMemberModal(true)}
-              className={`${isMobile ? 'mobile-action-button h-16 flex-col' : 'h-16'}`}
-              size="md"
-            >
-              <Users className="h-5 w-5 mb-2" />
-              <span className="text-xs sm:text-sm">Add Member</span>
-            </Button>
-            
-            <Button 
-              variant="outline" 
-              onClick={() => setShowTournamentModal(true)}
-              className={`${isMobile ? 'mobile-action-button h-16 flex-col' : 'h-16'}`}
-              size="md"
-            >
-              <Trophy className="h-5 w-5 mb-2" />
-              <span className="text-xs sm:text-sm">New Tournament</span>
-            </Button>
-
-            <Button 
-              variant="outline" 
-              onClick={() => setShowLeagueModal(true)}
-              className={`${isMobile ? 'mobile-action-button h-16 flex-col' : 'h-16'}`}
-              size="md"
-            >
-              <Activity className="h-5 w-5 mb-2" />
-              <span className="text-xs sm:text-sm">New League</span>
-            </Button>
-            
-            <Button 
-              variant="outline" 
-              onClick={() => setShowPaymentModal(true)}
-              className={`${isMobile ? 'mobile-action-button h-16 flex-col' : 'h-16'}`}
-              size="md"
-            >
-              <DollarSign className="h-5 w-5 mb-2" />
-              <span className="text-xs sm:text-sm">Payment Tracker</span>
-            </Button>
+        {/* Revenue Summary Card (Mobile-First) */}
+        {stats.totalRevenue > 0 && (
+          <div className="bg-gradient-to-r from-green-500 to-blue-600 rounded-2xl text-white p-6 mb-8 shadow-lg">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold">Revenue Overview</h3>
+              <DollarSign className="h-6 w-6 opacity-80" />
+            </div>
+            <div className="grid grid-cols-2 gap-4 text-center">
+              <div>
+                <div className="text-2xl font-bold">${stats.totalRevenue}</div>
+                <div className="text-sm opacity-80">Expected</div>
+              </div>
+              <div>
+                <div className="text-2xl font-bold">${stats.collectedRevenue}</div>
+                <div className="text-sm opacity-80">Collected</div>
+              </div>
+            </div>
+            <div className="mt-4">
+              <div className="w-full bg-white bg-opacity-20 rounded-full h-2">
+                <div 
+                  className="bg-white h-2 rounded-full transition-all duration-500"
+                  style={{ width: `${stats.paymentRate}%` }}
+                ></div>
+              </div>
+              <div className="text-center text-sm opacity-90 mt-2">
+                {stats.paymentRate}% collection rate
+              </div>
+            </div>
           </div>
-        </Card>
+        )}
 
-        {/* Tournaments Section - RESPONSIVE */}
-        <Card 
+        {/* Desktop Quick Actions */}
+        {!isMobile && (
+          <Card ref={refs.actionsRef} title="Quick Actions" className="mb-8">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              <Button 
+                variant="outline" 
+                onClick={() => setShowMemberModal(true)}
+                className="h-16"
+                size="md"
+              >
+                <Users className="h-5 w-5 mb-2" />
+                <span className="text-sm">Add Member</span>
+              </Button>
+              
+              <Button 
+                variant="outline" 
+                onClick={() => setShowTournamentModal(true)}
+                className="h-16"
+                size="md"
+              >
+                <Trophy className="h-5 w-5 mb-2" />
+                <span className="text-sm">New Tournament</span>
+              </Button>
+
+              <Button 
+                variant="outline" 
+                onClick={() => setShowLeagueModal(true)}
+                className="h-16"
+                size="md"
+              >
+                <Activity className="h-5 w-5 mb-2" />
+                <span className="text-sm">New League</span>
+              </Button>
+              
+              <Button 
+                variant="outline" 
+                onClick={() => setShowPaymentModal(true)}
+                className="h-16"
+                size="md"
+              >
+                <DollarSign className="h-5 w-5 mb-2" />
+                <span className="text-sm">Payment Tracker</span>
+              </Button>
+            </div>
+          </Card>
+        )}
+
+        {/* Tournaments Section */}
+        <DashboardSection
           ref={refs.tournamentsRef}
           title="Tournaments"
           subtitle={`${sortedTournaments.length} total tournament${sortedTournaments.length !== 1 ? 's' : ''}`}
+          loading={tournamentsLoading}
+          emptyMessage="Create your first tournament to get started!"
+          emptyIcon={Trophy}
           actions={[
             <Button 
               key="add-tournament"
               onClick={() => setShowTournamentModal(true)}
-              className="touch-target"
+              className="touch-target-large"
               size="md"
             >
               <Plus className="h-4 w-4 mr-2" />
               New
             </Button>
           ]}
-          className="mb-8 sm:mb-8"
         >
-          <ResponsiveTournamentList 
-            data={sortedTournaments}
-            visibleCount={visibleTournaments}
-            onLoadMore={() => setVisibleTournaments(prev => prev + 4)}
-            hasMore={sortedTournaments.length > visibleTournaments}
-          />
-        </Card>
+          <div className="space-y-4">
+            <div className={`grid gap-4 ${isMobile ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3'}`}>
+              {sortedTournaments.slice(0, visibleTournaments).map((tournament) => (
+                <MobileTournamentCard
+                  key={tournament.id}
+                  tournament={tournament}
+                  onView={handleViewTournament}
+                  onEdit={handleEditTournament}
+                />
+              ))}
+            </div>
+            
+            {sortedTournaments.length > visibleTournaments && (
+              <div className="text-center pt-4">
+                <Button
+                  variant="outline"
+                  onClick={() => setVisibleTournaments(prev => prev + (isMobile ? 3 : 6))}
+                  className="touch-target-large"
+                >
+                  Load More ({Math.min(isMobile ? 3 : 6, sortedTournaments.length - visibleTournaments)} more)
+                </Button>
+              </div>
+            )}
+            
+            {sortedTournaments.length > (isMobile ? 3 : 6) && (
+              <div className="text-center text-sm text-gray-500">
+                Showing {Math.min(visibleTournaments, sortedTournaments.length)} of {sortedTournaments.length} tournaments
+              </div>
+            )}
+          </div>
+        </DashboardSection>
 
-        {/* Leagues Section - RESPONSIVE */}
-        <Card 
+        {/* Leagues Section */}
+        <DashboardSection
           ref={refs.leaguesRef}
           title="Leagues"
           subtitle={`${sortedLeagues.length} total league${sortedLeagues.length !== 1 ? 's' : ''}`}
+          loading={leaguesLoading}
+          emptyMessage="Create your first league to get started!"
+          emptyIcon={Activity}
           actions={[
             <Button 
               key="add-league"
               onClick={() => setShowLeagueModal(true)}
-              className="touch-target"
+              className="touch-target-large"
               size="md"
             >
               <Plus className="h-4 w-4 mr-2" />
               New
             </Button>
           ]}
-          className="mb-8 sm:mb-8"
         >
-          <ResponsiveLeagueList 
-            data={sortedLeagues}
-            visibleCount={visibleLeagues}
-            onLoadMore={() => setVisibleLeagues(prev => prev + 4)}
-            hasMore={sortedLeagues.length > visibleLeagues}
-          />
-        </Card>
+          <div className="space-y-4">
+            <div className={`grid gap-4 ${isMobile ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3'}`}>
+              {sortedLeagues.slice(0, visibleLeagues).map((league) => (
+                <MobileLeagueCard
+                  key={league.id}
+                  league={league}
+                  onView={handleViewLeague}
+                  onEdit={handleEditLeague}
+                />
+              ))}
+            </div>
+            
+            {sortedLeagues.length > visibleLeagues && (
+              <div className="text-center pt-4">
+                <Button
+                  variant="outline"
+                  onClick={() => setVisibleLeagues(prev => prev + (isMobile ? 3 : 6))}
+                  className="touch-target-large"
+                >
+                  Load More ({Math.min(isMobile ? 3 : 6, sortedLeagues.length - visibleLeagues)} more)
+                </Button>
+              </div>
+            )}
+            
+            {sortedLeagues.length > (isMobile ? 3 : 6) && (
+              <div className="text-center text-sm text-gray-500">
+                Showing {Math.min(visibleLeagues, sortedLeagues.length)} of {sortedLeagues.length} leagues
+              </div>
+            )}
+          </div>
+        </DashboardSection>
 
-        {/* Members Section - RESPONSIVE */}
-        <Card 
+        {/* Members Section */}
+        <DashboardSection
           ref={refs.membersRef}
           title="Members"
-          subtitle={`${members.length} total member${members.length !== 1 ? 's' : ''}`}
+          subtitle={`${sortedMembers.length} total member${sortedMembers.length !== 1 ? 's' : ''}`}
+          loading={membersLoading}
+          emptyMessage="Add your first member to get started!"
+          emptyIcon={Users}
           actions={[
             <Button 
               key="add-member"
               onClick={() => setShowMemberModal(true)}
-              className="touch-target"
+              className="touch-target-large"
               size="md"
             >
               <Plus className="h-4 w-4 mr-2" />
               New
             </Button>
           ]}
-          className="mb-8 sm:mb-8"
         >
-          <ResponsiveMemberList 
-            data={members}
-            visibleCount={visibleMembers}
-            onLoadMore={() => setVisibleMembers(prev => prev + 8)}
-            hasMore={members.length > visibleMembers}
-          />
-        </Card>
+          <div className="space-y-4">
+            <div className={`grid gap-4 ${isMobile ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'}`}>
+              {sortedMembers.slice(0, visibleMembers).map((member) => (
+                <MobileMemberCard
+                  key={member.id}
+                  member={member}
+                  onEdit={handleEditMember}
+                />
+              ))}
+            </div>
+            
+            {sortedMembers.length > visibleMembers && (
+              <div className="text-center pt-4">
+                <Button
+                  variant="outline"
+                  onClick={() => setVisibleMembers(prev => prev + (isMobile ? 6 : 12))}
+                  className="touch-target-large"
+                >
+                  Load More ({Math.min(isMobile ? 6 : 12, sortedMembers.length - visibleMembers)} more)
+                </Button>
+              </div>
+            )}
+            
+            {sortedMembers.length > (isMobile ? 6 : 12) && (
+              <div className="text-center text-sm text-gray-500">
+                Showing {Math.min(visibleMembers, sortedMembers.length)} of {sortedMembers.length} members
+              </div>
+            )}
+          </div>
+        </DashboardSection>
 
+        {/* Floating Action Button (Mobile Only) */}
+        {isMobile && !showQuickActions && (
+          <button
+            onClick={() => setShowQuickActions(true)}
+            className="quick-action-fab bg-blue-600 hover:bg-blue-700 text-white rounded-full p-4"
+            title="Quick Actions"
+          >
+            <Plus className="h-6 w-6" />
+          </button>
+        )}
+
+        {/* All existing modals with enhanced mobile optimization */}
         {/* Tournament Modal */}
         <Modal
           isOpen={showTournamentModal}
@@ -1906,7 +1787,7 @@ const Dashboard = () => {
               </div>
             </div>
 
-            {/* Tournament Payment Section */}
+            {/* Enhanced Payment Detail Sections */}
             <div className="bg-white border-2 border-gray-200 rounded-lg p-6">
               <div className="border-b border-gray-200 pb-4 mb-6">
                 <h3 className="text-xl font-semibold text-gray-900 flex items-center">
@@ -1969,7 +1850,6 @@ const Dashboard = () => {
               </div>
             </div>
 
-            {/* League Payment Section */}
             <div className="bg-white border-2 border-gray-200 rounded-lg p-6">
               <div className="border-b border-gray-200 pb-4 mb-6">
                 <h3 className="text-xl font-semibold text-gray-900 flex items-center">
