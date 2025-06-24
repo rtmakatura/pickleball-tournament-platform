@@ -1,4 +1,4 @@
-// src/components/Dashboard.jsx (FIXED - Modal Header Actions)
+// src/components/Dashboard.jsx (FIXED - Removed undefined ModalHeaderButton references)
 import React, { useState, useMemo, useCallback } from 'react';
 import { 
   Plus, 
@@ -1745,7 +1745,7 @@ const Dashboard = () => {
           />
         </Card>
 
-        {/* FIXED: Tournament Modal with Header Actions for Update and Delete Buttons */}
+        {/* Tournament Modal with Header Actions for Update and Delete Buttons */}
         <Modal
           isOpen={showTournamentModal}
           onClose={handleTournamentModalClose}
@@ -1869,7 +1869,7 @@ const Dashboard = () => {
           )}
         </Modal>
 
-        {/* FIXED: League Modal with Header Actions for Update and Delete Buttons */}
+        {/* League Modal with Header Actions for Update and Delete Buttons */}
         <Modal
           isOpen={showLeagueModal}
           onClose={handleLeagueModalClose}

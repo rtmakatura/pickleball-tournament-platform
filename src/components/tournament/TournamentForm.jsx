@@ -1,4 +1,4 @@
-// src/components/tournament/TournamentForm.jsx (FIXED - Mobile Spacing + Section Expansion)
+// src/components/tournament/TournamentForm.jsx (FIXED - Section expansion, spacing, and modal integration)
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { 
   Trash2, 
@@ -29,27 +29,42 @@ import {
 } from '../../services/models';
 import { formatWebsiteUrl, isValidUrl, generateGoogleMapsLink, openLinkSafely } from '../../utils/linkUtils';
 
-// FIXED: Consistent Mobile-First Tournament Form Styles
+// FIXED: Mobile-First Tournament Form Styles with AGGRESSIVE spacing fixes
 const mobileFormStyles = `
-  /* STANDARDIZED: Mobile-first form optimizations */
-  .mobile-form-container {
-    -webkit-overflow-scrolling: touch;
-    scroll-behavior: smooth;
-    padding: 0;
+  /* CRITICAL: Override all spacing inconsistencies with !important */
+  .tournament-form-container {
+    padding: 0 !important;
+    margin: 0 !important;
   }
   
-  /* FIXED: Consistent section spacing and styling */
+  .tournament-form-container > * {
+    margin: 0 !important;
+  }
+  
+  /* FIXED: Consistent section spacing - force 24px everywhere */
   .mobile-form-section {
     background: white;
     border-radius: 16px;
     border: 1px solid #e5e7eb;
-    margin-bottom: 24px; /* STANDARDIZED: 24px between all sections */
+    margin: 0 0 24px 0 !important;
+    padding: 0 !important;
     overflow: hidden;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05); /* STANDARDIZED: Consistent shadow */
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  }
+  
+  /* FIXED: Remove margin from first section to prevent extra spacing */
+  .mobile-form-section:first-child {
+    margin-top: 0 !important;
+  }
+  
+  /* FIXED: Ensure last section has no bottom margin */
+  .mobile-form-section:last-child {
+    margin-bottom: 0 !important;
   }
   
   .mobile-form-header {
-    padding: 20px;
+    padding: 20px !important;
+    margin: 0 !important;
     border-bottom: 1px solid #e5e7eb;
     background: #f9fafb;
     cursor: pointer;
@@ -60,8 +75,10 @@ const mobileFormStyles = `
     background: #f3f4f6;
   }
   
+  /* FIXED: Consistent content padding - EXACTLY 24px */
   .mobile-form-content {
-    padding: 24px; /* STANDARDIZED: 24px padding */
+    padding: 24px !important;
+    margin: 0 !important;
   }
   
   .mobile-touch-button {
@@ -76,19 +93,29 @@ const mobileFormStyles = `
     transform: scale(0.96);
   }
   
-  /* STANDARDIZED: Input group spacing */
+  /* FIXED: Standardized input group spacing - EXACTLY 24px */
   .mobile-input-group {
-    margin-bottom: 24px; /* STANDARDIZED: 24px between input groups */
+    margin: 0 0 24px 0 !important;
+    padding: 0 !important;
+  }
+  
+  /* FIXED: Remove margin from last input group to prevent extra spacing */
+  .mobile-input-group:last-child {
+    margin-bottom: 0 !important;
   }
   
   .mobile-division-card {
     background: white;
     border: 2px solid #e5e7eb;
     border-radius: 16px;
-    padding: 20px;
-    margin-bottom: 24px; /* STANDARDIZED */
+    padding: 20px !important;
+    margin: 0 0 24px 0 !important;
     transition: all 0.2s ease;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  }
+  
+  .mobile-division-card:last-child {
+    margin-bottom: 0 !important;
   }
   
   .mobile-division-card:active {
@@ -100,11 +127,14 @@ const mobileFormStyles = `
   .mobile-grid-single {
     display: grid;
     grid-template-columns: 1fr;
-    gap: 24px; /* STANDARDIZED: 24px gap */
+    gap: 24px !important;
+    margin: 0 !important;
   }
   
   .mobile-grid-responsive {
     grid-template-columns: 1fr;
+    gap: 24px !important;
+    margin: 0 !important;
   }
   
   @media (min-width: 640px) {
@@ -133,28 +163,32 @@ const mobileFormStyles = `
     box-sizing: border-box;
   }
   
-  /* STANDARDIZED: Better spacing for mobile */
-  .mobile-spacing-y {
-    margin-top: 24px;
-    margin-bottom: 24px;
+  /* FIXED: Remove any default form spacing */
+  form {
+    margin: 0 !important;
+    padding: 0 !important;
   }
   
-  .mobile-section-divider {
-    height: 16px;
-    background: #f3f4f6;
-    margin: 0 -20px;
+  /* FIXED: Remove space-y utilities that might be conflicting */
+  .space-y-0 > * {
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
   }
   
-  /* STANDARDIZED: Touch-friendly alert styles */
+  /* FIXED: Touch-friendly alert styles */
   .mobile-alert {
     border-radius: 12px;
-    padding: 16px;
-    margin-bottom: 24px; /* STANDARDIZED */
+    padding: 16px !important;
+    margin: 0 0 24px 0 !important;
   }
   
-  /* FIXED: Progressive disclosure animations */
+  .mobile-alert:last-child {
+    margin-bottom: 0 !important;
+  }
+  
+  /* FIXED: Progressive disclosure animations with proper state handling */
   .mobile-expandable {
-    transition: max-height 0.3s ease, opacity 0.2s ease;
+    transition: max-height 0.3s ease-out, opacity 0.2s ease-out;
     overflow: hidden;
   }
   
@@ -173,6 +207,7 @@ const mobileFormStyles = `
     max-height: 85vh;
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
+    padding: 0 !important;
   }
   
   /* Division summary cards */
@@ -180,8 +215,8 @@ const mobileFormStyles = `
     background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
     color: white;
     border-radius: 16px;
-    padding: 20px;
-    margin-bottom: 24px; /* STANDARDIZED */
+    padding: 20px !important;
+    margin: 0 0 24px 0 !important;
     overflow: hidden;
     box-sizing: border-box;
   }
@@ -240,21 +275,19 @@ const mobileFormStyles = `
     white-space: nowrap;
     text-align: center;
   }
-
-
   
-  /* STANDARDIZED: Form container padding */
-  .tournament-form-container {
-    padding: 24px;
+  /* FIXED: Form container with consistent padding */
+  .tournament-outer-container {
+    padding: 24px !important;
+    margin: 0 !important;
   }
   
-  /* FIXED: Consistent first/last section margins */
-  .mobile-form-section:first-child {
-    margin-top: 0;
-  }
-  
-  .mobile-form-section:last-child {
-    margin-bottom: 0;
+  /* STANDARDIZED: Mobile-first form optimizations */
+  .mobile-form-container {
+    -webkit-overflow-scrolling: touch;
+    scroll-behavior: smooth;
+    padding: 0 !important;
+    margin: 0 !important;
   }
 `;
 
@@ -263,12 +296,7 @@ const StyleSheet = () => (
 );
 
 /**
- * FIXED: Mobile-Optimized Tournament Form Component with Corrected Layout
- * Key Fixes:
- * 1. FIXED: Section expansion behavior based on new vs edit context
- * 2. STANDARDIZED: Consistent spacing and styling
- * 3. REMOVED: Update button handling (now handled by modal header)
- * 4. MOVED: Delete button to bottom danger zone
+ * FIXED: Mobile-Optimized Tournament Form Component with corrected expansion and spacing
  */
 const TournamentForm = ({ 
   tournament = null, 
@@ -356,12 +384,20 @@ const TournamentForm = ({
     })];
   }, [tournament]);
 
-  // Mobile state management
-  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  // FIXED: Proper mobile detection with initial state
+  const [isMobile, setIsMobile] = useState(() => {
+    // Initialize correctly on first render
+    if (typeof window !== 'undefined') {
+      return window.innerWidth < 768;
+    }
+    return false;
+  });
   
-  // FIXED: Section expansion logic - new forms expanded, edit forms collapsed on mobile
+  // FIXED: Section expansion logic - clear and deterministic
   const getInitialSectionState = useCallback(() => {
-    // Desktop: Always expanded
+    const isNewEntry = !tournament;
+    
+    // Desktop: Always expanded for better UX
     if (!isMobile) {
       return {
         basic: true,
@@ -370,8 +406,7 @@ const TournamentForm = ({
       };
     }
     
-    // Mobile: NEW forms start expanded, EDIT forms start collapsed
-    const isNewEntry = !tournament;
+    // Mobile: NEW forms expanded, EDIT forms collapsed
     return {
       basic: isNewEntry,
       details: isNewEntry,
@@ -399,18 +434,19 @@ const TournamentForm = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [divisionSaving, setDivisionSaving] = useState(false);
 
-  // FIXED: Mobile detection and section state update
+  // FIXED: Mobile detection with proper cleanup
   useEffect(() => {
     const checkMobile = () => {
       const mobile = window.innerWidth < 768;
       setIsMobile(mobile);
     };
     
+    checkMobile();
     window.addEventListener('resize', checkMobile);
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  // FIXED: Update section states when form context changes (new vs edit)
+  // FIXED: Update section states when context changes
   useEffect(() => {
     const newSectionState = getInitialSectionState();
     setExpandedSections(newSectionState);
@@ -685,40 +721,38 @@ const TournamentForm = ({
     <div className="mobile-form-container">
       <StyleSheet />
       
-      {/* FIXED: Consistent container with standardized padding */}
-      <div className="tournament-form-container">
-        {/* Mobile-optimized alert section */}
-        <div className="space-y-0">
-          {errors.submit && (
-            <Alert type="error" title="Submission Error" message={errors.submit} className="mobile-alert" />
-          )}
-          
-          {errors.delete && (
-            <Alert type="error" title="Delete Error" message={errors.delete} className="mobile-alert" />
-          )}
-          
-          {errors.divisionSave && (
-            <Alert 
-              type="error" 
-              title="Division Save Error" 
-              message={errors.divisionSave} 
-              onClose={() => setErrors(prev => ({ ...prev, divisionSave: null }))}
-              className="mobile-alert"
-            />
-          )}
-          
-          {errors.divisionDelete && (
-            <Alert 
-              type="error" 
-              title="Division Delete Error" 
-              message={errors.divisionDelete} 
-              onClose={() => setErrors(prev => ({ ...prev, divisionDelete: null }))}
-              className="mobile-alert"
-            />
-          )}
-        </div>
+      {/* FIXED: Consistent container with proper padding */}
+      <div className="tournament-outer-container">
+        {/* FIXED: Mobile-optimized alert section with no extra wrappers */}
+        {errors.submit && (
+          <Alert type="error" title="Submission Error" message={errors.submit} className="mobile-alert" />
+        )}
+        
+        {errors.delete && (
+          <Alert type="error" title="Delete Error" message={errors.delete} className="mobile-alert" />
+        )}
+        
+        {errors.divisionSave && (
+          <Alert 
+            type="error" 
+            title="Division Save Error" 
+            message={errors.divisionSave} 
+            onClose={() => setErrors(prev => ({ ...prev, divisionSave: null }))}
+            className="mobile-alert"
+          />
+        )}
+        
+        {errors.divisionDelete && (
+          <Alert 
+            type="error" 
+            title="Division Delete Error" 
+            message={errors.divisionDelete} 
+            onClose={() => setErrors(prev => ({ ...prev, divisionDelete: null }))}
+            className="mobile-alert"
+          />
+        )}
 
-        <form id="tournament-form" onSubmit={handleSubmit} className="space-y-0">
+        <form id="tournament-form" onSubmit={handleSubmit}>
           {/* Basic Information Section */}
           <div className="mobile-form-section">
             <div 
@@ -961,7 +995,7 @@ const TournamentForm = ({
                                 {division.eventType.split('_').map(word => 
                                   word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
                                 ).join(' ')} • {division.skillLevel.charAt(0).toUpperCase() + division.skillLevel.slice(1)}
-                                {division.entryFee > 0 && ` • ${division.entryFee}`}
+                                {division.entryFee > 0 && ` • $${division.entryFee}`}
                               </p>
                             </div>
                             <div className="text-right flex-shrink-0 ml-3">
@@ -977,7 +1011,7 @@ const TournamentForm = ({
               </div>
 
               {/* Add Division Button */}
-              <div className="mb-6">
+              <div className="mobile-input-group">
                 <Button 
                   type="button"
                   onClick={addDivision}
@@ -991,7 +1025,7 @@ const TournamentForm = ({
               </div>
 
               {/* Division List */}
-              <div className="space-y-0">
+              <div>
                 {divisions.map((division, index) => (
                   <MobileDivisionCard
                     key={division.id || index}
@@ -1007,11 +1041,11 @@ const TournamentForm = ({
               </div>
 
               {errors.divisions && (
-                <Alert type="error" title="Division Error" message={errors.divisions} className="mobile-alert mt-6" />
+                <Alert type="error" title="Division Error" message={errors.divisions} className="mobile-alert" />
               )}
               
               {Object.entries(errors).filter(([key]) => key.startsWith('division_')).map(([key, error]) => (
-                <Alert key={key} type="error" title="Division Error" message={error} className="mobile-alert mt-4" />
+                <Alert key={key} type="error" title="Division Error" message={error} className="mobile-alert" />
               ))}
             </div>
           </div>
