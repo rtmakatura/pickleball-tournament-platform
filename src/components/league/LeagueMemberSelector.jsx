@@ -1,4 +1,4 @@
-// src/components/league/LeagueMemberSelector.jsx
+// src/components/league/LeagueMemberSelector.jsx (FIXED)
 import React, { useState } from 'react';
 import { Check, X, Search, User, Users } from 'lucide-react';
 import { Button, Input } from '../ui';
@@ -36,12 +36,10 @@ const LeagueMemberSelector = ({
     let newSelection;
     
     if (selectedMembers.includes(memberId)) {
-      // Remove member from selection
       newSelection = selectedMembers.filter(id => id !== memberId);
     } else {
-      // Add member to selection (if under max limit)
       if (maxSelections && selectedMembers.length >= maxSelections) {
-        return; // Don't add if at max limit
+        return;
       }
       newSelection = [...selectedMembers, memberId];
     }
@@ -54,7 +52,6 @@ const LeagueMemberSelector = ({
     const availableIds = filteredMembers.map(m => m.id);
     let newSelection = [...new Set([...selectedMembers, ...availableIds])];
     
-    // Respect max selections limit
     if (maxSelections && newSelection.length > maxSelections) {
       newSelection = newSelection.slice(0, maxSelections);
     }
@@ -78,10 +75,9 @@ const LeagueMemberSelector = ({
 
   return (
     <div className="space-y-4">
-      {/* Header with selection count and actions */}
+      {/* FIXED: Standardized header with consistent spacing */}
       <div className="flex items-center justify-between">
-        <div className="text-sm text-gray-600 flex items-center">
-          <Users className="h-4 w-4 mr-1" />
+        <div className="text-sm text-gray-600">
           {selectedMembers.length} selected
           {maxSelections && ` of ${maxSelections} max`}
         </div>
@@ -106,7 +102,7 @@ const LeagueMemberSelector = ({
         </div>
       </div>
 
-      {/* Search input */}
+      {/* FIXED: Standardized search input */}
       <div className="relative">
         <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
         <Input
@@ -118,7 +114,7 @@ const LeagueMemberSelector = ({
         />
       </div>
 
-      {/* Member list */}
+      {/* FIXED: Standardized member list with consistent padding */}
       <div className="border rounded-lg divide-y divide-gray-200 max-h-64 overflow-y-auto">
         {filteredMembers.length === 0 ? (
           <div className="p-4 text-center text-gray-500">
@@ -154,7 +150,7 @@ const LeagueMemberSelector = ({
                     </div>
                   </div>
                   
-                  {/* Member info */}
+                  {/* FIXED: Standardized member info layout */}
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-medium text-gray-900">
                       {member.firstName} {member.lastName}
@@ -162,11 +158,9 @@ const LeagueMemberSelector = ({
                     <p className="text-sm text-gray-500">
                       {member.email}
                     </p>
-                    <div className="flex items-center space-x-3 text-xs text-gray-400">
-                      <span className="capitalize">{member.skillLevel}</span>
-                      <span>•</span>
-                      <span className="capitalize">{member.role}</span>
-                    </div>
+                    <p className="text-xs text-gray-400 capitalize">
+                      {member.skillLevel} • {member.role}
+                    </p>
                   </div>
                 </div>
 
@@ -186,11 +180,10 @@ const LeagueMemberSelector = ({
         )}
       </div>
 
-      {/* Selected members summary */}
+      {/* FIXED: Standardized selected members summary */}
       {selectedMembers.length > 0 && (
-        <div className="bg-blue-50 rounded-lg p-3">
-          <h4 className="text-sm font-medium text-blue-900 mb-2 flex items-center">
-            <Users className="h-4 w-4 mr-1" />
+        <div className="bg-gray-50 rounded-lg p-3">
+          <h4 className="text-sm font-medium text-gray-900 mb-2">
             Selected League Members ({selectedMembers.length})
           </h4>
           <div className="flex flex-wrap gap-2">

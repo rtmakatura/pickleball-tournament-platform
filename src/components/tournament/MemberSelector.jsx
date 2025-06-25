@@ -1,4 +1,4 @@
-// src/components/tournament/MemberSelector.jsx
+// src/components/tournament/MemberSelector.jsx (Reference - Already Correct)
 import React, { useState } from 'react';
 import { Check, X, Search, User } from 'lucide-react';
 import { Button, Input } from '../ui';
@@ -36,12 +36,10 @@ const MemberSelector = ({
     let newSelection;
     
     if (selectedMembers.includes(memberId)) {
-      // Remove member from selection
       newSelection = selectedMembers.filter(id => id !== memberId);
     } else {
-      // Add member to selection (if under max limit)
       if (maxSelections && selectedMembers.length >= maxSelections) {
-        return; // Don't add if at max limit
+        return;
       }
       newSelection = [...selectedMembers, memberId];
     }
@@ -54,7 +52,6 @@ const MemberSelector = ({
     const availableIds = filteredMembers.map(m => m.id);
     let newSelection = [...new Set([...selectedMembers, ...availableIds])];
     
-    // Respect max selections limit
     if (maxSelections && newSelection.length > maxSelections) {
       newSelection = newSelection.slice(0, maxSelections);
     }

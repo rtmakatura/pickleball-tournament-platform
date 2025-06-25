@@ -1,4 +1,4 @@
-// src/components/tournament/TournamentForm.jsx (FIXED - Section expansion, spacing, and modal integration)
+// src/components/tournament/TournamentForm.jsx (FIXED - Consistent spacing like LeagueForm)
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { 
   Trash2, 
@@ -29,59 +29,53 @@ import {
 } from '../../services/models';
 import { formatWebsiteUrl, isValidUrl, generateGoogleMapsLink, openLinkSafely } from '../../utils/linkUtils';
 
-// FIXED: Mobile-First Tournament Form Styles with AGGRESSIVE spacing fixes
+// FIXED: Consistent Mobile-First Tournament Form Styles - MATCHING LeagueForm approach
 const mobileFormStyles = `
-  /* CRITICAL: Override all spacing inconsistencies with !important */
-  .tournament-form-container {
-    padding: 0 !important;
-    margin: 0 !important;
+  /* STANDARDIZED: Mobile-first form optimizations - EXACT SAME as LeagueForm */
+  .mobile-tournament-form {
+    -webkit-overflow-scrolling: touch;
+    scroll-behavior: smooth;
+    padding: 0;
   }
   
-  .tournament-form-container > * {
-    margin: 0 !important;
-  }
-  
-  /* FIXED: Consistent section spacing - force 24px everywhere */
-  .mobile-form-section {
+  /* FIXED: Consistent section spacing - EXACTLY 24px everywhere - NO !important */
+  .mobile-tournament-section {
     background: white;
     border-radius: 16px;
     border: 1px solid #e5e7eb;
-    margin: 0 0 24px 0 !important;
-    padding: 0 !important;
+    margin-bottom: 24px;
     overflow: hidden;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
   }
   
   /* FIXED: Remove margin from first section to prevent extra spacing */
-  .mobile-form-section:first-child {
-    margin-top: 0 !important;
+  .mobile-tournament-section:first-child {
+    margin-top: 0;
   }
   
   /* FIXED: Ensure last section has no bottom margin */
-  .mobile-form-section:last-child {
-    margin-bottom: 0 !important;
+  .mobile-tournament-section:last-child {
+    margin-bottom: 0;
   }
   
-  .mobile-form-header {
-    padding: 20px !important;
-    margin: 0 !important;
+  .mobile-tournament-header {
+    padding: 20px;
     border-bottom: 1px solid #e5e7eb;
-    background: #f9fafb;
+    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
     cursor: pointer;
     transition: background-color 0.2s ease;
   }
   
-  .mobile-form-header:active {
-    background: #f3f4f6;
+  .mobile-tournament-header:active {
+    background: linear-gradient(135deg, #e2e8f0 0%, #cbd5e1 100%);
   }
   
   /* FIXED: Consistent content padding - EXACTLY 24px */
-  .mobile-form-content {
-    padding: 24px !important;
-    margin: 0 !important;
+  .mobile-tournament-content {
+    padding: 24px;
   }
   
-  .mobile-touch-button {
+  .mobile-tournament-touch-button {
     min-height: 52px;
     min-width: 52px;
     transition: all 0.2s ease;
@@ -89,205 +83,122 @@ const mobileFormStyles = `
     border-radius: 12px;
   }
   
-  .mobile-touch-button:active {
+  .mobile-tournament-touch-button:active {
     transform: scale(0.96);
   }
   
   /* FIXED: Standardized input group spacing - EXACTLY 24px */
-  .mobile-input-group {
-    margin: 0 0 24px 0 !important;
-    padding: 0 !important;
+  .mobile-tournament-input-group {
+    margin-bottom: 24px;
   }
   
   /* FIXED: Remove margin from last input group to prevent extra spacing */
-  .mobile-input-group:last-child {
-    margin-bottom: 0 !important;
+  .mobile-tournament-input-group:last-child {
+    margin-bottom: 0;
   }
   
-  .mobile-division-card {
-    background: white;
-    border: 2px solid #e5e7eb;
-    border-radius: 16px;
-    padding: 20px !important;
-    margin: 0 0 24px 0 !important;
-    transition: all 0.2s ease;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-  }
-  
-  .mobile-division-card:last-child {
-    margin-bottom: 0 !important;
-  }
-  
-  .mobile-division-card:active {
-    transform: scale(0.99);
-    border-color: #3b82f6;
-    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
-  }
-  
-  .mobile-grid-single {
+  .mobile-tournament-grid {
     display: grid;
     grid-template-columns: 1fr;
-    gap: 24px !important;
-    margin: 0 !important;
-  }
-  
-  .mobile-grid-responsive {
-    grid-template-columns: 1fr;
-    gap: 24px !important;
-    margin: 0 !important;
+    gap: 24px;
   }
   
   @media (min-width: 640px) {
-    .mobile-grid-responsive {
+    .mobile-tournament-grid-responsive {
       grid-template-columns: repeat(2, 1fr);
     }
   }
   
   @media (min-width: 1024px) {
-    .mobile-grid-responsive {
+    .mobile-tournament-grid-responsive {
       grid-template-columns: repeat(3, 1fr);
     }
   }
   
-  /* Prevent input truncation */
-  .mobile-input-container {
-    min-width: 0;
-    width: 100%;
-  }
-  
-  .mobile-input-container input,
-  .mobile-input-container select,
-  .mobile-input-container textarea {
-    min-width: 0;
-    width: 100%;
-    box-sizing: border-box;
-  }
-  
-  /* FIXED: Remove any default form spacing */
-  form {
-    margin: 0 !important;
-    padding: 0 !important;
-  }
-  
-  /* FIXED: Remove space-y utilities that might be conflicting */
-  .space-y-0 > * {
-    margin-top: 0 !important;
-    margin-bottom: 0 !important;
-  }
-  
-  /* FIXED: Touch-friendly alert styles */
-  .mobile-alert {
-    border-radius: 12px;
-    padding: 16px !important;
-    margin: 0 0 24px 0 !important;
-  }
-  
-  .mobile-alert:last-child {
-    margin-bottom: 0 !important;
-  }
-  
   /* FIXED: Progressive disclosure animations with proper state handling */
-  .mobile-expandable {
+  .mobile-tournament-expandable {
     transition: max-height 0.3s ease-out, opacity 0.2s ease-out;
     overflow: hidden;
   }
   
-  .mobile-expandable.collapsed {
+  .mobile-tournament-expandable.collapsed {
     max-height: 0;
     opacity: 0;
   }
   
-  .mobile-expandable.expanded {
+  .mobile-tournament-expandable.expanded {
     max-height: 2000px;
     opacity: 1;
   }
   
-  /* Mobile modal optimizations */
-  .mobile-modal-content {
-    max-height: 85vh;
-    overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
-    padding: 0 !important;
+  /* FIXED: Division card spacing - consistent with sections */
+  .mobile-tournament-division-card {
+    background: white;
+    border: 2px solid #e5e7eb;
+    border-radius: 16px;
+    padding: 20px;
+    margin-bottom: 24px;
+    transition: all 0.2s ease;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  }
+  
+  .mobile-tournament-division-card:last-child {
+    margin-bottom: 0;
+  }
+  
+  .mobile-tournament-division-card:active {
+    transform: scale(0.99);
+    border-color: #3b82f6;
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
+  }
+  
+  /* FIXED: Mobile-optimized alerts with consistent spacing */
+  .mobile-tournament-alert {
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 24px;
   }
   
   /* Division summary cards */
-  .division-summary-card {
+  .tournament-summary-card {
     background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
     color: white;
     border-radius: 16px;
-    padding: 20px !important;
-    margin: 0 0 24px 0 !important;
-    overflow: hidden;
-    box-sizing: border-box;
+    padding: 20px;
+    margin-bottom: 24px;
   }
   
-  .division-quick-stats {
+  .tournament-quick-stats {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     gap: 8px;
     text-align: center;
   }
   
-  @media (max-width: 340px) {
-    .division-quick-stats {
-      gap: 4px;
-    }
-    
-    .division-stat-item {
-      padding: 8px 4px;
-    }
-    
-    .division-stat-number {
-      font-size: 1rem;
-    }
-    
-    .division-stat-label {
-      font-size: 0.625rem;
-    }
-  }
-  
-  .division-stat-item {
+  .tournament-stat-item {
     background: rgba(255, 255, 255, 0.15);
     border-radius: 12px;
     padding: 12px 8px;
     backdrop-filter: blur(10px);
     border: 1px solid rgba(255, 255, 255, 0.2);
-    overflow: hidden;
-    min-width: 0;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
   }
   
-  .division-stat-number {
+  .tournament-stat-number {
     font-size: 1.25rem;
     font-weight: bold;
     line-height: 1;
     margin-bottom: 4px;
-    white-space: nowrap;
   }
   
-  .division-stat-label {
+  .tournament-stat-label {
     font-size: 0.6875rem;
     opacity: 0.9;
     line-height: 1;
-    white-space: nowrap;
-    text-align: center;
   }
   
   /* FIXED: Form container with consistent padding */
-  .tournament-outer-container {
-    padding: 24px !important;
-    margin: 0 !important;
-  }
-  
-  /* STANDARDIZED: Mobile-first form optimizations */
-  .mobile-form-container {
-    -webkit-overflow-scrolling: touch;
-    scroll-behavior: smooth;
-    padding: 0 !important;
-    margin: 0 !important;
+  .tournament-form-container {
+    padding: 24px;
   }
 `;
 
@@ -296,7 +207,7 @@ const StyleSheet = () => (
 );
 
 /**
- * FIXED: Mobile-Optimized Tournament Form Component with corrected expansion and spacing
+ * FIXED: Mobile-Optimized Tournament Form Component with consistent spacing
  */
 const TournamentForm = ({ 
   tournament = null, 
@@ -718,45 +629,59 @@ const TournamentForm = ({
   }));
 
   return (
-    <div className="mobile-form-container">
+    <div className="mobile-tournament-form">
       <StyleSheet />
       
-      {/* FIXED: Consistent container with proper padding */}
-      <div className="tournament-outer-container">
-        {/* FIXED: Mobile-optimized alert section with no extra wrappers */}
+      {/* FIXED: Consistent container structure matching LeagueForm exactly */}
+      <div className="tournament-form-container">
+        {/* FIXED: Alerts positioned as sections */}
         {errors.submit && (
-          <Alert type="error" title="Submission Error" message={errors.submit} className="mobile-alert" />
+          <div className="mobile-tournament-section">
+            <div className="mobile-tournament-content">
+              <Alert type="error" title="Submission Error" message={errors.submit} />
+            </div>
+          </div>
         )}
         
         {errors.delete && (
-          <Alert type="error" title="Delete Error" message={errors.delete} className="mobile-alert" />
+          <div className="mobile-tournament-section">
+            <div className="mobile-tournament-content">
+              <Alert type="error" title="Delete Error" message={errors.delete} />
+            </div>
+          </div>
         )}
         
         {errors.divisionSave && (
-          <Alert 
-            type="error" 
-            title="Division Save Error" 
-            message={errors.divisionSave} 
-            onClose={() => setErrors(prev => ({ ...prev, divisionSave: null }))}
-            className="mobile-alert"
-          />
+          <div className="mobile-tournament-section">
+            <div className="mobile-tournament-content">
+              <Alert 
+                type="error" 
+                title="Division Save Error" 
+                message={errors.divisionSave} 
+                onClose={() => setErrors(prev => ({ ...prev, divisionSave: null }))}
+              />
+            </div>
+          </div>
         )}
         
         {errors.divisionDelete && (
-          <Alert 
-            type="error" 
-            title="Division Delete Error" 
-            message={errors.divisionDelete} 
-            onClose={() => setErrors(prev => ({ ...prev, divisionDelete: null }))}
-            className="mobile-alert"
-          />
+          <div className="mobile-tournament-section">
+            <div className="mobile-tournament-content">
+              <Alert 
+                type="error" 
+                title="Division Delete Error" 
+                message={errors.divisionDelete} 
+                onClose={() => setErrors(prev => ({ ...prev, divisionDelete: null }))}
+              />
+            </div>
+          </div>
         )}
 
         <form id="tournament-form" onSubmit={handleSubmit}>
           {/* Basic Information Section */}
-          <div className="mobile-form-section">
+          <div className="mobile-tournament-section">
             <div 
-              className="mobile-form-header"
+              className="mobile-tournament-header"
               onClick={() => toggleSection('basic')}
             >
               <div className="flex items-center justify-between">
@@ -771,9 +696,9 @@ const TournamentForm = ({
               </div>
             </div>
             
-            <div className={`mobile-expandable ${expandedSections.basic ? 'expanded' : 'collapsed'}`}>
-              <div className="mobile-form-content">
-                <div className="mobile-input-group mobile-input-container">
+            <div className={`mobile-tournament-expandable ${expandedSections.basic ? 'expanded' : 'collapsed'}`}>
+              <div className="mobile-tournament-content">
+                <div className="mobile-tournament-input-group">
                   <Input
                     label="Tournament Name"
                     type="text"
@@ -787,7 +712,7 @@ const TournamentForm = ({
                   />
                 </div>
 
-                <div className="mobile-input-group mobile-input-container">
+                <div className="mobile-tournament-input-group">
                   <Input
                     label="Description"
                     type="text"
@@ -798,7 +723,7 @@ const TournamentForm = ({
                   />
                 </div>
 
-                <div className="mobile-input-group mobile-input-container">
+                <div className="mobile-tournament-input-group">
                   <Select
                     label="Tournament Status"
                     value={formData.status}
@@ -813,9 +738,9 @@ const TournamentForm = ({
           </div>
 
           {/* Event Details Section */}
-          <div className="mobile-form-section">
+          <div className="mobile-tournament-section">
             <div 
-              className="mobile-form-header"
+              className="mobile-tournament-header"
               onClick={() => toggleSection('details')}
             >
               <div className="flex items-center justify-between">
@@ -830,10 +755,10 @@ const TournamentForm = ({
               </div>
             </div>
             
-            <div className={`mobile-expandable ${expandedSections.details ? 'expanded' : 'collapsed'}`}>
-              <div className="mobile-form-content">
-                <div className="mobile-grid-single mobile-grid-responsive">
-                  <div className="mobile-input-group mobile-input-container">
+            <div className={`mobile-tournament-expandable ${expandedSections.details ? 'expanded' : 'collapsed'}`}>
+              <div className="mobile-tournament-content">
+                <div className={`mobile-tournament-grid ${isMobile ? '' : 'mobile-tournament-grid-responsive'}`}>
+                  <div className="mobile-tournament-input-group">
                     <Input
                       label="Event Date"
                       type="date"
@@ -846,7 +771,7 @@ const TournamentForm = ({
                     />
                   </div>
 
-                  <div className="mobile-input-group mobile-input-container">
+                  <div className="mobile-tournament-input-group">
                     <Input
                       label="Registration Deadline"
                       type="date"
@@ -858,7 +783,7 @@ const TournamentForm = ({
                   </div>
                 </div>
 
-                <div className="mobile-input-group mobile-input-container">
+                <div className="mobile-tournament-input-group">
                   <Input
                     label="Location"
                     type="text"
@@ -876,7 +801,7 @@ const TournamentForm = ({
                       variant="outline"
                       size="sm"
                       onClick={handleTestLocation}
-                      className="mobile-touch-button mt-3"
+                      className="mobile-tournament-touch-button mt-3"
                       disabled={isSubmitting}
                     >
                       <MapPin className="h-4 w-4 mr-2" />
@@ -885,7 +810,7 @@ const TournamentForm = ({
                   )}
                 </div>
 
-                <div className="mobile-input-group mobile-input-container">
+                <div className="mobile-tournament-input-group">
                   <Input
                     label="Tournament Website"
                     type="url"
@@ -902,7 +827,7 @@ const TournamentForm = ({
                       variant="outline"
                       size="sm"
                       onClick={handleTestWebsite}
-                      className="mobile-touch-button mt-3"
+                      className="mobile-tournament-touch-button mt-3"
                       disabled={isSubmitting}
                     >
                       <ExternalLink className="h-4 w-4 mr-2" />
@@ -914,17 +839,129 @@ const TournamentForm = ({
             </div>
           </div>
 
+          {/* Divisions Management Section - MOVED INSIDE FORM */}
+          <div className="mobile-tournament-section">
+            <div 
+              className="mobile-tournament-header"
+              onClick={() => toggleSection('divisions')}
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center">
+                  <Trophy className="h-5 w-5 text-yellow-600 mr-3" />
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900">Tournament Divisions</h3>
+                    <p className="text-sm text-gray-600 mt-1">Manage different event categories</p>
+                  </div>
+                </div>
+                <ChevronDown className={`h-5 w-5 text-gray-400 transition-transform ${expandedSections.divisions ? 'rotate-180' : ''}`} />
+              </div>
+            </div>
+            
+            <div className={`mobile-tournament-expandable ${expandedSections.divisions ? 'expanded' : 'collapsed'}`}>
+              <div className="mobile-tournament-content">
+                {/* Division Summary Card */}
+                <div className="tournament-summary-card">
+                  <h4 className="text-lg font-semibold mb-4">Tournament Overview</h4>
+                  <div className="tournament-quick-stats">
+                    <div className="tournament-stat-item">
+                      <div className="tournament-stat-number">{divisions.length}</div>
+                      <div className="tournament-stat-label">Divisions</div>
+                    </div>
+                    <div className="tournament-stat-item">
+                      <div className="tournament-stat-number">{getTotalParticipants()}</div>
+                      <div className="tournament-stat-label">Players</div>
+                    </div>
+                    <div className="tournament-stat-item">
+                      <div className="tournament-stat-number">${getTotalExpected()}</div>
+                      <div className="tournament-stat-label">Entry Fees</div>
+                    </div>
+                  </div>
+                  
+                  {/* Clean Division List */}
+                  {divisions.length > 0 && (
+                    <div className="mt-6">
+                      <h5 className="text-sm font-medium mb-3 opacity-90">Divisions:</h5>
+                      <div className="space-y-2">
+                        {divisions.map((division, index) => (
+                          <div key={division.id || index} className="bg-white bg-opacity-20 rounded-lg p-3">
+                            <div className="flex items-center justify-between">
+                              <div className="flex-1 min-w-0">
+                                <p className="font-medium text-sm truncate">{division.name}</p>
+                                <p className="text-xs opacity-75 mt-1">
+                                  {division.eventType.split('_').map(word => 
+                                    word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+                                  ).join(' ')} • {division.skillLevel.charAt(0).toUpperCase() + division.skillLevel.slice(1)}
+                                  {division.entryFee > 0 && ` • ${division.entryFee}`}
+                                </p>
+                              </div>
+                              <div className="text-right flex-shrink-0 ml-3">
+                                <p className="text-sm font-medium">{division.participants?.length || 0}</p>
+                                <p className="text-xs opacity-75">players</p>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Add Division Button */}
+                <div className="mobile-tournament-input-group">
+                  <Button 
+                    type="button"
+                    onClick={addDivision}
+                    variant="outline"
+                    disabled={isSubmitting || divisionSaving}
+                    className="mobile-tournament-touch-button w-full"
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add New Division
+                  </Button>
+                </div>
+
+                {/* Division List */}
+                <div>
+                  {divisions.map((division, index) => (
+                    <MobileDivisionCard
+                      key={division.id || index}
+                      division={division}
+                      index={index}
+                      onEdit={() => editDivision(index)}
+                      onDelete={() => deleteDivision(index)}
+                      canDelete={divisions.length > 1}
+                      disabled={isSubmitting || divisionSaving}
+                      loading={divisionSaving}
+                    />
+                  ))}
+                </div>
+
+                {errors.divisions && (
+                  <div className="mobile-tournament-input-group">
+                    <Alert type="error" title="Division Error" message={errors.divisions} />
+                  </div>
+                )}
+                
+                {Object.entries(errors).filter(([key]) => key.startsWith('division_')).map(([key, error]) => (
+                  <div key={key} className="mobile-tournament-input-group">
+                    <Alert type="error" title="Division Error" message={error} />
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
           {/* Cancel/Create Button for New Tournaments */}
           {!tournament && (
-            <div className="mobile-form-section">
-              <div className="mobile-form-content">
+            <div className="mobile-tournament-section">
+              <div className="mobile-tournament-content">
                 <div className="grid grid-cols-2 gap-4">
                   <Button
                     type="button"
                     variant="outline"
                     onClick={onCancel}
                     disabled={loading || deleteLoading || isSubmitting}
-                    className="mobile-touch-button"
+                    className="mobile-tournament-touch-button"
                   >
                     Cancel
                   </Button>
@@ -933,7 +970,7 @@ const TournamentForm = ({
                     type="submit"
                     loading={loading || isSubmitting}
                     disabled={loading || deleteLoading || isSubmitting}
-                    className="mobile-touch-button"
+                    className="mobile-tournament-touch-button"
                   >
                     Create Tournament
                   </Button>
@@ -942,114 +979,6 @@ const TournamentForm = ({
             </div>
           )}
         </form>
-
-        {/* Divisions Management Section */}
-        <div className="mobile-form-section">
-          <div 
-            className="mobile-form-header"
-            onClick={() => toggleSection('divisions')}
-          >
-            <div className="flex items-center justify-between">
-              <div className="flex items-center">
-                <Trophy className="h-5 w-5 text-yellow-600 mr-3" />
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900">Tournament Divisions</h3>
-                  <p className="text-sm text-gray-600 mt-1">Manage different event categories</p>
-                </div>
-              </div>
-              <ChevronDown className={`h-5 w-5 text-gray-400 transition-transform ${expandedSections.divisions ? 'rotate-180' : ''}`} />
-            </div>
-          </div>
-          
-          <div className={`mobile-expandable ${expandedSections.divisions ? 'expanded' : 'collapsed'}`}>
-            <div className="mobile-form-content">
-              {/* Division Summary Card */}
-              <div className="division-summary-card">
-                <h4 className="text-lg font-semibold mb-4">Tournament Overview</h4>
-                <div className="division-quick-stats">
-                  <div className="division-stat-item">
-                    <div className="division-stat-number">{divisions.length}</div>
-                    <div className="division-stat-label">Divisions</div>
-                  </div>
-                  <div className="division-stat-item">
-                    <div className="division-stat-number">{getTotalParticipants()}</div>
-                    <div className="division-stat-label">Players</div>
-                  </div>
-                  <div className="division-stat-item">
-                    <div className="division-stat-number">${getTotalExpected()}</div>
-                    <div className="division-stat-label">Entry Fees</div>
-                  </div>
-                </div>
-                
-                {/* Clean Division List */}
-                {divisions.length > 0 && (
-                  <div className="mt-6">
-                    <h5 className="text-sm font-medium mb-3 opacity-90">Divisions:</h5>
-                    <div className="space-y-2">
-                      {divisions.map((division, index) => (
-                        <div key={division.id || index} className="bg-white bg-opacity-20 rounded-lg p-3">
-                          <div className="flex items-center justify-between">
-                            <div className="flex-1 min-w-0">
-                              <p className="font-medium text-sm truncate">{division.name}</p>
-                              <p className="text-xs opacity-75 mt-1">
-                                {division.eventType.split('_').map(word => 
-                                  word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
-                                ).join(' ')} • {division.skillLevel.charAt(0).toUpperCase() + division.skillLevel.slice(1)}
-                                {division.entryFee > 0 && ` • $${division.entryFee}`}
-                              </p>
-                            </div>
-                            <div className="text-right flex-shrink-0 ml-3">
-                              <p className="text-sm font-medium">{division.participants?.length || 0}</p>
-                              <p className="text-xs opacity-75">players</p>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Add Division Button */}
-              <div className="mobile-input-group">
-                <Button 
-                  type="button"
-                  onClick={addDivision}
-                  variant="outline"
-                  disabled={isSubmitting || divisionSaving}
-                  className="mobile-touch-button w-full"
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add New Division
-                </Button>
-              </div>
-
-              {/* Division List */}
-              <div>
-                {divisions.map((division, index) => (
-                  <MobileDivisionCard
-                    key={division.id || index}
-                    division={division}
-                    index={index}
-                    onEdit={() => editDivision(index)}
-                    onDelete={() => deleteDivision(index)}
-                    canDelete={divisions.length > 1}
-                    disabled={isSubmitting || divisionSaving}
-                    loading={divisionSaving}
-                  />
-                ))}
-              </div>
-
-              {errors.divisions && (
-                <Alert type="error" title="Division Error" message={errors.divisions} className="mobile-alert" />
-              )}
-              
-              {Object.entries(errors).filter(([key]) => key.startsWith('division_')).map(([key, error]) => (
-                <Alert key={key} type="error" title="Division Error" message={error} className="mobile-alert" />
-              ))}
-            </div>
-          </div>
-        </div>
       </div>
 
       {/* Mobile-Optimized Division Modal */}
@@ -1080,7 +1009,7 @@ const MobileDivisionCard = ({ division, index, onEdit, onDelete, canDelete, disa
   };
 
   return (
-    <div className="mobile-division-card">
+    <div className="mobile-tournament-division-card">
       <div className="flex items-start justify-between mb-4">
         <div className="flex-1 min-w-0 pr-4">
           <div className="flex items-center mb-3">
@@ -1128,7 +1057,7 @@ const MobileDivisionCard = ({ division, index, onEdit, onDelete, canDelete, disa
           size="sm"
           onClick={onEdit}
           disabled={disabled}
-          className="mobile-touch-button flex-1"
+          className="mobile-tournament-touch-button flex-1"
         >
           <Edit3 className="h-4 w-4 mr-2" />
           Edit Division
@@ -1141,7 +1070,7 @@ const MobileDivisionCard = ({ division, index, onEdit, onDelete, canDelete, disa
             onClick={onDelete}
             disabled={disabled}
             loading={loading}
-            className="mobile-touch-button"
+            className="mobile-tournament-touch-button"
           >
             <Trash2 className="h-4 w-4" />
           </Button>
@@ -1306,13 +1235,13 @@ const MobileDivisionFormModal = ({
       title={title}
       size="lg"
     >
-      <div className="mobile-modal-content space-y-6">
+      <div className="space-y-6">
         {errors.submit && (
-          <Alert type="error" title="Save Error" message={errors.submit} className="mobile-alert" />
+          <Alert type="error" title="Save Error" message={errors.submit} />
         )}
         
         <div className="space-y-6">
-          <div className="mobile-input-group mobile-input-container">
+          <div>
             <Input
               label="Division Name"
               type="text"
@@ -1326,7 +1255,7 @@ const MobileDivisionFormModal = ({
             />
           </div>
 
-          <div className="mobile-input-group mobile-input-container">
+          <div>
             <Input
               label="Description"
               type="text"
@@ -1337,8 +1266,8 @@ const MobileDivisionFormModal = ({
             />
           </div>
 
-          <div className="mobile-grid-single mobile-grid-responsive">
-            <div className="mobile-input-group mobile-input-container">
+          <div className={`grid gap-6 ${isMobile ? 'grid-cols-1' : 'grid-cols-2'}`}>
+            <div>
               <Select
                 label="Event Type"
                 value={formData.eventType}
@@ -1350,7 +1279,7 @@ const MobileDivisionFormModal = ({
               />
             </div>
 
-            <div className="mobile-input-group mobile-input-container">
+            <div>
               <Select
                 label="Skill Level"
                 value={formData.skillLevel}
@@ -1363,8 +1292,8 @@ const MobileDivisionFormModal = ({
             </div>
           </div>
 
-          <div className="mobile-grid-single mobile-grid-responsive">
-            <div className="mobile-input-group mobile-input-container">
+          <div className={`grid gap-6 ${isMobile ? 'grid-cols-1' : 'grid-cols-2'}`}>
+            <div>
               <Input
                 label="Entry Fee ($)"
                 type="number"
@@ -1378,7 +1307,7 @@ const MobileDivisionFormModal = ({
               />
             </div>
 
-            <div className="mobile-input-group mobile-input-container">
+            <div>
               <Input
                 label="Max Participants"
                 type="number"
@@ -1392,7 +1321,7 @@ const MobileDivisionFormModal = ({
             </div>
           </div>
 
-          <div className="mobile-input-group mobile-input-container">
+          <div>
             <Select
               label="Payment Mode"
               value={formData.paymentMode}
@@ -1413,7 +1342,7 @@ const MobileDivisionFormModal = ({
             variant="outline"
             onClick={handleClose}
             disabled={isSaving}
-            className="mobile-touch-button flex-1"
+            className="flex-1"
           >
             Cancel
           </Button>
@@ -1423,7 +1352,7 @@ const MobileDivisionFormModal = ({
             onClick={handleSave}
             loading={isSaving}
             disabled={isSaving}
-            className="mobile-touch-button flex-1"
+            className="flex-1"
           >
             {division ? (isEditing ? 'Update & Save' : 'Update') : (isEditing ? 'Add & Save' : 'Add')}
           </Button>
