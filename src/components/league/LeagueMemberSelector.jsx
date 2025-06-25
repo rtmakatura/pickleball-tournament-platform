@@ -1,17 +1,83 @@
-// src/components/league/LeagueMemberSelector.jsx (FIXED)
+// src/components/league/LeagueMemberSelector.jsx (FIXED - Consistent styling integration)
 import React, { useState } from 'react';
-import { Check, X, Search, User, Users } from 'lucide-react';
+import { Check, X, Search, User, Users, Activity } from 'lucide-react';
 import { Button, Input } from '../ui';
+
+// FIXED: Enhanced styling to match parent modal and form consistency
+const leagueSelectorStyles = `
+  /* FIXED: Consistent with parent form styling - 24px spacing */
+  .league-selector-input-group {
+    margin-bottom: 24px;
+  }
+  
+  .league-selector-input-group:last-child {
+    margin-bottom: 0;
+  }
+  
+  /* FIXED: Enhanced member cards with consistent spacing */
+  .league-member-card {
+    padding: 16px;
+    border-radius: 12px;
+    transition: all 0.2s ease;
+    border: 1px solid #e5e7eb;
+  }
+  
+  .league-member-card:hover {
+    background-color: #f9fafb;
+    border-color: #d1d5db;
+  }
+  
+  .league-member-card.selected {
+    background-color: #eff6ff;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 1px #3b82f6;
+  }
+  
+  .league-member-card.disabled {
+    background-color: #f9fafb;
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  
+  /* FIXED: Enhanced summary card styling */
+  .league-summary-card {
+    background: #f0f9ff;
+    border: 1px solid #bae6fd;
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 24px;
+  }
+  
+  /* FIXED: Enhanced guidance card */
+  .league-guidance-card {
+    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+    border: 1px solid #e2e8f0;
+    border-radius: 16px;
+    padding: 20px;
+    margin-bottom: 24px;
+  }
+  
+  /* FIXED: Mobile-optimized touch targets */
+  @media (max-width: 768px) {
+    .league-touch-target {
+      min-height: 48px;
+      min-width: 48px;
+    }
+    
+    .league-member-card {
+      padding: 20px;
+      margin-bottom: 16px;
+    }
+  }
+`;
+
+const StyleSheet = () => (
+  <style dangerouslySetInnerHTML={{ __html: leagueSelectorStyles }} />
+);
 
 /**
  * LeagueMemberSelector Component - For selecting league participants
- * 
- * Props:
- * - members: array - Available members to select from
- * - selectedMembers: array - Currently selected member IDs
- * - onSelectionChange: function - Called when selection changes
- * - maxSelections: number - Maximum number of members to select
- * - loading: boolean - Whether members are loading
+ * FIXED: Enhanced styling integration with parent modal/form
  */
 const LeagueMemberSelector = ({
   members = [],
@@ -66,162 +132,181 @@ const LeagueMemberSelector = ({
 
   if (loading) {
     return (
-      <div className="text-center py-8">
-        <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-        <p className="mt-2 text-gray-500">Loading members...</p>
-      </div>
+      <>
+        <StyleSheet />
+        <div className="text-center py-8">
+          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+          <p className="mt-2 text-gray-500">Loading members...</p>
+        </div>
+      </>
     );
   }
 
   return (
-    <div className="space-y-4">
-      {/* FIXED: Standardized header with consistent spacing */}
-      <div className="flex items-center justify-between">
-        <div className="text-sm text-gray-600">
-          {selectedMembers.length} selected
-          {maxSelections && ` of ${maxSelections} max`}
-        </div>
-        
-        <div className="flex space-x-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={selectAll}
-            disabled={filteredMembers.length === 0}
-          >
-            Select All
-          </Button>
-          <Button
-            variant="outline" 
-            size="sm"
-            onClick={clearAll}
-            disabled={selectedMembers.length === 0}
-          >
-            Clear All
-          </Button>
-        </div>
-      </div>
-
-      {/* FIXED: Standardized search input */}
-      <div className="relative">
-        <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-        <Input
-          type="text"
-          placeholder="Search members by name or email..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="pl-10"
-        />
-      </div>
-
-      {/* FIXED: Standardized member list with consistent padding */}
-      <div className="border rounded-lg divide-y divide-gray-200 max-h-64 overflow-y-auto">
-        {filteredMembers.length === 0 ? (
-          <div className="p-4 text-center text-gray-500">
-            {searchTerm ? 'No members found matching your search' : 'No members available'}
-          </div>
-        ) : (
-          filteredMembers.map((member) => {
-            const isSelected = selectedMembers.includes(member.id);
-            const isDisabled = !isSelected && maxSelections && selectedMembers.length >= maxSelections;
+    <>
+      <StyleSheet />
+      <div className="space-y-0">
+        {/* FIXED: Enhanced header with consistent spacing */}
+        <div className="league-selector-input-group">
+          <div className="flex items-center justify-between mb-4">
+            <div className="text-sm text-gray-600">
+              {selectedMembers.length} selected
+              {maxSelections && ` of ${maxSelections} max`}
+            </div>
             
-            return (
-              <div
-                key={member.id}
-                className={`
-                  p-3 flex items-center justify-between cursor-pointer transition-colors
-                  ${isSelected 
-                    ? 'bg-blue-50 border-blue-200' 
-                    : isDisabled 
-                      ? 'bg-gray-50 cursor-not-allowed opacity-50'
-                      : 'hover:bg-gray-50'
-                  }
-                `}
-                onClick={() => !isDisabled && toggleMember(member.id)}
+            <div className="flex space-x-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={selectAll}
+                disabled={filteredMembers.length === 0}
+                className="league-touch-target"
               >
-                <div className="flex items-center space-x-3">
-                  {/* Avatar */}
-                  <div className="flex-shrink-0">
-                    <div className={`
-                      h-8 w-8 rounded-full flex items-center justify-center
-                      ${isSelected ? 'bg-blue-100' : 'bg-gray-100'}
-                    `}>
-                      <User className={`h-4 w-4 ${isSelected ? 'text-blue-600' : 'text-gray-400'}`} />
-                    </div>
-                  </div>
-                  
-                  {/* FIXED: Standardized member info layout */}
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium text-gray-900">
-                      {member.firstName} {member.lastName}
-                    </p>
-                    <p className="text-sm text-gray-500">
-                      {member.email}
-                    </p>
-                    <p className="text-xs text-gray-400 capitalize">
-                      {member.skillLevel} • {member.role}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Selection indicator */}
-                <div className="flex-shrink-0">
-                  {isSelected ? (
-                    <div className="h-5 w-5 bg-blue-600 rounded-full flex items-center justify-center">
-                      <Check className="h-3 w-3 text-white" />
-                    </div>
-                  ) : (
-                    <div className="h-5 w-5 border-2 border-gray-300 rounded-full"></div>
-                  )}
-                </div>
-              </div>
-            );
-          })
-        )}
-      </div>
-
-      {/* FIXED: Standardized selected members summary */}
-      {selectedMembers.length > 0 && (
-        <div className="bg-gray-50 rounded-lg p-3">
-          <h4 className="text-sm font-medium text-gray-900 mb-2">
-            Selected League Members ({selectedMembers.length})
-          </h4>
-          <div className="flex flex-wrap gap-2">
-            {selectedMembers.map(memberId => {
-              const member = members.find(m => m.id === memberId);
-              if (!member) return null;
-              
-              return (
-                <span
-                  key={memberId}
-                  className="inline-flex items-center px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full"
-                >
-                  {member.firstName} {member.lastName}
-                  <button
-                    onClick={() => toggleMember(memberId)}
-                    className="ml-1 hover:bg-blue-200 rounded-full p-0.5"
-                  >
-                    <X className="h-3 w-3" />
-                  </button>
-                </span>
-              );
-            })}
+                Select All
+              </Button>
+              <Button
+                variant="outline" 
+                size="sm"
+                onClick={clearAll}
+                disabled={selectedMembers.length === 0}
+                className="league-touch-target"
+              >
+                Clear All
+              </Button>
+            </div>
           </div>
         </div>
-      )}
 
-      {/* League-specific guidance */}
-      {selectedMembers.length > 0 && (
-        <div className="bg-gray-50 rounded-lg p-3">
-          <h4 className="text-xs font-medium text-gray-700 mb-1">League Registration Notes</h4>
-          <ul className="text-xs text-gray-600 space-y-1">
-            <li>• Members will be added to the league roster upon creation</li>
-            <li>• Registration fees (if any) will be tracked per participant</li>
-            <li>• You can add or remove members later from the league details</li>
-          </ul>
+        {/* FIXED: Enhanced search input with consistent styling */}
+        <div className="league-selector-input-group">
+          <div className="relative">
+            <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+            <Input
+              type="text"
+              placeholder="Search members by name or email..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10"
+            />
+          </div>
         </div>
-      )}
-    </div>
+
+        {/* FIXED: Enhanced member list with consistent styling */}
+        <div className="league-selector-input-group">
+          <div className="border border-gray-200 rounded-lg divide-y divide-gray-200 max-h-64 overflow-y-auto">
+            {filteredMembers.length === 0 ? (
+              <div className="p-6 text-center text-gray-500">
+                {searchTerm ? 'No members found matching your search' : 'No members available'}
+              </div>
+            ) : (
+              filteredMembers.map((member) => {
+                const isSelected = selectedMembers.includes(member.id);
+                const isDisabled = !isSelected && maxSelections && selectedMembers.length >= maxSelections;
+                
+                return (
+                  <div
+                    key={member.id}
+                    className={`
+                      league-member-card cursor-pointer
+                      ${isSelected ? 'selected' : ''}
+                      ${isDisabled ? 'disabled' : ''}
+                    `}
+                    onClick={() => !isDisabled && toggleMember(member.id)}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-3 flex-1 min-w-0">
+                        {/* Avatar */}
+                        <div className="flex-shrink-0">
+                          <div className={`
+                            h-8 w-8 rounded-full flex items-center justify-center
+                            ${isSelected ? 'bg-blue-100' : 'bg-gray-100'}
+                          `}>
+                            <User className={`h-4 w-4 ${isSelected ? 'text-blue-600' : 'text-gray-400'}`} />
+                          </div>
+                        </div>
+                        
+                        {/* FIXED: Enhanced member info layout */}
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-medium text-gray-900 truncate">
+                            {member.firstName} {member.lastName}
+                          </p>
+                          <p className="text-sm text-gray-500 truncate">
+                            {member.email}
+                          </p>
+                          <p className="text-xs text-gray-400 capitalize">
+                            {member.skillLevel} • {member.role}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Selection indicator */}
+                      <div className="flex-shrink-0 ml-3">
+                        {isSelected ? (
+                          <div className="h-5 w-5 bg-blue-600 rounded-full flex items-center justify-center">
+                            <Check className="h-3 w-3 text-white" />
+                          </div>
+                        ) : (
+                          <div className="h-5 w-5 border-2 border-gray-300 rounded-full"></div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </div>
+
+        {/* FIXED: Enhanced selected members summary */}
+        {selectedMembers.length > 0 && (
+          <div className="league-summary-card">
+            <h4 className="text-sm font-medium text-gray-900 mb-3">
+              Selected League Members ({selectedMembers.length})
+            </h4>
+            <div className="flex flex-wrap gap-2">
+              {selectedMembers.map(memberId => {
+                const member = members.find(m => m.id === memberId);
+                if (!member) return null;
+                
+                return (
+                  <span
+                    key={memberId}
+                    className="inline-flex items-center px-3 py-1.5 bg-blue-100 text-blue-800 text-sm rounded-full"
+                  >
+                    {member.firstName} {member.lastName}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleMember(memberId);
+                      }}
+                      className="ml-2 hover:bg-blue-200 rounded-full p-0.5 transition-colors"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </span>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* FIXED: Enhanced guidance section */}
+        <div className="league-guidance-card">
+          <h4 className="text-sm font-medium text-gray-700 mb-3 flex items-center">
+            <Activity className="h-4 w-4 mr-2 text-blue-600" />
+            League Registration Notes
+          </h4>
+          <div className="text-sm text-gray-600 space-y-2">
+            <p>• Members will be added to the league roster upon creation</p>
+            <p>• Registration fees (if any) will be tracked per participant</p>
+            <p>• You can add or remove members later from the league details</p>
+            {maxSelections && (
+              <p>• Maximum of <strong>{maxSelections}</strong> participants allowed</p>
+            )}
+          </div>
+        </div>
+      </div>
+    </>
   );
 };
 

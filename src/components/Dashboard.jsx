@@ -1,4 +1,4 @@
-// src/components/Dashboard.jsx (FIXED - Removed undefined ModalHeaderButton references)
+// src/components/Dashboard.jsx (FIXED - Proper styling integration for League Member selection)
 import React, { useState, useMemo, useCallback } from 'react';
 import { 
   Plus, 
@@ -109,6 +109,34 @@ const dashboardStyles = `
   /* Smooth scrolling for mobile */
   .mobile-scroll {
     -webkit-overflow-scrolling: touch;
+  }
+
+  /* FIXED: League member selector modal styling - consistent with forms */
+  .league-modal-section {
+    background: white;
+    border-radius: 16px;
+    border: 1px solid #e5e7eb;
+    margin-bottom: 24px;
+    overflow: hidden;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  }
+  
+  .league-modal-header {
+    padding: 20px;
+    border-bottom: 1px solid #e5e7eb;
+    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  }
+  
+  .league-modal-content {
+    padding: 24px;
+  }
+  
+  .league-modal-input-group {
+    margin-bottom: 24px;
+  }
+  
+  .league-modal-input-group:last-child {
+    margin-bottom: 0;
   }
 `;
 
@@ -1784,33 +1812,6 @@ const Dashboard = () => {
               loading={formLoading}
               deleteLoading={deleteLoading}
             />
-            
-            {editingTournament && editingTournament.divisions && editingTournament.divisions.length > 0 && (
-              <div className="border-t pt-6">
-                <h3 className="text-lg font-medium text-gray-900 mb-4">
-                  Manage Division Participants
-                </h3>
-                <DivisionMemberSelector
-                  tournament={editingTournament}
-                  members={members}
-                  onDivisionParticipantsChange={(divisionId, participants) => {
-                    if (!editingTournament) return;
-                    
-                    const updatedDivisions = editingTournament.divisions.map(division => 
-                      division.id === divisionId 
-                        ? { ...division, participants }
-                        : division
-                    );
-                    
-                    setEditingTournament(prev => ({
-                      ...prev,
-                      divisions: updatedDivisions
-                    }));
-                  }}
-                  loading={membersLoading}
-                />
-              </div>
-            )}
           </div>
         </Modal>
 
@@ -1869,7 +1870,7 @@ const Dashboard = () => {
           )}
         </Modal>
 
-        {/* League Modal with Header Actions for Update and Delete Buttons */}
+        {/* FIXED: League Modal with proper styling integration for member selection */}
         <Modal
           isOpen={showLeagueModal}
           onClose={handleLeagueModalClose}
@@ -1899,7 +1900,7 @@ const Dashboard = () => {
             </>
           ) : null}
         >
-          <div className="space-y-6">
+          <div className="space-y-0">
             <LeagueForm
               league={editingLeague}
               onSubmit={editingLeague ? handleUpdateLeague : handleCreateLeague}
@@ -1908,16 +1909,28 @@ const Dashboard = () => {
               deleteLoading={deleteLoading}
             />
             
-            <div className="border-t pt-6">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">
-                Select League Members
-              </h3>
-              <LeagueMemberSelector
-                members={members}
-                selectedMembers={selectedLeagueMembers}
-                onSelectionChange={setSelectedLeagueMembers}
-                loading={membersLoading}
-              />
+            {/* FIXED: Properly styled member selection section */}
+            <div className="league-modal-section">
+              <div className="league-modal-header">
+                <div className="flex items-center">
+                  <Users className="h-5 w-5 text-indigo-600 mr-3" />
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900">Select League Members</h3>
+                    <p className="text-sm text-gray-600 mt-1">Choose participants for this league</p>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="league-modal-content">
+                <div className="league-modal-input-group">
+                  <LeagueMemberSelector
+                    members={members}
+                    selectedMembers={selectedLeagueMembers}
+                    onSelectionChange={setSelectedLeagueMembers}
+                    loading={membersLoading}
+                  />
+                </div>
+              </div>
             </div>
           </div>
         </Modal>

@@ -1,17 +1,83 @@
-// src/components/tournament/DivisionMemberSelector.jsx (FIXED)
+// src/components/tournament/DivisionMemberSelector.jsx (FIXED - Consistent styling integration)
 import React, { useState } from 'react';
 import { Check, X, Search, User, Users, Trophy, DollarSign } from 'lucide-react';
 import { Button, Input, Select } from '../ui';
 
+// FIXED: Enhanced styling to match parent form consistency
+const divisionSelectorStyles = `
+  /* FIXED: Consistent with parent form styling - 24px spacing */
+  .division-selector-input-group {
+    margin-bottom: 24px;
+  }
+  
+  .division-selector-input-group:last-child {
+    margin-bottom: 0;
+  }
+  
+  /* FIXED: Enhanced member cards with consistent spacing */
+  .division-member-card {
+    padding: 16px;
+    border-radius: 12px;
+    transition: all 0.2s ease;
+    border: 1px solid #e5e7eb;
+  }
+  
+  .division-member-card:hover {
+    background-color: #f9fafb;
+    border-color: #d1d5db;
+  }
+  
+  .division-member-card.selected {
+    background-color: #ecfdf5;
+    border-color: #10b981;
+    box-shadow: 0 0 0 1px #10b981;
+  }
+  
+  .division-member-card.disabled {
+    background-color: #f9fafb;
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  
+  /* FIXED: Enhanced division info card */
+  .division-info-card {
+    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+    border: 1px solid #e2e8f0;
+    border-radius: 16px;
+    padding: 20px;
+    margin-bottom: 24px;
+  }
+  
+  /* FIXED: Consistent summary card styling */
+  .division-summary-card {
+    background: #f0f9ff;
+    border: 1px solid #bae6fd;
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 24px;
+  }
+  
+  /* FIXED: Mobile-optimized touch targets */
+  @media (max-width: 768px) {
+    .division-touch-target {
+      min-height: 48px;
+      min-width: 48px;
+    }
+    
+    .division-member-card {
+      padding: 20px;
+      margin-bottom: 16px;
+    }
+  }
+`;
+
+const StyleSheet = () => (
+  <style dangerouslySetInnerHTML={{ __html: divisionSelectorStyles }} />
+);
+
 /**
  * DivisionMemberSelector Component - For selecting participants by division
- * Replaces MemberSelector for tournaments with divisions
- * 
- * Props:
- * - tournament: object - Tournament data with divisions
- * - members: array - Available members to select from
- * - onDivisionParticipantsChange: function - Called when division participants change
- * - loading: boolean - Whether members are loading
+ * FIXED: Enhanced styling integration with parent form
  */
 const DivisionMemberSelector = ({
   tournament,
@@ -91,206 +157,244 @@ const DivisionMemberSelector = ({
 
   if (loading) {
     return (
-      <div className="text-center py-8">
-        <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-green-600"></div>
-        <p className="mt-2 text-gray-500">Loading members...</p>
-      </div>
+      <>
+        <StyleSheet />
+        <div className="text-center py-8">
+          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-green-600"></div>
+          <p className="mt-2 text-gray-500">Loading members...</p>
+        </div>
+      </>
     );
   }
 
   if (!tournament?.divisions || tournament.divisions.length === 0) {
     return (
-      <div className="text-center py-8 text-gray-500">
-        <Trophy className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-        <p>No divisions found. Please add divisions to the tournament first.</p>
-      </div>
+      <>
+        <StyleSheet />
+        <div className="text-center py-8 text-gray-500">
+          <Trophy className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+          <p>No divisions found. Please add divisions to the tournament first.</p>
+        </div>
+      </>
     );
   }
 
   return (
-    <div className="space-y-4">
-      {/* FIXED: Standardized division selector - removed Card wrapper */}
-      <div className="bg-gray-50 rounded-lg p-3">
-        <Select
-          label="Division"
-          value={selectedDivision}
-          onChange={(e) => setSelectedDivision(e.target.value)}
-          options={tournament.divisions.map(div => ({
-            value: div.id,
-            label: `${div.name} - ${formatEventType(div.eventType)} (${div.skillLevel})`
-          }))}
-        />
-        
-        {currentDivision && (
-          <div className="mt-3 grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-            <div>
-              <span className="font-medium text-gray-700">Type:</span>
-              <p>{formatEventType(currentDivision.eventType)}</p>
-            </div>
-            <div>
-              <span className="font-medium text-gray-700">Skill Level:</span>
-              <p className="capitalize">{currentDivision.skillLevel}</p>
-            </div>
-            <div>
-              <span className="font-medium text-gray-700">Entry Fee:</span>
-              <p>${currentDivision.entryFee || 0}</p>
-            </div>
-            <div>
-              <span className="font-medium text-gray-700">Participants:</span>
-              <p>
-                {selectedMembers.length}
-                {currentDivision.maxParticipants && ` / ${currentDivision.maxParticipants}`}
-              </p>
-            </div>
+    <>
+      <StyleSheet />
+      <div className="space-y-0">
+        {/* FIXED: Enhanced division selector with consistent styling */}
+        <div className="division-info-card">
+          <div className="division-selector-input-group">
+            <Select
+              label="Select Division"
+              value={selectedDivision}
+              onChange={(e) => setSelectedDivision(e.target.value)}
+              options={tournament.divisions.map(div => ({
+                value: div.id,
+                label: `${div.name} - ${formatEventType(div.eventType)} (${div.skillLevel})`
+              }))}
+            />
           </div>
-        )}
-      </div>
-
-      {/* FIXED: Standardized header with consistent spacing */}
-      <div className="flex items-center justify-between">
-        <div className="text-sm text-gray-600">
-          {selectedMembers.length} selected
-          {currentDivision?.maxParticipants && ` of ${currentDivision.maxParticipants} max`}
+          
+          {currentDivision && (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+              <div>
+                <span className="font-medium text-gray-700">Type:</span>
+                <p className="text-gray-900">{formatEventType(currentDivision.eventType)}</p>
+              </div>
+              <div>
+                <span className="font-medium text-gray-700">Skill Level:</span>
+                <p className="text-gray-900 capitalize">{currentDivision.skillLevel}</p>
+              </div>
+              <div>
+                <span className="font-medium text-gray-700">Entry Fee:</span>
+                <p className="text-gray-900">${currentDivision.entryFee || 0}</p>
+              </div>
+              <div>
+                <span className="font-medium text-gray-700">Participants:</span>
+                <p className="text-gray-900">
+                  {selectedMembers.length}
+                  {currentDivision.maxParticipants && ` / ${currentDivision.maxParticipants}`}
+                </p>
+              </div>
+            </div>
+          )}
         </div>
-        
-        <div className="flex space-x-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={selectAll}
-            disabled={filteredMembers.length === 0}
-          >
-            Select All
-          </Button>
-          <Button
-            variant="outline" 
-            size="sm"
-            onClick={clearAll}
-            disabled={selectedMembers.length === 0}
-          >
-            Clear All
-          </Button>
-        </div>
-      </div>
 
-      {/* FIXED: Standardized search input */}
-      <div className="relative">
-        <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-        <Input
-          type="text"
-          placeholder="Search members by name or email..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="pl-10"
-        />
-      </div>
-
-      {/* FIXED: Standardized member list with consistent padding (p-3) */}
-      <div className="border rounded-lg divide-y divide-gray-200 max-h-64 overflow-y-auto">
-        {filteredMembers.length === 0 ? (
-          <div className="p-4 text-center text-gray-500">
-            {searchTerm ? 'No members found matching your search' : 'No members available'}
-          </div>
-        ) : (
-          filteredMembers.map((member) => {
-            const isSelected = selectedMembers.includes(member.id);
-            const memberDivisions = getMemberDivisions(member.id);
-            const isDisabled = !isSelected && 
-              currentDivision?.maxParticipants && 
-              selectedMembers.length >= currentDivision.maxParticipants;
+        {/* FIXED: Enhanced header with consistent spacing */}
+        <div className="division-selector-input-group">
+          <div className="flex items-center justify-between mb-4">
+            <div className="text-sm text-gray-600">
+              {selectedMembers.length} selected
+              {currentDivision?.maxParticipants && ` of ${currentDivision.maxParticipants} max`}
+            </div>
             
-            return (
-              <div
-                key={member.id}
-                className={`
-                  p-3 cursor-pointer transition-colors
-                  ${isSelected 
-                    ? 'bg-green-50 border-green-200' 
-                    : isDisabled 
-                      ? 'bg-gray-50 cursor-not-allowed opacity-50'
-                      : 'hover:bg-gray-50'
-                  }
-                `}
-                onClick={() => !isDisabled && toggleMember(member.id)}
+            <div className="flex space-x-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={selectAll}
+                disabled={filteredMembers.length === 0}
+                className="division-touch-target"
               >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-3">
-                    {/* Avatar */}
-                    <div className="flex-shrink-0">
-                      <div className={`
-                        h-8 w-8 rounded-full flex items-center justify-center
-                        ${isSelected ? 'bg-green-100' : 'bg-gray-100'}
-                      `}>
-                        <User className={`h-4 w-4 ${isSelected ? 'text-green-600' : 'text-gray-400'}`} />
+                Select All
+              </Button>
+              <Button
+                variant="outline" 
+                size="sm"
+                onClick={clearAll}
+                disabled={selectedMembers.length === 0}
+                className="division-touch-target"
+              >
+                Clear All
+              </Button>
+            </div>
+          </div>
+        </div>
+
+        {/* FIXED: Enhanced search input with consistent styling */}
+        <div className="division-selector-input-group">
+          <div className="relative">
+            <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+            <Input
+              type="text"
+              placeholder="Search members by name or email..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10"
+            />
+          </div>
+        </div>
+
+        {/* FIXED: Enhanced member list with consistent styling */}
+        <div className="division-selector-input-group">
+          <div className="border border-gray-200 rounded-lg divide-y divide-gray-200 max-h-64 overflow-y-auto">
+            {filteredMembers.length === 0 ? (
+              <div className="p-6 text-center text-gray-500">
+                {searchTerm ? 'No members found matching your search' : 'No members available'}
+              </div>
+            ) : (
+              filteredMembers.map((member) => {
+                const isSelected = selectedMembers.includes(member.id);
+                const memberDivisions = getMemberDivisions(member.id);
+                const isDisabled = !isSelected && 
+                  currentDivision?.maxParticipants && 
+                  selectedMembers.length >= currentDivision.maxParticipants;
+                
+                return (
+                  <div
+                    key={member.id}
+                    className={`
+                      division-member-card cursor-pointer
+                      ${isSelected ? 'selected' : ''}
+                      ${isDisabled ? 'disabled' : ''}
+                    `}
+                    onClick={() => !isDisabled && toggleMember(member.id)}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-3 flex-1 min-w-0">
+                        {/* Avatar */}
+                        <div className="flex-shrink-0">
+                          <div className={`
+                            h-8 w-8 rounded-full flex items-center justify-center
+                            ${isSelected ? 'bg-green-100' : 'bg-gray-100'}
+                          `}>
+                            <User className={`h-4 w-4 ${isSelected ? 'text-green-600' : 'text-gray-400'}`} />
+                          </div>
+                        </div>
+                        
+                        {/* FIXED: Enhanced member info layout */}
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center space-x-2">
+                            <p className="text-sm font-medium text-gray-900 truncate">
+                              {member.firstName} {member.lastName}
+                            </p>
+                            {memberDivisions.length > 1 && (
+                              <span className="inline-flex items-center px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded">
+                                {memberDivisions.length} divisions
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-sm text-gray-500 truncate">{member.email}</p>
+                          <p className="text-xs text-gray-400 capitalize">
+                            {member.skillLevel}
+                          </p>
+                        </div>
                       </div>
-                    </div>
-                    
-                    {/* FIXED: Standardized member info layout */}
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center space-x-2">
-                        <p className="text-sm font-medium text-gray-900">
-                          {member.firstName} {member.lastName}
-                        </p>
-                        {memberDivisions.length > 1 && (
-                          <span className="inline-flex items-center px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded">
-                            {memberDivisions.length} divisions
-                          </span>
+
+                      {/* Selection indicator */}
+                      <div className="flex-shrink-0 ml-3">
+                        {isSelected ? (
+                          <div className="h-5 w-5 bg-green-600 rounded-full flex items-center justify-center">
+                            <Check className="h-3 w-3 text-white" />
+                          </div>
+                        ) : (
+                          <div className="h-5 w-5 border-2 border-gray-300 rounded-full"></div>
                         )}
                       </div>
-                      <p className="text-sm text-gray-500">{member.email}</p>
-                      <p className="text-xs text-gray-400 capitalize">
-                        {member.skillLevel}
-                      </p>
                     </div>
                   </div>
-
-                  {/* Selection indicator */}
-                  <div className="flex-shrink-0">
-                    {isSelected ? (
-                      <div className="h-5 w-5 bg-green-600 rounded-full flex items-center justify-center">
-                        <Check className="h-3 w-3 text-white" />
-                      </div>
-                    ) : (
-                      <div className="h-5 w-5 border-2 border-gray-300 rounded-full"></div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            );
-          })
-        )}
-      </div>
-
-      {/* FIXED: Standardized selected members summary */}
-      {selectedMembers.length > 0 && (
-        <div className="bg-gray-50 rounded-lg p-3">
-          <h4 className="text-sm font-medium text-gray-900 mb-2">
-            {currentDivision?.name} Participants ({selectedMembers.length})
-          </h4>
-          <div className="flex flex-wrap gap-2">
-            {selectedMembers.map(memberId => {
-              const member = members.find(m => m.id === memberId);
-              if (!member) return null;
-              
-              return (
-                <span
-                  key={memberId}
-                  className="inline-flex items-center px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full"
-                >
-                  {member.firstName} {member.lastName}
-                  <button
-                    onClick={() => toggleMember(memberId)}
-                    className="ml-1 hover:bg-green-200 rounded-full p-0.5"
-                  >
-                    <X className="h-3 w-3" />
-                  </button>
-                </span>
-              );
-            })}
+                );
+              })
+            )}
           </div>
         </div>
-      )}
-    </div>
+
+        {/* FIXED: Enhanced selected members summary */}
+        {selectedMembers.length > 0 && (
+          <div className="division-summary-card">
+            <h4 className="text-sm font-medium text-gray-900 mb-3">
+              {currentDivision?.name} Participants ({selectedMembers.length})
+            </h4>
+            <div className="flex flex-wrap gap-2">
+              {selectedMembers.map(memberId => {
+                const member = members.find(m => m.id === memberId);
+                if (!member) return null;
+                
+                return (
+                  <span
+                    key={memberId}
+                    className="inline-flex items-center px-3 py-1.5 bg-green-100 text-green-800 text-sm rounded-full"
+                  >
+                    {member.firstName} {member.lastName}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleMember(memberId);
+                      }}
+                      className="ml-2 hover:bg-green-200 rounded-full p-0.5 transition-colors"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </span>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* FIXED: Enhanced guidance section */}
+        {currentDivision && (
+          <div className="division-info-card">
+            <h4 className="text-sm font-medium text-gray-700 mb-3 flex items-center">
+              <Trophy className="h-4 w-4 mr-2 text-yellow-600" />
+              Division Information
+            </h4>
+            <div className="text-sm text-gray-600 space-y-2">
+              <p>• Participants will be registered for the <strong>{currentDivision.name}</strong> division</p>
+              {currentDivision.entryFee > 0 && (
+                <p>• Entry fee of <strong>${currentDivision.entryFee}</strong> per participant will be tracked</p>
+              )}
+              <p>• You can modify participant lists after tournament creation</p>
+              {currentDivision.maxParticipants && (
+                <p>• Maximum <strong>{currentDivision.maxParticipants}</strong> participants allowed</p>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+    </>
   );
 };
 

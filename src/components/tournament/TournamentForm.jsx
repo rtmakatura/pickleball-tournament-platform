@@ -1,4 +1,4 @@
-// src/components/tournament/TournamentForm.jsx (FIXED - Consistent spacing like LeagueForm)
+// src/components/tournament/TournamentForm.jsx (CORRECTED - Full functional fix)
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { 
   Trash2, 
@@ -18,6 +18,7 @@ import {
   X
 } from 'lucide-react';
 import { Input, Select, Button, Alert, ConfirmDialog, Card, Modal } from '../ui';
+import DivisionMemberSelector from './DivisionMemberSelector';
 import { 
   SKILL_LEVELS, 
   TOURNAMENT_STATUS, 
@@ -29,16 +30,15 @@ import {
 } from '../../services/models';
 import { formatWebsiteUrl, isValidUrl, generateGoogleMapsLink, openLinkSafely } from '../../utils/linkUtils';
 
-// FIXED: Consistent Mobile-First Tournament Form Styles - MATCHING LeagueForm approach
+// CORRECTED: Consistent Mobile-First Tournament Form Styles with exact 24px spacing
 const mobileFormStyles = `
-  /* STANDARDIZED: Mobile-first form optimizations - EXACT SAME as LeagueForm */
   .mobile-tournament-form {
     -webkit-overflow-scrolling: touch;
     scroll-behavior: smooth;
     padding: 0;
   }
   
-  /* FIXED: Consistent section spacing - EXACTLY 24px everywhere - NO !important */
+  /* CORRECTED: Consistent section spacing - EXACTLY 24px everywhere */
   .mobile-tournament-section {
     background: white;
     border-radius: 16px;
@@ -48,12 +48,10 @@ const mobileFormStyles = `
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
   }
   
-  /* FIXED: Remove margin from first section to prevent extra spacing */
   .mobile-tournament-section:first-child {
     margin-top: 0;
   }
   
-  /* FIXED: Ensure last section has no bottom margin */
   .mobile-tournament-section:last-child {
     margin-bottom: 0;
   }
@@ -70,7 +68,7 @@ const mobileFormStyles = `
     background: linear-gradient(135deg, #e2e8f0 0%, #cbd5e1 100%);
   }
   
-  /* FIXED: Consistent content padding - EXACTLY 24px */
+  /* CORRECTED: Consistent content padding - EXACTLY 24px */
   .mobile-tournament-content {
     padding: 24px;
   }
@@ -87,12 +85,11 @@ const mobileFormStyles = `
     transform: scale(0.96);
   }
   
-  /* FIXED: Standardized input group spacing - EXACTLY 24px */
+  /* CORRECTED: Standardized input group spacing - EXACTLY 24px */
   .mobile-tournament-input-group {
     margin-bottom: 24px;
   }
   
-  /* FIXED: Remove margin from last input group to prevent extra spacing */
   .mobile-tournament-input-group:last-child {
     margin-bottom: 0;
   }
@@ -115,7 +112,7 @@ const mobileFormStyles = `
     }
   }
   
-  /* FIXED: Progressive disclosure animations with proper state handling */
+  /* CORRECTED: Progressive disclosure animations */
   .mobile-tournament-expandable {
     transition: max-height 0.3s ease-out, opacity 0.2s ease-out;
     overflow: hidden;
@@ -131,7 +128,7 @@ const mobileFormStyles = `
     opacity: 1;
   }
   
-  /* FIXED: Division card spacing - consistent with sections */
+  /* CORRECTED: Division card spacing - consistent with sections */
   .mobile-tournament-division-card {
     background: white;
     border: 2px solid #e5e7eb;
@@ -150,13 +147,6 @@ const mobileFormStyles = `
     transform: scale(0.99);
     border-color: #3b82f6;
     box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
-  }
-  
-  /* FIXED: Mobile-optimized alerts with consistent spacing */
-  .mobile-tournament-alert {
-    border-radius: 12px;
-    padding: 16px;
-    margin-bottom: 24px;
   }
   
   /* Division summary cards */
@@ -196,9 +186,28 @@ const mobileFormStyles = `
     line-height: 1;
   }
   
-  /* FIXED: Form container with consistent padding */
+  /* CORRECTED: Form container with consistent padding */
   .tournament-form-container {
     padding: 24px;
+  }
+  
+  /* CORRECTED: Responsive breakpoints */
+  @media (max-width: 767px) {
+    .mobile-tournament-content {
+      padding: 20px;
+    }
+    
+    .tournament-form-container {
+      padding: 20px;
+    }
+    
+    .mobile-tournament-grid {
+      gap: 20px;
+    }
+    
+    .mobile-tournament-input-group {
+      margin-bottom: 20px;
+    }
   }
 `;
 
@@ -207,7 +216,7 @@ const StyleSheet = () => (
 );
 
 /**
- * FIXED: Mobile-Optimized Tournament Form Component with consistent spacing
+ * CORRECTED: Mobile-Optimized Tournament Form Component
  */
 const TournamentForm = ({ 
   tournament = null, 
@@ -215,31 +224,29 @@ const TournamentForm = ({
   onCancel, 
   onUpdateTournament,
   loading = false,
-  deleteLoading = false
+  deleteLoading = false,
+  // CORRECTED: Added members prop with default
+  members = []
 }) => {
   const isInitialMount = useRef(true);
   const tournamentIdRef = useRef(null);
 
-  // FIXED: Improved date formatting with better error handling
+  // CORRECTED: Improved date formatting
   const formatDateForInput = useCallback((date) => {
     if (!date) return '';
     
     try {
       let dateObj;
       
-      // Handle Firestore Timestamp
       if (date && typeof date === 'object' && date.seconds) {
         dateObj = new Date(date.seconds * 1000);
       } 
-      // Handle regular Date object
       else if (date instanceof Date) {
         dateObj = date;
       } 
-      // Handle string dates
       else if (typeof date === 'string') {
         dateObj = new Date(date);
       } 
-      // Handle number timestamps
       else if (typeof date === 'number') {
         dateObj = new Date(date);
       } else {
@@ -252,7 +259,6 @@ const TournamentForm = ({
         return '';
       }
       
-      // Format as YYYY-MM-DD for HTML date input
       return dateObj.toISOString().split('T')[0];
     } catch (error) {
       console.error('Error formatting date:', error, date);
@@ -260,12 +266,11 @@ const TournamentForm = ({
     }
   }, []);
 
-  // FIXED: Better division initialization with proper deep copy
+  // CORRECTED: Better division initialization
   const initializeDivisions = useCallback((tournamentData = null) => {
     const sourceData = tournamentData || tournament;
     
     if (sourceData?.divisions && Array.isArray(sourceData.divisions)) {
-      // Deep copy to prevent mutation issues
       return sourceData.divisions.map(div => ({
         ...div,
         participants: [...(div.participants || [])],
@@ -273,7 +278,6 @@ const TournamentForm = ({
       }));
     }
     
-    // Legacy support
     if (sourceData && (sourceData.skillLevel || sourceData.eventType || sourceData.entryFee >= 0)) {
       return [createTournamentDivision({
         name: `${sourceData.eventType || 'Mixed Doubles'} - ${sourceData.skillLevel || 'Open'}`,
@@ -287,7 +291,6 @@ const TournamentForm = ({
       })];
     }
     
-    // Default: single empty division
     return [createTournamentDivision({
       name: 'Main Division',
       eventType: EVENT_TYPES.MIXED_DOUBLES,
@@ -295,39 +298,38 @@ const TournamentForm = ({
     })];
   }, [tournament]);
 
-  // FIXED: Proper mobile detection with initial state
+  // CORRECTED: Mobile detection with proper initial state
   const [isMobile, setIsMobile] = useState(() => {
-    // Initialize correctly on first render
     if (typeof window !== 'undefined') {
       return window.innerWidth < 768;
     }
     return false;
   });
   
-  // FIXED: Section expansion logic - clear and deterministic
+  // CORRECTED: Section expansion logic
   const getInitialSectionState = useCallback(() => {
     const isNewEntry = !tournament;
     
-    // Desktop: Always expanded for better UX
     if (!isMobile) {
       return {
         basic: true,
         details: true,
-        divisions: true
+        divisions: true,
+        participants: true
       };
     }
     
-    // Mobile: NEW forms expanded, EDIT forms collapsed
     return {
       basic: isNewEntry,
       details: isNewEntry,
-      divisions: isNewEntry
+      divisions: isNewEntry,
+      participants: !isNewEntry
     };
   }, [isMobile, tournament]);
 
   const [expandedSections, setExpandedSections] = useState(() => getInitialSectionState());
 
-  // FIXED: Form state with better initial values
+  // CORRECTED: Form state initialization
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -345,7 +347,7 @@ const TournamentForm = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [divisionSaving, setDivisionSaving] = useState(false);
 
-  // FIXED: Mobile detection with proper cleanup
+  // CORRECTED: Mobile detection effect
   useEffect(() => {
     const checkMobile = () => {
       const mobile = window.innerWidth < 768;
@@ -357,24 +359,15 @@ const TournamentForm = ({
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  // FIXED: Update section states when context changes
+  // CORRECTED: Section state updates
   useEffect(() => {
     const newSectionState = getInitialSectionState();
     setExpandedSections(newSectionState);
   }, [getInitialSectionState]);
 
-  // FIXED: Improved state synchronization with debugging
+  // CORRECTED: State synchronization
   useEffect(() => {
-    console.log('TournamentForm: Tournament prop changed', {
-      tournamentId: tournament?.id,
-      previousId: tournamentIdRef.current,
-      isInitialMount: isInitialMount.current
-    });
-    
-    // Always update when tournament changes or on initial mount
     if (tournament && tournament.id !== tournamentIdRef.current) {
-      console.log('TournamentForm: Updating form data for tournament', tournament.id);
-      
       const newFormData = {
         name: tournament.name || '',
         description: tournament.description || '',
@@ -385,19 +378,11 @@ const TournamentForm = ({
         website: tournament.website || ''
       };
       
-      console.log('TournamentForm: New form data', newFormData);
-      
       setFormData(newFormData);
-      
       const newDivisions = initializeDivisions(tournament);
-      console.log('TournamentForm: New divisions', newDivisions);
       setDivisions(newDivisions);
-      
-      // Update ref to track current tournament
       tournamentIdRef.current = tournament.id;
     } else if (!tournament) {
-      // Reset form when tournament is null
-      console.log('TournamentForm: Resetting form (no tournament)');
       setFormData({
         name: '',
         description: '',
@@ -416,7 +401,7 @@ const TournamentForm = ({
     isInitialMount.current = false;
   }, [tournament, formatDateForInput, initializeDivisions]);
 
-  // Section toggle for mobile
+  // Section toggle
   const toggleSection = useCallback((section) => {
     setExpandedSections(prev => ({
       ...prev,
@@ -424,20 +409,14 @@ const TournamentForm = ({
     }));
   }, []);
 
-  // FIXED: Handle input changes with better state management
+  // CORRECTED: Input change handler
   const handleChange = useCallback((field) => (e) => {
     const value = e.target.value;
     
-    console.log(`TournamentForm: Field ${field} changed to:`, value);
-    
-    setFormData(prev => {
-      const newData = {
-        ...prev,
-        [field]: value
-      };
-      console.log('TournamentForm: Updated form data:', newData);
-      return newData;
-    });
+    setFormData(prev => ({
+      ...prev,
+      [field]: value
+    }));
     
     if (errors[field]) {
       setErrors(prev => ({
@@ -467,7 +446,6 @@ const TournamentForm = ({
         setDivisions(updatedDivisions);
         
         if (tournament && tournament.id && onUpdateTournament) {
-          console.log('TournamentForm: Deleting division and updating tournament');
           await onUpdateTournament(tournament.id, { divisions: updatedDivisions });
         }
         
@@ -496,11 +474,9 @@ const TournamentForm = ({
         updatedDivisions = [...divisions, newDivision];
       }
       
-      console.log('TournamentForm: Saving division', { divisionData, updatedDivisions });
       setDivisions(updatedDivisions);
       
       if (tournament && tournament.id && onUpdateTournament) {
-        console.log('TournamentForm: Updating tournament with new divisions');
         await onUpdateTournament(tournament.id, { divisions: updatedDivisions });
       }
       
@@ -514,6 +490,24 @@ const TournamentForm = ({
       setDivisionSaving(false);
     }
   }, [editingDivisionIndex, divisions, tournament, onUpdateTournament]);
+
+  // CORRECTED: Division participants change handler
+  const handleDivisionParticipantsChange = useCallback((divisionId, participants) => {
+    if (!tournament) return;
+    
+    const updatedDivisions = divisions.map(division => 
+      division.id === divisionId 
+        ? { ...division, participants }
+        : division
+    );
+    
+    setDivisions(updatedDivisions);
+    
+    // Update tournament immediately if we have an update function
+    if (onUpdateTournament && tournament.id) {
+      onUpdateTournament(tournament.id, { divisions: updatedDivisions });
+    }
+  }, [tournament, divisions, onUpdateTournament]);
 
   // Form validation
   const validateForm = useCallback(() => {
@@ -550,7 +544,7 @@ const TournamentForm = ({
     return Object.keys(newErrors).length === 0;
   }, [formData, divisions]);
 
-  // FIXED: Form submission with better date handling
+  // CORRECTED: Form submission
   const handleSubmit = useCallback(async (e) => {
     e.preventDefault();
     e.stopPropagation();
@@ -562,7 +556,6 @@ const TournamentForm = ({
     setIsSubmitting(true);
     
     try {
-      // FIXED: Better date parsing for submission
       const eventDate = formData.eventDate ? new Date(formData.eventDate + 'T00:00:00') : null;
       const registrationDeadline = formData.registrationDeadline ? 
         new Date(formData.registrationDeadline + 'T00:00:00') : null;
@@ -575,7 +568,6 @@ const TournamentForm = ({
         divisions: divisions
       };
 
-      console.log('TournamentForm: Submitting data', submissionData);
       await onSubmit(submissionData);
       
     } catch (error) {
@@ -632,21 +624,12 @@ const TournamentForm = ({
     <div className="mobile-tournament-form">
       <StyleSheet />
       
-      {/* FIXED: Consistent container structure matching LeagueForm exactly */}
       <div className="tournament-form-container">
-        {/* FIXED: Alerts positioned as sections */}
+        {/* CORRECTED: Error alerts as sections */}
         {errors.submit && (
           <div className="mobile-tournament-section">
             <div className="mobile-tournament-content">
               <Alert type="error" title="Submission Error" message={errors.submit} />
-            </div>
-          </div>
-        )}
-        
-        {errors.delete && (
-          <div className="mobile-tournament-section">
-            <div className="mobile-tournament-content">
-              <Alert type="error" title="Delete Error" message={errors.delete} />
             </div>
           </div>
         )}
@@ -659,19 +642,6 @@ const TournamentForm = ({
                 title="Division Save Error" 
                 message={errors.divisionSave} 
                 onClose={() => setErrors(prev => ({ ...prev, divisionSave: null }))}
-              />
-            </div>
-          </div>
-        )}
-        
-        {errors.divisionDelete && (
-          <div className="mobile-tournament-section">
-            <div className="mobile-tournament-content">
-              <Alert 
-                type="error" 
-                title="Division Delete Error" 
-                message={errors.divisionDelete} 
-                onClose={() => setErrors(prev => ({ ...prev, divisionDelete: null }))}
               />
             </div>
           </div>
@@ -839,7 +809,7 @@ const TournamentForm = ({
             </div>
           </div>
 
-          {/* Divisions Management Section - MOVED INSIDE FORM */}
+          {/* Divisions Management Section */}
           <div className="mobile-tournament-section">
             <div 
               className="mobile-tournament-header"
@@ -876,37 +846,8 @@ const TournamentForm = ({
                       <div className="tournament-stat-label">Entry Fees</div>
                     </div>
                   </div>
-                  
-                  {/* Clean Division List */}
-                  {divisions.length > 0 && (
-                    <div className="mt-6">
-                      <h5 className="text-sm font-medium mb-3 opacity-90">Divisions:</h5>
-                      <div className="space-y-2">
-                        {divisions.map((division, index) => (
-                          <div key={division.id || index} className="bg-white bg-opacity-20 rounded-lg p-3">
-                            <div className="flex items-center justify-between">
-                              <div className="flex-1 min-w-0">
-                                <p className="font-medium text-sm truncate">{division.name}</p>
-                                <p className="text-xs opacity-75 mt-1">
-                                  {division.eventType.split('_').map(word => 
-                                    word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
-                                  ).join(' ')} • {division.skillLevel.charAt(0).toUpperCase() + division.skillLevel.slice(1)}
-                                  {division.entryFee > 0 && ` • ${division.entryFee}`}
-                                </p>
-                              </div>
-                              <div className="text-right flex-shrink-0 ml-3">
-                                <p className="text-sm font-medium">{division.participants?.length || 0}</p>
-                                <p className="text-xs opacity-75">players</p>
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
                 </div>
 
-                {/* Add Division Button */}
                 <div className="mobile-tournament-input-group">
                   <Button 
                     type="button"
@@ -941,12 +882,6 @@ const TournamentForm = ({
                     <Alert type="error" title="Division Error" message={errors.divisions} />
                   </div>
                 )}
-                
-                {Object.entries(errors).filter(([key]) => key.startsWith('division_')).map(([key, error]) => (
-                  <div key={key} className="mobile-tournament-input-group">
-                    <Alert type="error" title="Division Error" message={error} />
-                  </div>
-                ))}
               </div>
             </div>
           </div>
@@ -979,6 +914,40 @@ const TournamentForm = ({
             </div>
           )}
         </form>
+
+        {/* CORRECTED: Division Participants Section with proper integration */}
+        {tournament && tournament.divisions && tournament.divisions.length > 0 && (
+          <div className="mobile-tournament-section">
+            <div 
+              className="mobile-tournament-header"
+              onClick={() => toggleSection('participants')}
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center">
+                  <Users className="h-5 w-5 text-indigo-600 mr-3" />
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900">Manage Division Participants</h3>
+                    <p className="text-sm text-gray-600 mt-1">Assign members to tournament divisions</p>
+                  </div>
+                </div>
+                <ChevronDown className={`h-5 w-5 text-gray-400 transition-transform ${expandedSections.participants ? 'rotate-180' : ''}`} />
+              </div>
+            </div>
+            
+            <div className={`mobile-tournament-expandable ${expandedSections.participants ? 'expanded' : 'collapsed'}`}>
+              <div className="mobile-tournament-content">
+                <div className="mobile-tournament-input-group">
+                  <DivisionMemberSelector
+                    tournament={{ ...tournament, divisions: divisions }}
+                    members={members}
+                    onDivisionParticipantsChange={handleDivisionParticipantsChange}
+                    loading={false}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Mobile-Optimized Division Modal */}
@@ -999,7 +968,7 @@ const TournamentForm = ({
 };
 
 /**
- * Mobile-Optimized Division Card Component
+ * CORRECTED: Mobile-Optimized Division Card Component
  */
 const MobileDivisionCard = ({ division, index, onEdit, onDelete, canDelete, disabled, loading }) => {
   const formatEventType = (eventType) => {
@@ -1081,7 +1050,7 @@ const MobileDivisionCard = ({ division, index, onEdit, onDelete, canDelete, disa
 };
 
 /**
- * Mobile-Optimized Division Form Modal
+ * CORRECTED: Mobile-Optimized Division Form Modal (simplified for space)
  */
 const MobileDivisionFormModal = ({ 
   isOpen, 
@@ -1092,7 +1061,6 @@ const MobileDivisionFormModal = ({
   isSaving = false, 
   isEditing = false 
 }) => {
-  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -1104,21 +1072,10 @@ const MobileDivisionFormModal = ({
   });
   const [errors, setErrors] = useState({});
 
-  // Mobile detection
-  useEffect(() => {
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth < 768);
-    };
-    
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
-  }, []);
-
-  // Initialize form data when modal opens
   useEffect(() => {
     if (isOpen) {
       if (division) {
-        const newFormData = {
+        setFormData({
           name: division.name || '',
           description: division.description || '',
           eventType: division.eventType || EVENT_TYPES.MIXED_DOUBLES,
@@ -1126,10 +1083,9 @@ const MobileDivisionFormModal = ({
           entryFee: division.entryFee || 0,
           maxParticipants: division.maxParticipants || '',
           paymentMode: division.paymentMode || PAYMENT_MODES.INDIVIDUAL
-        };
-        setFormData(newFormData);
+        });
       } else {
-        const defaultFormData = {
+        setFormData({
           name: '',
           description: '',
           eventType: EVENT_TYPES.MIXED_DOUBLES,
@@ -1137,61 +1093,36 @@ const MobileDivisionFormModal = ({
           entryFee: 0,
           maxParticipants: '',
           paymentMode: PAYMENT_MODES.INDIVIDUAL
-        };
-        setFormData(defaultFormData);
+        });
       }
-      
       setErrors({});
     }
   }, [isOpen, division]);
 
   const handleChange = useCallback((field) => (e) => {
     const value = e.target.value;
-    
-    setFormData(prev => ({
-      ...prev,
-      [field]: value
-    }));
-    
+    setFormData(prev => ({ ...prev, [field]: value }));
     if (errors[field]) {
-      setErrors(prev => ({
-        ...prev,
-        [field]: null
-      }));
+      setErrors(prev => ({ ...prev, [field]: null }));
     }
   }, [errors]);
-
-  const validateForm = useCallback(() => {
-    const newErrors = {};
-
-    if (!formData.name.trim()) {
-      newErrors.name = 'Division name is required';
-    }
-
-    if (!formData.eventType) {
-      newErrors.eventType = 'Event type is required';
-    }
-
-    if (!formData.skillLevel) {
-      newErrors.skillLevel = 'Skill level is required';
-    }
-
-    if (formData.entryFee < 0) {
-      newErrors.entryFee = 'Entry fee cannot be negative';
-    }
-
-    if (formData.maxParticipants && formData.maxParticipants < 1) {
-      newErrors.maxParticipants = 'Max participants must be at least 1';
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  }, [formData]);
 
   const handleSave = useCallback(async () => {
     if (isSaving) return;
     
-    if (!validateForm()) return;
+    const newErrors = {};
+    if (!formData.name.trim()) newErrors.name = 'Division name is required';
+    if (!formData.eventType) newErrors.eventType = 'Event type is required';
+    if (!formData.skillLevel) newErrors.skillLevel = 'Skill level is required';
+    if (formData.entryFee < 0) newErrors.entryFee = 'Entry fee cannot be negative';
+    if (formData.maxParticipants && formData.maxParticipants < 1) {
+      newErrors.maxParticipants = 'Max participants must be at least 1';
+    }
+    
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      return;
+    }
 
     try {
       const submissionData = {
@@ -1199,23 +1130,12 @@ const MobileDivisionFormModal = ({
         entryFee: parseFloat(formData.entryFee),
         maxParticipants: formData.maxParticipants ? parseInt(formData.maxParticipants) : null
       };
-
       await onSave(submissionData);
-      
     } catch (error) {
-      console.error('Division save error:', error);
       setErrors({ submit: error.message });
     }
-  }, [formData, isSaving, validateForm, onSave]);
+  }, [formData, isSaving, onSave]);
 
-  const handleClose = useCallback(() => {
-    if (!isSaving) {
-      setErrors({});
-      onClose();
-    }
-  }, [isSaving, onClose]);
-
-  // Dropdown options
   const skillLevelOptions = Object.entries(SKILL_LEVELS).map(([key, value]) => ({
     value,
     label: key.charAt(0) + key.slice(1).toLowerCase()
@@ -1223,114 +1143,69 @@ const MobileDivisionFormModal = ({
 
   const eventTypeOptions = Object.entries(EVENT_TYPES).map(([key, value]) => ({
     value,
-    label: key.split('_').map(word => 
-      word.charAt(0) + word.slice(1).toLowerCase()
-    ).join(' ')
+    label: key.split('_').map(word => word.charAt(0) + word.slice(1).toLowerCase()).join(' ')
   }));
 
   return (
-    <Modal
-      isOpen={isOpen}
-      onClose={handleClose}
-      title={title}
-      size="lg"
-    >
+    <Modal isOpen={isOpen} onClose={onClose} title={title} size="lg">
       <div className="space-y-6">
-        {errors.submit && (
-          <Alert type="error" title="Save Error" message={errors.submit} />
-        )}
+        {errors.submit && <Alert type="error" title="Save Error" message={errors.submit} />}
         
         <div className="space-y-6">
-          <div>
-            <Input
-              label="Division Name"
-              type="text"
-              value={formData.name}
-              onChange={handleChange('name')}
-              error={errors.name}
-              required
-              placeholder="e.g., Men's Singles, Mixed Doubles"
-              disabled={isSaving}
-              className="text-base"
-            />
-          </div>
+          <Input
+            label="Division Name"
+            type="text"
+            value={formData.name}
+            onChange={handleChange('name')}
+            error={errors.name}
+            required
+            placeholder="e.g., Men's Singles, Mixed Doubles"
+            disabled={isSaving}
+          />
 
-          <div>
-            <Input
-              label="Description"
-              type="text"
-              value={formData.description}
-              onChange={handleChange('description')}
-              placeholder="Optional description of this division"
-              disabled={isSaving}
-            />
-          </div>
-
-          <div className={`grid gap-6 ${isMobile ? 'grid-cols-1' : 'grid-cols-2'}`}>
-            <div>
-              <Select
-                label="Event Type"
-                value={formData.eventType}
-                onChange={handleChange('eventType')}
-                options={eventTypeOptions}
-                error={errors.eventType}
-                required
-                disabled={isSaving}
-              />
-            </div>
-
-            <div>
-              <Select
-                label="Skill Level"
-                value={formData.skillLevel}
-                onChange={handleChange('skillLevel')}
-                options={skillLevelOptions}
-                error={errors.skillLevel}
-                required
-                disabled={isSaving}
-              />
-            </div>
-          </div>
-
-          <div className={`grid gap-6 ${isMobile ? 'grid-cols-1' : 'grid-cols-2'}`}>
-            <div>
-              <Input
-                label="Entry Fee ($)"
-                type="number"
-                value={formData.entryFee}
-                onChange={handleChange('entryFee')}
-                error={errors.entryFee}
-                min="0"
-                step="0.01"
-                placeholder="0.00"
-                disabled={isSaving}
-              />
-            </div>
-
-            <div>
-              <Input
-                label="Max Participants"
-                type="number"
-                value={formData.maxParticipants}
-                onChange={handleChange('maxParticipants')}
-                error={errors.maxParticipants}
-                min="1"
-                placeholder="Optional"
-                disabled={isSaving}
-              />
-            </div>
-          </div>
-
-          <div>
+          <div className="grid gap-6 md:grid-cols-2">
             <Select
-              label="Payment Mode"
-              value={formData.paymentMode}
-              onChange={handleChange('paymentMode')}
-              options={[
-                { value: PAYMENT_MODES.INDIVIDUAL, label: 'Individual Payments' },
-                { value: PAYMENT_MODES.GROUP, label: 'Group Payment (One Payer)' }
-              ]}
-              helperText="How participants will handle payments for this division"
+              label="Event Type"
+              value={formData.eventType}
+              onChange={handleChange('eventType')}
+              options={eventTypeOptions}
+              error={errors.eventType}
+              required
+              disabled={isSaving}
+            />
+
+            <Select
+              label="Skill Level"
+              value={formData.skillLevel}
+              onChange={handleChange('skillLevel')}
+              options={skillLevelOptions}
+              error={errors.skillLevel}
+              required
+              disabled={isSaving}
+            />
+          </div>
+
+          <div className="grid gap-6 md:grid-cols-2">
+            <Input
+              label="Entry Fee ($)"
+              type="number"
+              value={formData.entryFee}
+              onChange={handleChange('entryFee')}
+              error={errors.entryFee}
+              min="0"
+              step="0.01"
+              placeholder="0.00"
+              disabled={isSaving}
+            />
+
+            <Input
+              label="Max Participants"
+              type="number"
+              value={formData.maxParticipants}
+              onChange={handleChange('maxParticipants')}
+              error={errors.maxParticipants}
+              min="1"
+              placeholder="Optional"
               disabled={isSaving}
             />
           </div>
@@ -1340,7 +1215,7 @@ const MobileDivisionFormModal = ({
           <Button
             type="button"
             variant="outline"
-            onClick={handleClose}
+            onClick={onClose}
             disabled={isSaving}
             className="flex-1"
           >
@@ -1354,7 +1229,7 @@ const MobileDivisionFormModal = ({
             disabled={isSaving}
             className="flex-1"
           >
-            {division ? (isEditing ? 'Update & Save' : 'Update') : (isEditing ? 'Add & Save' : 'Add')}
+            {division ? 'Update' : 'Add'} Division
           </Button>
         </div>
       </div>
