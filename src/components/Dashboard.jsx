@@ -1,4 +1,4 @@
-// src/components/Dashboard.jsx (FIXED - Proper styling integration for League Member selection)
+// src/components/Dashboard.jsx (FIXED - Added missing members prop to TournamentForm)
 import React, { useState, useMemo, useCallback } from 'react';
 import { 
   Plus, 
@@ -1773,7 +1773,7 @@ const Dashboard = () => {
           />
         </Card>
 
-        {/* Tournament Modal with Header Actions for Update and Delete Buttons */}
+        {/* FIXED: Tournament Modal with Header Actions for Update and Delete Buttons - Added missing members prop */}
         <Modal
           isOpen={showTournamentModal}
           onClose={handleTournamentModalClose}
@@ -1811,6 +1811,7 @@ const Dashboard = () => {
               onUpdateTournament={updateTournament}
               loading={formLoading}
               deleteLoading={deleteLoading}
+              members={members}
             />
           </div>
         </Modal>

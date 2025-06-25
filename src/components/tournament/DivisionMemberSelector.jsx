@@ -1,11 +1,11 @@
-// src/components/tournament/DivisionMemberSelector.jsx (FIXED - Consistent styling integration)
+// src/components/tournament/DivisionMemberSelector.jsx (FIXED - Consistent spacing integration with parent form)
 import React, { useState } from 'react';
 import { Check, X, Search, User, Users, Trophy, DollarSign } from 'lucide-react';
 import { Button, Input, Select } from '../ui';
 
-// FIXED: Enhanced styling to match parent form consistency
+// FIXED: Simplified styling to match parent form's consistent 24px spacing system
 const divisionSelectorStyles = `
-  /* FIXED: Consistent with parent form styling - 24px spacing */
+  /* FIXED: Consistent with parent form styling - exactly 24px spacing */
   .division-selector-input-group {
     margin-bottom: 24px;
   }
@@ -39,7 +39,7 @@ const divisionSelectorStyles = `
     cursor: not-allowed;
   }
   
-  /* FIXED: Enhanced division info card */
+  /* FIXED: Enhanced division info card - matches parent form sections */
   .division-info-card {
     background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
     border: 1px solid #e2e8f0;
@@ -69,6 +69,32 @@ const divisionSelectorStyles = `
       margin-bottom: 16px;
     }
   }
+  
+  /* FIXED: Consistent member list styling */
+  .division-member-list {
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    overflow: hidden;
+    max-height: 320px;
+    overflow-y: auto;
+  }
+  
+  .division-member-list::-webkit-scrollbar {
+    width: 6px;
+  }
+  
+  .division-member-list::-webkit-scrollbar-track {
+    background: #f1f5f9;
+  }
+  
+  .division-member-list::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 3px;
+  }
+  
+  .division-member-list::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+  }
 `;
 
 const StyleSheet = () => (
@@ -77,7 +103,7 @@ const StyleSheet = () => (
 
 /**
  * DivisionMemberSelector Component - For selecting participants by division
- * FIXED: Enhanced styling integration with parent form
+ * FIXED: Enhanced styling integration with parent form and proper members handling
  */
 const DivisionMemberSelector = ({
   tournament,
@@ -90,14 +116,33 @@ const DivisionMemberSelector = ({
     tournament?.divisions?.[0]?.id || ''
   );
 
+  // Debug logging to track members data
+  React.useEffect(() => {
+    console.log('🔍 DivisionMemberSelector received:', {
+      tournament: tournament?.name,
+      divisions: tournament?.divisions?.length,
+      members: members?.length,
+      membersPreview: members?.slice(0, 3).map(m => `${m.firstName} ${m.lastName}`)
+    });
+  }, [tournament, members]);
+
   // Filter members based on search term
-  const filteredMembers = members.filter(member => {
+  const filteredMembers = React.useMemo(() => {
+    if (!members || !Array.isArray(members)) {
+      console.warn('⚠️ DivisionMemberSelector: Invalid members array', members);
+      return [];
+    }
+
+    if (!searchTerm.trim()) return members;
+
     const searchLower = searchTerm.toLowerCase();
-    const fullName = `${member.firstName} ${member.lastName}`.toLowerCase();
-    const email = member.email.toLowerCase();
-    
-    return fullName.includes(searchLower) || email.includes(searchLower);
-  });
+    return members.filter(member => {
+      const fullName = `${member.firstName} ${member.lastName}`.toLowerCase();
+      const email = member.email.toLowerCase();
+      
+      return fullName.includes(searchLower) || email.includes(searchLower);
+    });
+  }, [members, searchTerm]);
 
   // Get current division
   const currentDivision = tournament?.divisions?.find(div => div.id === selectedDivision);
@@ -117,6 +162,13 @@ const DivisionMemberSelector = ({
       }
       newSelection = [...selectedMembers, memberId];
     }
+    
+    console.log('🔄 Updating division participants:', {
+      divisionId: selectedDivision,
+      divisionName: currentDivision.name,
+      newSelection,
+      participantCount: newSelection.length
+    });
     
     onDivisionParticipantsChange(selectedDivision, newSelection);
   };
@@ -174,6 +226,20 @@ const DivisionMemberSelector = ({
         <div className="text-center py-8 text-gray-500">
           <Trophy className="h-12 w-12 mx-auto mb-4 text-gray-300" />
           <p>No divisions found. Please add divisions to the tournament first.</p>
+        </div>
+      </>
+    );
+  }
+
+  // Show message if no members available
+  if (!members || members.length === 0) {
+    return (
+      <>
+        <StyleSheet />
+        <div className="text-center py-8 text-gray-500">
+          <Users className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+          <p className="text-lg font-medium">No members available</p>
+          <p className="text-sm mt-1">Add members to your organization first, then return here to assign them to divisions.</p>
         </div>
       </>
     );
@@ -269,74 +335,76 @@ const DivisionMemberSelector = ({
 
         {/* FIXED: Enhanced member list with consistent styling */}
         <div className="division-selector-input-group">
-          <div className="border border-gray-200 rounded-lg divide-y divide-gray-200 max-h-64 overflow-y-auto">
+          <div className="division-member-list">
             {filteredMembers.length === 0 ? (
               <div className="p-6 text-center text-gray-500">
                 {searchTerm ? 'No members found matching your search' : 'No members available'}
               </div>
             ) : (
-              filteredMembers.map((member) => {
-                const isSelected = selectedMembers.includes(member.id);
-                const memberDivisions = getMemberDivisions(member.id);
-                const isDisabled = !isSelected && 
-                  currentDivision?.maxParticipants && 
-                  selectedMembers.length >= currentDivision.maxParticipants;
-                
-                return (
-                  <div
-                    key={member.id}
-                    className={`
-                      division-member-card cursor-pointer
-                      ${isSelected ? 'selected' : ''}
-                      ${isDisabled ? 'disabled' : ''}
-                    `}
-                    onClick={() => !isDisabled && toggleMember(member.id)}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-3 flex-1 min-w-0">
-                        {/* Avatar */}
-                        <div className="flex-shrink-0">
-                          <div className={`
-                            h-8 w-8 rounded-full flex items-center justify-center
-                            ${isSelected ? 'bg-green-100' : 'bg-gray-100'}
-                          `}>
-                            <User className={`h-4 w-4 ${isSelected ? 'text-green-600' : 'text-gray-400'}`} />
+              <div className="divide-y divide-gray-200">
+                {filteredMembers.map((member) => {
+                  const isSelected = selectedMembers.includes(member.id);
+                  const memberDivisions = getMemberDivisions(member.id);
+                  const isDisabled = !isSelected && 
+                    currentDivision?.maxParticipants && 
+                    selectedMembers.length >= currentDivision.maxParticipants;
+                  
+                  return (
+                    <div
+                      key={member.id}
+                      className={`
+                        division-member-card cursor-pointer
+                        ${isSelected ? 'selected' : ''}
+                        ${isDisabled ? 'disabled' : ''}
+                      `}
+                      onClick={() => !isDisabled && toggleMember(member.id)}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-3 flex-1 min-w-0">
+                          {/* Avatar */}
+                          <div className="flex-shrink-0">
+                            <div className={`
+                              h-8 w-8 rounded-full flex items-center justify-center
+                              ${isSelected ? 'bg-green-100' : 'bg-gray-100'}
+                            `}>
+                              <User className={`h-4 w-4 ${isSelected ? 'text-green-600' : 'text-gray-400'}`} />
+                            </div>
                           </div>
-                        </div>
-                        
-                        {/* FIXED: Enhanced member info layout */}
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center space-x-2">
-                            <p className="text-sm font-medium text-gray-900 truncate">
-                              {member.firstName} {member.lastName}
+                          
+                          {/* FIXED: Enhanced member info layout */}
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center space-x-2">
+                              <p className="text-sm font-medium text-gray-900 truncate">
+                                {member.firstName} {member.lastName}
+                              </p>
+                              {memberDivisions.length > 1 && (
+                                <span className="inline-flex items-center px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded">
+                                  {memberDivisions.length} divisions
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-sm text-gray-500 truncate">{member.email}</p>
+                            <p className="text-xs text-gray-400 capitalize">
+                              {member.skillLevel}
                             </p>
-                            {memberDivisions.length > 1 && (
-                              <span className="inline-flex items-center px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded">
-                                {memberDivisions.length} divisions
-                              </span>
-                            )}
                           </div>
-                          <p className="text-sm text-gray-500 truncate">{member.email}</p>
-                          <p className="text-xs text-gray-400 capitalize">
-                            {member.skillLevel}
-                          </p>
                         </div>
-                      </div>
 
-                      {/* Selection indicator */}
-                      <div className="flex-shrink-0 ml-3">
-                        {isSelected ? (
-                          <div className="h-5 w-5 bg-green-600 rounded-full flex items-center justify-center">
-                            <Check className="h-3 w-3 text-white" />
-                          </div>
-                        ) : (
-                          <div className="h-5 w-5 border-2 border-gray-300 rounded-full"></div>
-                        )}
+                        {/* Selection indicator */}
+                        <div className="flex-shrink-0 ml-3">
+                          {isSelected ? (
+                            <div className="h-5 w-5 bg-green-600 rounded-full flex items-center justify-center">
+                              <Check className="h-3 w-3 text-white" />
+                            </div>
+                          ) : (
+                            <div className="h-5 w-5 border-2 border-gray-300 rounded-full"></div>
+                          )}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                );
-              })
+                  );
+                })}
+              </div>
             )}
           </div>
         </div>
@@ -391,6 +459,19 @@ const DivisionMemberSelector = ({
                 <p>• Maximum <strong>{currentDivision.maxParticipants}</strong> participants allowed</p>
               )}
             </div>
+          </div>
+        )}
+
+        {/* Debug information in development */}
+        {process.env.NODE_ENV === 'development' && (
+          <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded text-xs">
+            <p><strong>Debug Info:</strong></p>
+            <p>Tournament: {tournament?.name}</p>
+            <p>Divisions: {tournament?.divisions?.length}</p>
+            <p>Total Members: {members?.length}</p>
+            <p>Filtered Members: {filteredMembers?.length}</p>
+            <p>Current Division: {currentDivision?.name}</p>
+            <p>Selected Members: {selectedMembers?.length}</p>
           </div>
         )}
       </div>
