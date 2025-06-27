@@ -1,9 +1,9 @@
-// src/components/ui/Modal.jsx - FIXED: Better header action styling and layout
+// src/components/ui/Modal.jsx - FIXED: Enhanced header action styling with proper mobile touch support
 import React from 'react';
 import { X } from 'lucide-react';
 
 /**
- * Modal Component - A reusable popup dialog with improved header actions
+ * Modal Component - A reusable popup dialog with enhanced header actions
  * 
  * Props:
  * - isOpen: boolean - Controls if modal is visible
@@ -70,28 +70,32 @@ const Modal = ({
 
   return (
     <>
-      {/* FIXED: Improved modal header button styles */}
+      {/* FIXED: Enhanced modal header button styles with proper mobile touch support */}
       <style jsx>{`
         .modal-header-action {
           display: flex;
           align-items: center;
-          gap: 8px;
+          gap: 12px;
         }
         
         .modal-header-button {
-          min-height: 36px;
-          min-width: 80px;
-          padding: 8px 16px;
-          border-radius: 8px;
-          font-size: 14px;
-          font-weight: 500;
-          transition: all 0.2s ease;
-          border: 1px solid transparent;
-          cursor: pointer;
           display: inline-flex;
           align-items: center;
           justify-content: center;
+          font-weight: 500;
+          border-radius: 8px;
+          transition: all 0.2s ease;
+          border: 1px solid transparent;
+          cursor: pointer;
           white-space: nowrap;
+          position: relative;
+          text-decoration: none;
+          
+          /* Desktop sizing */
+          min-height: 36px;
+          min-width: 100px;
+          padding: 8px 16px;
+          font-size: 14px;
         }
         
         .modal-header-button:disabled {
@@ -99,6 +103,64 @@ const Modal = ({
           cursor: not-allowed;
         }
         
+        /* FIXED: Mobile - Icon-only buttons with FORCED centering overrides */
+        @media (max-width: 768px) {
+          .modal-header-button {
+            min-height: 52px;
+            min-width: 52px;  /* Square for icon-only */
+            padding: 0 !important;       /* Force remove padding */
+            font-size: 15px;
+            border-radius: 12px;
+            /* Ensure perfect flexbox centering */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+          }
+          
+          /* Hide text on mobile, show only icons */
+          .modal-header-button .button-text {
+            display: none;
+          }
+          
+          /* FORCE override the margin and line-height that's causing offset */
+          .modal-header-button .icon {
+            margin: 0 !important;           /* Kill the margin-right: 8px */
+            padding: 0 !important;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            line-height: 1 !important;      /* Kill the line-height: 15px */
+            width: 24px;
+            height: 24px;
+          }
+          
+          /* Force SVG elements to be perfectly centered */
+          .modal-header-button .icon svg {
+            display: block;
+            margin: 0 !important;
+            padding: 0;
+            vertical-align: middle;
+          }
+          
+          .modal-header-action {
+            gap: 8px;  /* Tighter gap for icon-only buttons */
+          }
+        }
+        
+        /* Desktop - Full text buttons with proper icon spacing */
+        @media (min-width: 769px) {
+          .modal-header-button .button-text {
+            display: inline;
+          }
+          
+          .modal-header-button .icon {
+            margin-right: 8px;  /* Space between icon and text */
+            display: inline-flex;
+            align-items: center;
+          }
+        }
+        
+        /* Variant styles */
         .modal-header-button-primary {
           background-color: #3b82f6;
           color: white;
@@ -108,6 +170,8 @@ const Modal = ({
         .modal-header-button-primary:hover:not(:disabled) {
           background-color: #2563eb;
           border-color: #2563eb;
+          transform: translateY(-1px);
+          box-shadow: 0 4px 12px rgba(59, 130, 246, 0.25);
         }
         
         .modal-header-button-danger {
@@ -119,13 +183,33 @@ const Modal = ({
         .modal-header-button-danger:hover:not(:disabled) {
           background-color: #dc2626;
           color: white;
+          transform: translateY(-1px);
+          box-shadow: 0 4px 12px rgba(220, 38, 38, 0.25);
         }
         
+        .modal-header-button-outline {
+          background-color: white;
+          color: #374151;
+          border-color: #d1d5db;
+        }
+        
+        .modal-header-button-outline:hover:not(:disabled) {
+          background-color: #f9fafb;
+          border-color: #9ca3af;
+          transform: translateY(-1px);
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+        
+        /* Loading state */
         .modal-header-button-loading {
-          position: relative;
+          cursor: wait;
         }
         
-        .modal-header-button-loading .loading-spinner {
+        .modal-header-button-loading:disabled {
+          opacity: 0.8;
+        }
+        
+        .loading-spinner {
           width: 16px;
           height: 16px;
           border: 2px solid transparent;
@@ -133,6 +217,7 @@ const Modal = ({
           border-radius: 50%;
           animation: spin 1s linear infinite;
           margin-right: 8px;
+          flex-shrink: 0;
         }
         
         @keyframes spin {
@@ -140,18 +225,21 @@ const Modal = ({
           to { transform: rotate(360deg); }
         }
         
-        /* Mobile optimizations */
+        /* Active state for mobile */
         @media (max-width: 768px) {
-          .modal-header-button {
-            min-height: 40px;
-            min-width: 90px;
-            padding: 10px 18px;
-            font-size: 15px;
+          .modal-header-button:active:not(:disabled) {
+            transform: scale(0.96);
           }
-          
-          .modal-header-action {
-            gap: 10px;
-          }
+        }
+        
+        /* Icon spacing */
+        .modal-header-button .icon {
+          margin-right: 8px;
+          flex-shrink: 0;
+        }
+        
+        .modal-header-button .icon-only {
+          margin-right: 0;
         }
       `}</style>
 
@@ -209,7 +297,7 @@ const Modal = ({
 };
 
 /**
- * FIXED: Modal Header Button Components for consistent styling
+ * FIXED: Enhanced Modal Header Button Component with responsive icon/text display
  */
 export const ModalHeaderButton = ({ 
   children, 
@@ -220,23 +308,33 @@ export const ModalHeaderButton = ({
   type = 'button',
   form = null,
   className = '',
+  icon = null,
   ...props 
 }) => {
   const baseClass = 'modal-header-button';
   const variantClass = `modal-header-button-${variant}`;
   const loadingClass = loading ? 'modal-header-button-loading' : '';
   
+  const handleClick = (e) => {
+    if (disabled || loading) {
+      e.preventDefault();
+      return;
+    }
+    onClick?.(e);
+  };
+  
   return (
     <button
       type={type}
       form={form}
-      onClick={onClick}
+      onClick={handleClick}
       disabled={disabled || loading}
       className={`${baseClass} ${variantClass} ${loadingClass} ${className}`}
       {...props}
     >
       {loading && <div className="loading-spinner" />}
-      {children}
+      {icon && !loading && <span className="icon">{icon}</span>}
+      {children && <span className="button-text">{children}</span>}
     </button>
   );
 };

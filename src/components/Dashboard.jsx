@@ -1,4 +1,4 @@
-// src/components/Dashboard.jsx (FIXED - Added missing members prop to TournamentForm)
+// src/components/Dashboard.jsx (FIXED - Proper Modal Header Button Usage)
 import React, { useState, useMemo, useCallback } from 'react';
 import { 
   Plus, 
@@ -39,8 +39,9 @@ import StickyNavigation from './StickyNavigation';
 import { 
   Button, 
   Modal, 
+  ModalHeaderButton, // FIXED: Import ModalHeaderButton for proper header actions
   Card, 
-  TableActions, 
+  TableActions, // Your existing TableActions component
   Alert,
   ConfirmDialog
 } from './ui';
@@ -1773,7 +1774,7 @@ const Dashboard = () => {
           />
         </Card>
 
-        {/* FIXED: Tournament Modal with Header Actions for Update and Delete Buttons - Added missing members prop */}
+        {/* FIXED: Tournament Modal with ModalHeaderButton for Update and Delete Buttons */}
         <Modal
           isOpen={showTournamentModal}
           onClose={handleTournamentModalClose}
@@ -1781,25 +1782,24 @@ const Dashboard = () => {
           size="xl"
           headerAction={editingTournament ? (
             <>
-              <Button
-                type="button"
+              <ModalHeaderButton
                 variant="danger"
                 onClick={() => setShowDeleteConfirm(true)}
                 disabled={formLoading || deleteLoading}
-                className="mobile-touch-button"
+                icon={<Trash2 className="h-4 w-4" />}
               >
-                <Trash2 className="h-4 w-4 mr-2" />
                 Delete
-              </Button>
-              <Button
+              </ModalHeaderButton>
+              <ModalHeaderButton
+                variant="primary"
                 type="submit"
                 form="tournament-form"
                 loading={formLoading}
                 disabled={formLoading || deleteLoading}
-                className="mobile-touch-button"
+                icon={<CheckCircle className="h-4 w-4" />}
               >
                 Update Tournament
-              </Button>
+              </ModalHeaderButton>
             </>
           ) : null}
         >
@@ -1871,7 +1871,7 @@ const Dashboard = () => {
           )}
         </Modal>
 
-        {/* FIXED: League Modal with proper styling integration for member selection */}
+        {/* FIXED: League Modal with ModalHeaderButton for proper styling integration */}
         <Modal
           isOpen={showLeagueModal}
           onClose={handleLeagueModalClose}
@@ -1879,25 +1879,23 @@ const Dashboard = () => {
           size="lg"
           headerAction={editingLeague ? (
             <>
-              <Button
-                type="button"
+              <ModalHeaderButton
                 variant="danger"
                 onClick={() => setShowLeagueDeleteConfirm(true)}
                 disabled={formLoading || deleteLoading}
-                className="mobile-league-touch-button"
+                icon={<Trash2 className="h-4 w-4" />}
               >
-                <Trash2 className="h-4 w-4 mr-2" />
                 Delete
-              </Button>
-              <Button
+              </ModalHeaderButton>
+              <ModalHeaderButton
+                variant="primary"
                 type="submit"
                 form="league-form"
                 loading={formLoading}
                 disabled={formLoading || deleteLoading}
-                className="mobile-league-touch-button"
               >
                 Update League
-              </Button>
+              </ModalHeaderButton>
             </>
           ) : null}
         >

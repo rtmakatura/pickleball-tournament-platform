@@ -1,7 +1,6 @@
 // src/components/ui/index.js
 // Export all UI components from one place for easy importing
-
-export { default as Modal } from './Modal';
+export { default as Modal, ModalHeaderButton } from './Modal';
 export { default as Button } from './Button';
 export { default as Input } from './Input';
 export { default as Select } from './Select';
