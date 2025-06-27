@@ -1,7 +1,8 @@
-// src/components/tournament/DivisionMemberSelector.jsx (FIXED - Consistent spacing integration with parent form)
+// src/components/tournament/DivisionMemberSelector.jsx (FIXED - Replace native select with custom dropdown)
 import React, { useState } from 'react';
 import { Check, X, Search, User, Users, Trophy, DollarSign } from 'lucide-react';
-import { Button, Input, Select } from '../ui';
+import { Button, Input } from '../ui';
+import CustomDivisionDropdown from './CustomDivisionDropdown'; // Import our custom dropdown
 
 // FIXED: Simplified styling to match parent form's consistent 24px spacing system
 const divisionSelectorStyles = `
@@ -95,6 +96,14 @@ const divisionSelectorStyles = `
   .division-member-list::-webkit-scrollbar-thumb:hover {
     background: #94a3b8;
   }
+  
+  /* FIXED: Custom dropdown container to ensure proper containment */
+  .custom-division-dropdown-container {
+    position: relative;
+    z-index: 10;
+    max-width: 100%;
+    overflow: visible;
+  }
 `;
 
 const StyleSheet = () => (
@@ -104,6 +113,7 @@ const StyleSheet = () => (
 /**
  * DivisionMemberSelector Component - For selecting participants by division
  * FIXED: Enhanced styling integration with parent form and proper members handling
+ * REPLACED: Native select with custom dropdown to fix full-width issue
  */
 const DivisionMemberSelector = ({
   tournament,
@@ -207,6 +217,33 @@ const DivisionMemberSelector = ({
     ).join(' ');
   };
 
+  // FIXED: Create better formatted division options for the custom dropdown
+  const getDivisionOptions = () => {
+    if (!tournament?.divisions) return [];
+    
+    return tournament.divisions.map(div => {
+      // Create a more readable, shorter label format
+      const eventTypeFormatted = formatEventType(div.eventType);
+      const skillFormatted = div.skillLevel.charAt(0).toUpperCase() + div.skillLevel.slice(1);
+      
+      // Format: "Division Name (Mixed Doubles - Intermediate)"
+      let label = div.name;
+      
+      if (eventTypeFormatted && skillFormatted) {
+        label += ` (${eventTypeFormatted} - ${skillFormatted})`;
+      }
+      
+      if (div.entryFee > 0) {
+        label += ` - $${div.entryFee}`;
+      }
+      
+      return {
+        value: div.id,
+        label: label
+      };
+    });
+  };
+
   if (loading) {
     return (
       <>
@@ -249,18 +286,19 @@ const DivisionMemberSelector = ({
     <>
       <StyleSheet />
       <div className="space-y-0">
-        {/* FIXED: Enhanced division selector with consistent styling */}
+        {/* FIXED: Enhanced division selector with CUSTOM DROPDOWN instead of native select */}
         <div className="division-info-card">
           <div className="division-selector-input-group">
-            <Select
-              label="Select Division"
-              value={selectedDivision}
-              onChange={(e) => setSelectedDivision(e.target.value)}
-              options={tournament.divisions.map(div => ({
-                value: div.id,
-                label: `${div.name} - ${formatEventType(div.eventType)} (${div.skillLevel})`
-              }))}
-            />
+            <div className="custom-division-dropdown-container">
+              <CustomDivisionDropdown
+                label="Select Division"
+                value={selectedDivision}
+                onChange={(e) => setSelectedDivision(e.target.value)}
+                options={getDivisionOptions()}
+                placeholder="Choose a division..."
+                className="w-full"
+              />
+            </div>
           </div>
           
           {currentDivision && (
