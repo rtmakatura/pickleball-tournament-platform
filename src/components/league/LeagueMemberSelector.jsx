@@ -1,6 +1,6 @@
-// src/components/league/LeagueMemberSelector.jsx (FIXED - Consistent styling integration)
+// src/components/league/LeagueMemberSelector.jsx (UPDATED - Removed League Registration Notes section)
 import React, { useState } from 'react';
-import { Check, X, Search, User, Users, Activity } from 'lucide-react';
+import { Check, X, Search, User, Users } from 'lucide-react';
 import { Button, Input } from '../ui';
 
 // FIXED: Enhanced styling to match parent modal and form consistency
@@ -48,15 +48,6 @@ const leagueSelectorStyles = `
     margin-bottom: 24px;
   }
   
-  /* FIXED: Enhanced guidance card */
-  .league-guidance-card {
-    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
-    border: 1px solid #e2e8f0;
-    border-radius: 16px;
-    padding: 20px;
-    margin-bottom: 24px;
-  }
-  
   /* FIXED: Mobile-optimized touch targets */
   @media (max-width: 768px) {
     .league-touch-target {
@@ -77,7 +68,7 @@ const StyleSheet = () => (
 
 /**
  * LeagueMemberSelector Component - For selecting league participants
- * FIXED: Enhanced styling integration with parent modal/form
+ * UPDATED: Removed League Registration Notes section
  */
 const LeagueMemberSelector = ({
   members = [],
@@ -289,22 +280,6 @@ const LeagueMemberSelector = ({
             </div>
           </div>
         )}
-
-        {/* FIXED: Enhanced guidance section */}
-        <div className="league-guidance-card">
-          <h4 className="text-sm font-medium text-gray-700 mb-3 flex items-center">
-            <Activity className="h-4 w-4 mr-2 text-blue-600" />
-            League Registration Notes
-          </h4>
-          <div className="text-sm text-gray-600 space-y-2">
-            <p>• Members will be added to the league roster upon creation</p>
-            <p>• Registration fees (if any) will be tracked per participant</p>
-            <p>• You can add or remove members later from the league details</p>
-            {maxSelections && (
-              <p>• Maximum of <strong>{maxSelections}</strong> participants allowed</p>
-            )}
-          </div>
-        </div>
       </div>
     </>
   );

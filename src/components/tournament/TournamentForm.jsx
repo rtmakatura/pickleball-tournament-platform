@@ -1,4 +1,4 @@
-// src/components/tournament/TournamentForm.jsx (FIXED - Consistent spacing system and proper members integration)
+// src/components/tournament/TournamentForm.jsx (UPDATED - Added spacing, tournament features, removed debug info handling)
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { 
   Trash2, 
@@ -15,7 +15,11 @@ import {
   Info,
   AlertCircle,
   CheckCircle,
-  X
+  X,
+  Target,
+  BarChart3,
+  Clock,
+  Award
 } from 'lucide-react';
 import { Input, Select, Button, Alert, ConfirmDialog, Card, Modal } from '../ui';
 import DivisionMemberSelector from './DivisionMemberSelector';
@@ -30,7 +34,7 @@ import {
 } from '../../services/models';
 import { formatWebsiteUrl, isValidUrl, generateGoogleMapsLink, openLinkSafely } from '../../utils/linkUtils';
 
-// FIXED: Simplified and consistent spacing system - exactly 24px throughout
+// UPDATED: Added spacing improvements and tournament features styling
 const tournamentFormStyles = `
   /* Base form container */
   .tournament-form {
@@ -153,7 +157,7 @@ const tournamentFormStyles = `
     color: white;
     border-radius: 16px;
     padding: 20px;
-    margin-bottom: 24px;
+    margin-bottom: 32px; /* UPDATED: Increased from 24px to 32px for better visual separation */
   }
   
   .quick-stats {
@@ -184,8 +188,47 @@ const tournamentFormStyles = `
     line-height: 1;
   }
   
-  /* REMOVED: All conflicting responsive overrides that cause spacing inconsistencies */
-  /* Now using consistent 24px spacing across all screen sizes */
+  /* ADDED: Tournament features info card styling */
+  .tournament-features-card {
+    background: linear-gradient(135deg, #059669 0%, #047857 100%);
+    color: white;
+    border-radius: 16px;
+    padding: 24px;
+    margin-bottom: 24px;
+  }
+  
+  .tournament-features-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+  
+  @media (min-width: 768px) {
+    .tournament-features-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+  
+  .tournament-feature-item {
+    display: flex;
+    align-items: center;
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+    opacity: 0.95;
+  }
+  
+  .tournament-feature-icon {
+    height: 1rem;
+    width: 1rem;
+    margin-right: 0.5rem;
+    color: rgba(255, 255, 255, 0.9);
+    flex-shrink: 0;
+  }
+  
+  /* ADDED: Division list spacing improvement */
+  .division-add-button {
+    margin-bottom: 32px; /* UPDATED: Increased from 24px to 32px for better spacing before division cards */
+  }
 `;
 
 const StyleSheet = () => (
@@ -193,7 +236,7 @@ const StyleSheet = () => (
 );
 
 /**
- * FIXED: Tournament Form Component with consistent spacing and proper members integration
+ * UPDATED: Tournament Form Component with improved spacing and tournament features
  */
 const TournamentForm = ({ 
   tournament = null, 
@@ -824,7 +867,8 @@ const TournamentForm = ({
                   </div>
                 </div>
 
-                <div className="form-input-group">
+                {/* UPDATED: Add Division Button with improved spacing */}
+                <div className="form-input-group division-add-button">
                   <Button 
                     type="button"
                     onClick={addDivision}
@@ -891,7 +935,7 @@ const TournamentForm = ({
           )}
         </form>
 
-        {/* FIXED: Division Participants Section with proper spacing and members integration */}
+        {/* UPDATED: Division Participants Section with proper spacing and members integration */}
         {tournament && tournament.divisions && tournament.divisions.length > 0 && (
           <div className="form-section" style={{ marginTop: '24px' }}>
             <div 
@@ -924,6 +968,48 @@ const TournamentForm = ({
             </div>
           </div>
         )}
+
+        {/* UPDATED: Tournament Features Section with accurate platform features */}
+        <div className="form-section">
+          <div className="form-section-content">
+            <div className="tournament-features-card">
+              <h4 className="text-lg font-semibold mb-3 flex items-center">
+                <Target className="h-5 w-5 mr-2" />
+                Tournament Features
+              </h4>
+              <div className="tournament-features-grid">
+                <div className="space-y-3">
+                  <div className="tournament-feature-item">
+                    <Users className="tournament-feature-icon" />
+                    Multi-division support with separate brackets
+                  </div>
+                  <div className="tournament-feature-item">
+                    <BarChart3 className="tournament-feature-icon" />
+                    Manual result tracking and recording
+                  </div>
+                  <div className="tournament-feature-item">
+                    <DollarSign className="tournament-feature-icon" />
+                    Entry fee management and participant billing
+                  </div>
+                </div>
+                <div className="space-y-3">
+                  <div className="tournament-feature-item">
+                    <CheckCircle className="tournament-feature-icon" />
+                    Participant registration and management
+                  </div>
+                  <div className="tournament-feature-item">
+                    <Trophy className="tournament-feature-icon" />
+                    Division-based event organization
+                  </div>
+                  <div className="tournament-feature-item">
+                    <Calendar className="tournament-feature-icon" />
+                    Tournament scheduling and planning
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Division Modal */}

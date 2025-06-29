@@ -1,4 +1,4 @@
-// src/components/league/LeagueForm.jsx (FIXED - Section expansion, spacing, and modal integration)
+// src/components/league/LeagueForm.jsx (UPDATED - Removed League Features section)
 import React, { useState, useEffect, useCallback } from 'react';
 import { 
   Trash2, 
@@ -8,11 +8,11 @@ import {
   Calendar,
   Users,
   DollarSign,
-  Activity,
   Info,
   Settings,
   Clock,
-  CheckCircle
+  CheckCircle,
+  Activity
 } from 'lucide-react';
 import { Input, Select, Button, ConfirmDialog, Alert } from '../ui';
 import { SKILL_LEVELS, LEAGUE_STATUS, PAYMENT_MODES, EVENT_TYPES } from '../../services/models';
@@ -185,6 +185,43 @@ const mobileLeagueFormStyles = `
   .league-form-container {
     padding: 24px;
   }
+  
+  /* ADDED: League features info card styling */
+  .league-features-card {
+    background: linear-gradient(135deg, #059669 0%, #047857 100%);
+    color: white;
+    border-radius: 16px;
+    padding: 24px;
+    margin-bottom: 24px;
+  }
+  
+  .league-features-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+  
+  @media (min-width: 768px) {
+    .league-features-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+  
+  .league-feature-item {
+    display: flex;
+    align-items: center;
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+    opacity: 0.95;
+  }
+  
+  .league-feature-icon {
+    height: 1rem;
+    width: 1rem;
+    margin-right: 0.5rem;
+    color: rgba(255, 255, 255, 0.9);
+    flex-shrink: 0;
+  }
 `;
 
 const StyleSheet = () => (
@@ -192,7 +229,7 @@ const StyleSheet = () => (
 );
 
 /**
- * FIXED: Mobile-Optimized League Form Component with corrected expansion and spacing
+ * UPDATED: Mobile-Optimized League Form Component with League Features section removed
  */
 const LeagueForm = ({ 
   league = null, 
@@ -871,35 +908,43 @@ const LeagueForm = ({
             </div>
           </div>
 
-          {/* League Features Info */}
+          {/* ADDED: League Features Section */}
           <div className="mobile-league-section">
             <div className="mobile-league-content">
-              <div className="bg-blue-50 border-2 border-blue-200 rounded-2xl p-6">
-                <h4 className="text-lg font-semibold text-blue-900 mb-3 flex items-center">
+              <div className="league-features-card">
+                <h4 className="text-lg font-semibold mb-3 flex items-center">
                   <Activity className="h-5 w-5 mr-2" />
                   League Features
                 </h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-blue-800">
-                  <ul className="space-y-2">
-                    <li className="flex items-center">
-                      <CheckCircle className="h-4 w-4 mr-2 text-blue-600" />
+                <div className="league-features-grid">
+                  <div className="space-y-3">
+                    <div className="league-feature-item">
+                      <CheckCircle className="league-feature-icon" />
                       Track weekly matches and standings
-                    </li>
-                    <li className="flex items-center">
-                      <CheckCircle className="h-4 w-4 mr-2 text-blue-600" />
+                    </div>
+                    <div className="league-feature-item">
+                      <CheckCircle className="league-feature-icon" />
                       Manage player schedules and court assignments
-                    </li>
-                  </ul>
-                  <ul className="space-y-2">
-                    <li className="flex items-center">
-                      <CheckCircle className="h-4 w-4 mr-2 text-blue-600" />
+                    </div>
+                    <div className="league-feature-item">
+                      <CheckCircle className="league-feature-icon" />
                       Calculate rankings and statistics
-                    </li>
-                    <li className="flex items-center">
-                      <CheckCircle className="h-4 w-4 mr-2 text-blue-600" />
+                    </div>
+                  </div>
+                  <div className="space-y-3">
+                    <div className="league-feature-item">
+                      <CheckCircle className="league-feature-icon" />
                       Handle make-up games and cancellations
-                    </li>
-                  </ul>
+                    </div>
+                    <div className="league-feature-item">
+                      <CheckCircle className="league-feature-icon" />
+                      Season-long competition format
+                    </div>
+                    <div className="league-feature-item">
+                      <CheckCircle className="league-feature-icon" />
+                      Registration fee management
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>

@@ -1,4 +1,4 @@
-// src/components/tournament/DivisionMemberSelector.jsx (FIXED - Replace native select with custom dropdown)
+// src/components/tournament/DivisionMemberSelector.jsx (UPDATED - Removed debug info completely)
 import React, { useState } from 'react';
 import { Check, X, Search, User, Users, Trophy, DollarSign } from 'lucide-react';
 import { Button, Input } from '../ui';
@@ -112,8 +112,7 @@ const StyleSheet = () => (
 
 /**
  * DivisionMemberSelector Component - For selecting participants by division
- * FIXED: Enhanced styling integration with parent form and proper members handling
- * REPLACED: Native select with custom dropdown to fix full-width issue
+ * UPDATED: Removed all debug information completely
  */
 const DivisionMemberSelector = ({
   tournament,
@@ -126,20 +125,9 @@ const DivisionMemberSelector = ({
     tournament?.divisions?.[0]?.id || ''
   );
 
-  // Debug logging to track members data
-  React.useEffect(() => {
-    console.log('🔍 DivisionMemberSelector received:', {
-      tournament: tournament?.name,
-      divisions: tournament?.divisions?.length,
-      members: members?.length,
-      membersPreview: members?.slice(0, 3).map(m => `${m.firstName} ${m.lastName}`)
-    });
-  }, [tournament, members]);
-
   // Filter members based on search term
   const filteredMembers = React.useMemo(() => {
     if (!members || !Array.isArray(members)) {
-      console.warn('⚠️ DivisionMemberSelector: Invalid members array', members);
       return [];
     }
 
@@ -172,13 +160,6 @@ const DivisionMemberSelector = ({
       }
       newSelection = [...selectedMembers, memberId];
     }
-    
-    console.log('🔄 Updating division participants:', {
-      divisionId: selectedDivision,
-      divisionName: currentDivision.name,
-      newSelection,
-      participantCount: newSelection.length
-    });
     
     onDivisionParticipantsChange(selectedDivision, newSelection);
   };
@@ -497,19 +478,6 @@ const DivisionMemberSelector = ({
                 <p>• Maximum <strong>{currentDivision.maxParticipants}</strong> participants allowed</p>
               )}
             </div>
-          </div>
-        )}
-
-        {/* Debug information in development */}
-        {process.env.NODE_ENV === 'development' && (
-          <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded text-xs">
-            <p><strong>Debug Info:</strong></p>
-            <p>Tournament: {tournament?.name}</p>
-            <p>Divisions: {tournament?.divisions?.length}</p>
-            <p>Total Members: {members?.length}</p>
-            <p>Filtered Members: {filteredMembers?.length}</p>
-            <p>Current Division: {currentDivision?.name}</p>
-            <p>Selected Members: {selectedMembers?.length}</p>
           </div>
         )}
       </div>
