@@ -1,4 +1,4 @@
-// src/components/league/LeagueForm.jsx (UPDATED - Removed League Features section)
+// src/components/league/LeagueForm.jsx (UPDATED - Added Modal integration with header buttons)
 import React, { useState, useEffect, useCallback } from 'react';
 import { 
   Trash2, 
@@ -14,7 +14,7 @@ import {
   CheckCircle,
   Activity
 } from 'lucide-react';
-import { Input, Select, Button, ConfirmDialog, Alert } from '../ui';
+import { Input, Select, Button, ConfirmDialog, Alert, Modal, ModalHeaderButton } from '../ui';
 import { SKILL_LEVELS, LEAGUE_STATUS, PAYMENT_MODES, EVENT_TYPES } from '../../services/models';
 import { formatWebsiteUrl, isValidUrl, generateGoogleMapsLink, openLinkSafely } from '../../utils/linkUtils';
 
@@ -229,14 +229,16 @@ const StyleSheet = () => (
 );
 
 /**
- * UPDATED: Mobile-Optimized League Form Component with League Features section removed
+ * UPDATED: Mobile-Optimized League Form Component with Modal integration and header buttons
  */
 const LeagueForm = ({ 
   league = null, 
   onSubmit, 
   onCancel, 
+  onDelete,
   loading = false,
-  deleteLoading = false
+  deleteLoading = false,
+  isOpen = true
 }) => {
   // FIXED: Proper mobile detection with initial state
   const [isMobile, setIsMobile] = useState(() => {
@@ -438,6 +440,18 @@ const LeagueForm = ({
     onSubmit(submissionData);
   }, [formData, validateForm, onSubmit]);
 
+  // Handle delete action
+  const handleDelete = useCallback(() => {
+    setShowDeleteConfirm(true);
+  }, []);
+
+  const confirmDelete = useCallback(() => {
+    if (onDelete) {
+      onDelete();
+    }
+    setShowDeleteConfirm(false);
+  }, [onDelete]);
+
   // Handle link testing
   const handleTestWebsite = useCallback(() => {
     if (formData.website) {
@@ -518,473 +532,506 @@ const LeagueForm = ({
     label: key.charAt(0) + key.slice(1).toLowerCase()
   }));
 
+  // UPDATED: Create header actions for modal
+  const headerActions = league ? (
+    <div className="modal-header-action">
+      <ModalHeaderButton
+        variant="danger"
+        onClick={handleDelete}
+        disabled={loading || deleteLoading}
+        icon={<Trash2 className="h-4 w-4" />}
+      >
+        Delete
+      </ModalHeaderButton>
+      <ModalHeaderButton
+        variant="primary"
+        onClick={handleSubmit}
+        loading={loading}
+        disabled={loading || deleteLoading}
+        icon={<CheckCircle className="h-4 w-4" />}
+        form="league-form"
+        type="submit"
+      >
+        Update
+      </ModalHeaderButton>
+    </div>
+  ) : null;
+
+  // UPDATED: Create footer actions for new leagues
+  const footerActions = !league ? (
+    <div className="flex flex-col sm:flex-row gap-3 w-full">
+      <Button
+        type="button"
+        variant="outline"
+        onClick={onCancel}
+        disabled={loading || deleteLoading}
+        className="mobile-league-touch-button flex-1"
+      >
+        Cancel
+      </Button>
+      
+      <Button
+        type="submit"
+        form="league-form"
+        loading={loading}
+        disabled={loading || deleteLoading}
+        className="mobile-league-touch-button flex-1"
+      >
+        Create League
+      </Button>
+    </div>
+  ) : null;
+
   return (
-    <div className="mobile-league-form">
+    <>
       <StyleSheet />
       
-      {/* FIXED: Consistent container with proper padding */}
-      <div className="league-form-container">
-        <form id="league-form" onSubmit={handleSubmit}>
-          {/* League Basic Information */}
-          <div className="mobile-league-section">
-            <div 
-              className="mobile-league-header"
-              onClick={() => toggleSection('basic')}
-            >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center">
-                  <Info className="h-5 w-5 text-blue-600 mr-3" />
-                  <h3 className="text-lg font-semibold text-gray-900">Basic Information</h3>
-                </div>
-                <ChevronDown className={`h-5 w-5 text-gray-400 transition-transform ${expandedSections.basic ? 'rotate-180' : ''}`} />
-              </div>
-              <p className="text-sm text-gray-600 mt-1">League name, description, and type</p>
-            </div>
-            
-            <div className={`mobile-league-expandable ${expandedSections.basic ? 'expanded' : 'collapsed'}`}>
-              <div className="mobile-league-content">
-                <div className="mobile-league-input-group">
-                  <Input
-                    label="League Name"
-                    type="text"
-                    value={formData.name}
-                    onChange={handleChange('name')}
-                    error={errors.name}
-                    required
-                    placeholder="Enter league name"
-                    className="text-lg"
-                  />
-                </div>
-
-                <div className="mobile-league-input-group">
-                  <Input
-                    label="Description"
-                    type="text"
-                    value={formData.description}
-                    onChange={handleChange('description')}
-                    error={errors.description}
-                    placeholder="Brief description of the league"
-                    helperText="What's special about this league? Format, rules, etc."
-                  />
-                </div>
-
-                <div className={`mobile-league-grid ${isMobile ? '' : 'mobile-league-grid-responsive'}`}>
-                  <div className="mobile-league-input-group">
-                    <Select
-                      label="Skill Level"
-                      value={formData.skillLevel}
-                      onChange={handleChange('skillLevel')}
-                      options={skillLevelOptions}
-                      error={errors.skillLevel}
-                      required
-                      helperText="Target skill level for participants"
-                    />
-                  </div>
-
-                  <div className="mobile-league-input-group">
-                    <Select
-                      label="Event Type"
-                      value={formData.eventType}
-                      onChange={handleChange('eventType')}
-                      options={eventTypeOptions}
-                      error={errors.eventType}
-                      required
-                      helperText="League format"
-                    />
-                  </div>
-
-                  <div className="mobile-league-input-group">
-                    <Select
-                      label="Status"
-                      value={formData.status}
-                      onChange={handleChange('status')}
-                      options={statusOptions}
-                      helperText="Current league status"
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* League Schedule & Duration */}
-          <div className="mobile-league-section">
-            <div 
-              className="mobile-league-header"
-              onClick={() => toggleSection('schedule')}
-            >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center">
-                  <Calendar className="h-5 w-5 text-green-600 mr-3" />
-                  <h3 className="text-lg font-semibold text-gray-900">Schedule & Duration</h3>
-                </div>
-                <ChevronDown className={`h-5 w-5 text-gray-400 transition-transform ${expandedSections.schedule ? 'rotate-180' : ''}`} />
-              </div>
-              <p className="text-sm text-gray-600 mt-1">League dates and timing</p>
-            </div>
-            
-            <div className={`mobile-league-expandable ${expandedSections.schedule ? 'expanded' : 'collapsed'}`}>
-              <div className="mobile-league-content">
-                <div className={`mobile-league-grid ${isMobile ? '' : 'mobile-league-grid-responsive'}`}>
-                  <div className="mobile-league-input-group">
-                    <Input
-                      label="Start Date"
-                      type="date"
-                      value={formData.startDate}
-                      onChange={handleChange('startDate')}
-                      error={errors.startDate}
-                      required
-                      helperText="League can be backdated if needed"
-                    />
-                  </div>
-
-                  <div className="mobile-league-input-group">
-                    <Input
-                      label="End Date"
-                      type="date"
-                      value={formData.endDate}
-                      onChange={handleChange('endDate')}
-                      error={errors.endDate}
-                      required
-                      helperText="When the league ends"
-                    />
-                  </div>
-                </div>
-
-                {/* League Duration & Status Display */}
-                {formData.startDate && formData.endDate && !errors.endDate && (
-                  <div className="league-info-card">
-                    <div className="flex items-center justify-between mb-4">
-                      <h4 className="text-lg font-semibold">League Timeline</h4>
-                      <div className={`status-indicator ${leagueStatus.isActive ? 'status-active' : 'status-completed'}`}>
-                        {leagueStatus.isActive ? (
-                          <>
-                            <CheckCircle className="h-4 w-4 mr-2" />
-                            Active Now
-                          </>
-                        ) : (
-                          <>
-                            <Clock className="h-4 w-4 mr-2" />
-                            {formData.startDate > new Date().toISOString().split('T')[0] ? 'Upcoming' : 'Completed'}
-                          </>
-                        )}
-                      </div>
+      <Modal
+        isOpen={isOpen}
+        onClose={onCancel}
+        title={league ? 'Edit League' : 'Create New League'}
+        size="lg"
+        headerAction={headerActions}
+        footerActions={footerActions}
+      >
+        <div className="mobile-league-form">
+          {/* FIXED: Consistent container with proper padding */}
+          <div className="league-form-container">
+            <form id="league-form" onSubmit={handleSubmit}>
+              {/* League Basic Information */}
+              <div className="mobile-league-section">
+                <div 
+                  className="mobile-league-header"
+                  onClick={() => toggleSection('basic')}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center">
+                      <Info className="h-5 w-5 text-blue-600 mr-3" />
+                      <h3 className="text-lg font-semibold text-gray-900">Basic Information</h3>
                     </div>
-                    
-                    <div className="league-duration-display">
-                      <div className="text-center">
-                        <div className="text-xl font-bold mb-2">{calculateDuration()}</div>
-                        <div className="text-sm opacity-90 mb-3">League Duration</div>
-                        <div className="text-base font-medium">{leagueStatus.timeInfo}</div>
+                    <ChevronDown className={`h-5 w-5 text-gray-400 transition-transform ${expandedSections.basic ? 'rotate-180' : ''}`} />
+                  </div>
+                  <p className="text-sm text-gray-600 mt-1">League name, description, and type</p>
+                </div>
+                
+                <div className={`mobile-league-expandable ${expandedSections.basic ? 'expanded' : 'collapsed'}`}>
+                  <div className="mobile-league-content">
+                    <div className="mobile-league-input-group">
+                      <Input
+                        label="League Name"
+                        type="text"
+                        value={formData.name}
+                        onChange={handleChange('name')}
+                        error={errors.name}
+                        required
+                        placeholder="Enter league name"
+                        className="text-lg"
+                      />
+                    </div>
+
+                    <div className="mobile-league-input-group">
+                      <Input
+                        label="Description"
+                        type="text"
+                        value={formData.description}
+                        onChange={handleChange('description')}
+                        error={errors.description}
+                        placeholder="Brief description of the league"
+                        helperText="What's special about this league? Format, rules, etc."
+                      />
+                    </div>
+
+                    <div className={`mobile-league-grid ${isMobile ? '' : 'mobile-league-grid-responsive'}`}>
+                      <div className="mobile-league-input-group">
+                        <Select
+                          label="Skill Level"
+                          value={formData.skillLevel}
+                          onChange={handleChange('skillLevel')}
+                          options={skillLevelOptions}
+                          error={errors.skillLevel}
+                          required
+                          helperText="Target skill level for participants"
+                        />
+                      </div>
+
+                      <div className="mobile-league-input-group">
+                        <Select
+                          label="Event Type"
+                          value={formData.eventType}
+                          onChange={handleChange('eventType')}
+                          options={eventTypeOptions}
+                          error={errors.eventType}
+                          required
+                          helperText="League format"
+                        />
+                      </div>
+
+                      <div className="mobile-league-input-group">
+                        <Select
+                          label="Status"
+                          value={formData.status}
+                          onChange={handleChange('status')}
+                          options={statusOptions}
+                          helperText="Current league status"
+                        />
                       </div>
                     </div>
                   </div>
-                )}
+                </div>
               </div>
-            </div>
-          </div>
 
-          {/* League Details (Location & Website) */}
-          <div className="mobile-league-section">
-            <div 
-              className="mobile-league-header"
-              onClick={() => toggleSection('details')}
-            >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center">
-                  <MapPin className="h-5 w-5 text-purple-600 mr-3" />
-                  <h3 className="text-lg font-semibold text-gray-900">League Details</h3>
+              {/* League Schedule & Duration */}
+              <div className="mobile-league-section">
+                <div 
+                  className="mobile-league-header"
+                  onClick={() => toggleSection('schedule')}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center">
+                      <Calendar className="h-5 w-5 text-green-600 mr-3" />
+                      <h3 className="text-lg font-semibold text-gray-900">Schedule & Duration</h3>
+                    </div>
+                    <ChevronDown className={`h-5 w-5 text-gray-400 transition-transform ${expandedSections.schedule ? 'rotate-180' : ''}`} />
+                  </div>
+                  <p className="text-sm text-gray-600 mt-1">League dates and timing</p>
                 </div>
-                <ChevronDown className={`h-5 w-5 text-gray-400 transition-transform ${expandedSections.details ? 'rotate-180' : ''}`} />
+                
+                <div className={`mobile-league-expandable ${expandedSections.schedule ? 'expanded' : 'collapsed'}`}>
+                  <div className="mobile-league-content">
+                    <div className={`mobile-league-grid ${isMobile ? '' : 'mobile-league-grid-responsive'}`}>
+                      <div className="mobile-league-input-group">
+                        <Input
+                          label="Start Date"
+                          type="date"
+                          value={formData.startDate}
+                          onChange={handleChange('startDate')}
+                          error={errors.startDate}
+                          required
+                          helperText="League can be backdated if needed"
+                        />
+                      </div>
+
+                      <div className="mobile-league-input-group">
+                        <Input
+                          label="End Date"
+                          type="date"
+                          value={formData.endDate}
+                          onChange={handleChange('endDate')}
+                          error={errors.endDate}
+                          required
+                          helperText="When the league ends"
+                        />
+                      </div>
+                    </div>
+
+                    {/* League Duration & Status Display */}
+                    {formData.startDate && formData.endDate && !errors.endDate && (
+                      <div className="league-info-card">
+                        <div className="flex items-center justify-between mb-4">
+                          <h4 className="text-lg font-semibold">League Timeline</h4>
+                          <div className={`status-indicator ${leagueStatus.isActive ? 'status-active' : 'status-completed'}`}>
+                            {leagueStatus.isActive ? (
+                              <>
+                                <CheckCircle className="h-4 w-4 mr-2" />
+                                Active Now
+                              </>
+                            ) : (
+                              <>
+                                <Clock className="h-4 w-4 mr-2" />
+                                {formData.startDate > new Date().toISOString().split('T')[0] ? 'Upcoming' : 'Completed'}
+                              </>
+                            )}
+                          </div>
+                        </div>
+                        
+                        <div className="league-duration-display">
+                          <div className="text-center">
+                            <div className="text-xl font-bold mb-2">{calculateDuration()}</div>
+                            <div className="text-sm opacity-90 mb-3">League Duration</div>
+                            <div className="text-base font-medium">{leagueStatus.timeInfo}</div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
-              <p className="text-sm text-gray-600 mt-1">Location and website information</p>
-            </div>
-            
-            <div className={`mobile-league-expandable ${expandedSections.details ? 'expanded' : 'collapsed'}`}>
-              <div className="mobile-league-content">
-                <div className="mobile-league-input-group">
-                  <Input
-                    label="Primary Location"
-                    type="text"
-                    value={formData.location}
-                    onChange={handleChange('location')}
-                    error={errors.location}
-                    placeholder="Main venue, facility, or area for league play"
-                    helperText="Optional - Enter primary venue or area where league games are played"
-                  />
-                  {formData.location && (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={handleTestLocation}
-                      className="mobile-league-touch-button mt-3"
-                    >
-                      <MapPin className="h-4 w-4 mr-2" />
-                      Preview Location on Map
-                    </Button>
-                  )}
-                </div>
 
-                <div className="mobile-league-input-group">
-                  <Input
-                    label="League Website"
-                    type="url"
-                    value={formData.website}
-                    onChange={handleChange('website')}
-                    error={errors.website}
-                    placeholder="https://example.com/league-info"
-                    helperText="Optional - Link to league rules, schedule, standings, or information page"
-                  />
-                  {formData.website && (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={handleTestWebsite}
-                      className="mobile-league-touch-button mt-3"
-                    >
-                      <ExternalLink className="h-4 w-4 mr-2" />
-                      Test Website Link
-                    </Button>
-                  )}
+              {/* League Details (Location & Website) */}
+              <div className="mobile-league-section">
+                <div 
+                  className="mobile-league-header"
+                  onClick={() => toggleSection('details')}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center">
+                      <MapPin className="h-5 w-5 text-purple-600 mr-3" />
+                      <h3 className="text-lg font-semibold text-gray-900">League Details</h3>
+                    </div>
+                    <ChevronDown className={`h-5 w-5 text-gray-400 transition-transform ${expandedSections.details ? 'rotate-180' : ''}`} />
+                  </div>
+                  <p className="text-sm text-gray-600 mt-1">Location and website information</p>
                 </div>
-
-                {/* Link Preview Section */}
-                {(formData.location || formData.website) && (
-                  <div className="link-preview-section">
-                    <h4 className="text-sm font-medium text-gray-900 mb-3">Quick Links Preview</h4>
-                    <div className="space-y-2">
+                
+                <div className={`mobile-league-expandable ${expandedSections.details ? 'expanded' : 'collapsed'}`}>
+                  <div className="mobile-league-content">
+                    <div className="mobile-league-input-group">
+                      <Input
+                        label="Primary Location"
+                        type="text"
+                        value={formData.location}
+                        onChange={handleChange('location')}
+                        error={errors.location}
+                        placeholder="Main venue, facility, or area for league play"
+                        helperText="Optional - Enter primary venue or area where league games are played"
+                      />
                       {formData.location && (
-                        <div className="flex items-center justify-between text-sm">
-                          <span className="text-gray-600">📍 Location: {formData.location}</span>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={handleTestLocation}
-                            className="mobile-league-touch-button"
-                          >
-                            <MapPin className="h-3 w-3 mr-1" />
-                            Maps
-                          </Button>
-                        </div>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={handleTestLocation}
+                          className="mobile-league-touch-button mt-3"
+                        >
+                          <MapPin className="h-4 w-4 mr-2" />
+                          Preview Location on Map
+                        </Button>
                       )}
+                    </div>
+
+                    <div className="mobile-league-input-group">
+                      <Input
+                        label="League Website"
+                        type="url"
+                        value={formData.website}
+                        onChange={handleChange('website')}
+                        error={errors.website}
+                        placeholder="https://example.com/league-info"
+                        helperText="Optional - Link to league rules, schedule, standings, or information page"
+                      />
                       {formData.website && (
-                        <div className="flex items-center justify-between text-sm">
-                          <span className="text-gray-600">🌐 Website: {formData.website}</span>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={handleTestWebsite}
-                            className="mobile-league-touch-button"
-                          >
-                            <ExternalLink className="h-3 w-3 mr-1" />
-                            Visit
-                          </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={handleTestWebsite}
+                          className="mobile-league-touch-button mt-3"
+                        >
+                          <ExternalLink className="h-4 w-4 mr-2" />
+                          Test Website Link
+                        </Button>
+                      )}
+                    </div>
+
+                    {/* Link Preview Section */}
+                    {(formData.location || formData.website) && (
+                      <div className="link-preview-section">
+                        <h4 className="text-sm font-medium text-gray-900 mb-3">Quick Links Preview</h4>
+                        <div className="space-y-2">
+                          {formData.location && (
+                            <div className="flex items-center justify-between text-sm">
+                              <span className="text-gray-600">📍 Location: {formData.location}</span>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={handleTestLocation}
+                                className="mobile-league-touch-button"
+                              >
+                                <MapPin className="h-3 w-3 mr-1" />
+                                Maps
+                              </Button>
+                            </div>
+                          )}
+                          {formData.website && (
+                            <div className="flex items-center justify-between text-sm">
+                              <span className="text-gray-600">🌐 Website: {formData.website}</span>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={handleTestWebsite}
+                                className="mobile-league-touch-button"
+                              >
+                                <ExternalLink className="h-3 w-3 mr-1" />
+                                Visit
+                              </Button>
+                            </div>
+                          )}
                         </div>
-                      )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* League Settings */}
+              <div className="mobile-league-section">
+                <div 
+                  className="mobile-league-header"
+                  onClick={() => toggleSection('settings')}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center">
+                      <Settings className="h-5 w-5 text-orange-600 mr-3" />
+                      <h3 className="text-lg font-semibold text-gray-900">League Settings</h3>
+                    </div>
+                    <ChevronDown className={`h-5 w-5 text-gray-400 transition-transform ${expandedSections.settings ? 'rotate-180' : ''}`} />
+                  </div>
+                  <p className="text-sm text-gray-600 mt-1">Registration fees and participant limits</p>
+                </div>
+                
+                <div className={`mobile-league-expandable ${expandedSections.settings ? 'expanded' : 'collapsed'}`}>
+                  <div className="mobile-league-content">
+                    <div className={`mobile-league-grid ${isMobile ? '' : 'mobile-league-grid-responsive'}`}>
+                      <div className="mobile-league-input-group">
+                        <Input
+                          label="Registration Fee ($)"
+                          type="number"
+                          value={formData.registrationFee}
+                          onChange={handleChange('registrationFee')}
+                          error={errors.registrationFee}
+                          min="0"
+                          step="0.01"
+                          placeholder="0.00"
+                          helperText="Cost to join the league"
+                        />
+                      </div>
+
+                      <div className="mobile-league-input-group">
+                        <Select
+                          label="Payment Mode"
+                          value={formData.paymentMode}
+                          onChange={handleChange('paymentMode')}
+                          options={[
+                            { value: PAYMENT_MODES.INDIVIDUAL, label: 'Individual Payments' },
+                            { value: PAYMENT_MODES.GROUP, label: 'Group Payment (One Payer)' }
+                          ]}
+                          helperText="How participants will handle payments"
+                        />
+                      </div>
+
+                      <div className="mobile-league-input-group">
+                        <Input
+                          label="Max Participants"
+                          type="number"
+                          value={formData.maxParticipants}
+                          onChange={handleChange('maxParticipants')}
+                          error={errors.maxParticipants}
+                          min="1"
+                          placeholder="2"
+                          helperText="Maximum number of league members"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Payment Preview */}
+                    {formData.registrationFee > 0 && (
+                      <div className="league-payment-preview">
+                        <h4 className="text-lg font-semibold mb-3 flex items-center">
+                          <DollarSign className="h-5 w-5 mr-2" />
+                          Registration Fees
+                        </h4>
+                        
+                        <div className="grid grid-cols-2 gap-4 text-center mb-4">
+                          <div>
+                            <div className="text-2xl font-bold">${formData.registrationFee}</div>
+                            <div className="text-sm opacity-90">Per Person</div>
+                          </div>
+                          <div>
+                            <div className="text-2xl font-bold">${estimatedTotal}</div>
+                            <div className="text-sm opacity-90">Total Dues</div>
+                          </div>
+                        </div>
+
+                        <div className="bg-white bg-opacity-20 rounded-lg p-3">
+                          <h5 className="font-medium mb-2">Payment Mode:</h5>
+                          {formData.paymentMode === PAYMENT_MODES.INDIVIDUAL ? (
+                            <ul className="text-sm space-y-1">
+                              <li>• Each participant pays their own ${formData.registrationFee} registration fee</li>
+                              <li>• Payment tracking is done per person</li>
+                              <li>• Best for casual leagues or when members prefer to pay separately</li>
+                            </ul>
+                          ) : (
+                            <ul className="text-sm space-y-1">
+                              <li>• One person pays ${estimatedTotal} total registration for the entire league</li>
+                              <li>• Other participants reimburse that person directly</li>
+                              <li>• Simplified payment collection and tracking</li>
+                            </ul>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Active status checkbox */}
+                    <div className="flex items-center p-4 bg-gray-50 rounded-lg">
+                      <input
+                        id="isActive"
+                        type="checkbox"
+                        checked={formData.isActive}
+                        onChange={handleChange('isActive')}
+                        className="h-5 w-5 text-green-600 focus:ring-green-500 border-gray-300 rounded"
+                      />
+                      <label htmlFor="isActive" className="ml-3 flex-1">
+                        <span className="block text-sm font-medium text-gray-900">Active league</span>
+                        <span className="block text-sm text-gray-500">Inactive leagues won't appear in registration lists</span>
+                      </label>
                     </div>
                   </div>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* League Settings */}
-          <div className="mobile-league-section">
-            <div 
-              className="mobile-league-header"
-              onClick={() => toggleSection('settings')}
-            >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center">
-                  <Settings className="h-5 w-5 text-orange-600 mr-3" />
-                  <h3 className="text-lg font-semibold text-gray-900">League Settings</h3>
                 </div>
-                <ChevronDown className={`h-5 w-5 text-gray-400 transition-transform ${expandedSections.settings ? 'rotate-180' : ''}`} />
               </div>
-              <p className="text-sm text-gray-600 mt-1">Registration fees and participant limits</p>
-            </div>
-            
-            <div className={`mobile-league-expandable ${expandedSections.settings ? 'expanded' : 'collapsed'}`}>
-              <div className="mobile-league-content">
-                <div className={`mobile-league-grid ${isMobile ? '' : 'mobile-league-grid-responsive'}`}>
-                  <div className="mobile-league-input-group">
-                    <Input
-                      label="Registration Fee ($)"
-                      type="number"
-                      value={formData.registrationFee}
-                      onChange={handleChange('registrationFee')}
-                      error={errors.registrationFee}
-                      min="0"
-                      step="0.01"
-                      placeholder="0.00"
-                      helperText="Cost to join the league"
-                    />
-                  </div>
 
-                  <div className="mobile-league-input-group">
-                    <Select
-                      label="Payment Mode"
-                      value={formData.paymentMode}
-                      onChange={handleChange('paymentMode')}
-                      options={[
-                        { value: PAYMENT_MODES.INDIVIDUAL, label: 'Individual Payments' },
-                        { value: PAYMENT_MODES.GROUP, label: 'Group Payment (One Payer)' }
-                      ]}
-                      helperText="How participants will handle payments"
-                    />
-                  </div>
-
-                  <div className="mobile-league-input-group">
-                    <Input
-                      label="Max Participants"
-                      type="number"
-                      value={formData.maxParticipants}
-                      onChange={handleChange('maxParticipants')}
-                      error={errors.maxParticipants}
-                      min="1"
-                      placeholder="2"
-                      helperText="Maximum number of league members"
-                    />
-                  </div>
-                </div>
-
-                {/* Payment Preview */}
-                {formData.registrationFee > 0 && (
-                  <div className="league-payment-preview">
+              {/* ADDED: League Features Section */}
+              <div className="mobile-league-section">
+                <div className="mobile-league-content">
+                  <div className="league-features-card">
                     <h4 className="text-lg font-semibold mb-3 flex items-center">
-                      <DollarSign className="h-5 w-5 mr-2" />
-                      Registration Fees
+                      <Activity className="h-5 w-5 mr-2" />
+                      League Features
                     </h4>
-                    
-                    <div className="grid grid-cols-2 gap-4 text-center mb-4">
-                      <div>
-                        <div className="text-2xl font-bold">${formData.registrationFee}</div>
-                        <div className="text-sm opacity-90">Per Person</div>
+                    <div className="league-features-grid">
+                      <div className="space-y-3">
+                        <div className="league-feature-item">
+                          <CheckCircle className="league-feature-icon" />
+                          Track weekly matches and standings
+                        </div>
+                        <div className="league-feature-item">
+                          <CheckCircle className="league-feature-icon" />
+                          Manage player schedules and court assignments
+                        </div>
+                        <div className="league-feature-item">
+                          <CheckCircle className="league-feature-icon" />
+                          Calculate rankings and statistics
+                        </div>
                       </div>
-                      <div>
-                        <div className="text-2xl font-bold">${estimatedTotal}</div>
-                        <div className="text-sm opacity-90">Total Dues</div>
+                      <div className="space-y-3">
+                        <div className="league-feature-item">
+                          <CheckCircle className="league-feature-icon" />
+                          Handle make-up games and cancellations
+                        </div>
+                        <div className="league-feature-item">
+                          <CheckCircle className="league-feature-icon" />
+                          Season-long competition format
+                        </div>
+                        <div className="league-feature-item">
+                          <CheckCircle className="league-feature-icon" />
+                          Registration fee management
+                        </div>
                       </div>
                     </div>
-
-                    <div className="bg-white bg-opacity-20 rounded-lg p-3">
-                      <h5 className="font-medium mb-2">Payment Mode:</h5>
-                      {formData.paymentMode === PAYMENT_MODES.INDIVIDUAL ? (
-                        <ul className="text-sm space-y-1">
-                          <li>• Each participant pays their own ${formData.registrationFee} registration fee</li>
-                          <li>• Payment tracking is done per person</li>
-                          <li>• Best for casual leagues or when members prefer to pay separately</li>
-                        </ul>
-                      ) : (
-                        <ul className="text-sm space-y-1">
-                          <li>• One person pays ${estimatedTotal} total registration for the entire league</li>
-                          <li>• Other participants reimburse that person directly</li>
-                          <li>• Simplified payment collection and tracking</li>
-                        </ul>
-                      )}
-                    </div>
                   </div>
-                )}
-
-                {/* Active status checkbox */}
-                <div className="flex items-center p-4 bg-gray-50 rounded-lg">
-                  <input
-                    id="isActive"
-                    type="checkbox"
-                    checked={formData.isActive}
-                    onChange={handleChange('isActive')}
-                    className="h-5 w-5 text-green-600 focus:ring-green-500 border-gray-300 rounded"
-                  />
-                  <label htmlFor="isActive" className="ml-3 flex-1">
-                    <span className="block text-sm font-medium text-gray-900">Active league</span>
-                    <span className="block text-sm text-gray-500">Inactive leagues won't appear in registration lists</span>
-                  </label>
                 </div>
               </div>
-            </div>
+            </form>
           </div>
-
-          {/* ADDED: League Features Section */}
-          <div className="mobile-league-section">
-            <div className="mobile-league-content">
-              <div className="league-features-card">
-                <h4 className="text-lg font-semibold mb-3 flex items-center">
-                  <Activity className="h-5 w-5 mr-2" />
-                  League Features
-                </h4>
-                <div className="league-features-grid">
-                  <div className="space-y-3">
-                    <div className="league-feature-item">
-                      <CheckCircle className="league-feature-icon" />
-                      Track weekly matches and standings
-                    </div>
-                    <div className="league-feature-item">
-                      <CheckCircle className="league-feature-icon" />
-                      Manage player schedules and court assignments
-                    </div>
-                    <div className="league-feature-item">
-                      <CheckCircle className="league-feature-icon" />
-                      Calculate rankings and statistics
-                    </div>
-                  </div>
-                  <div className="space-y-3">
-                    <div className="league-feature-item">
-                      <CheckCircle className="league-feature-icon" />
-                      Handle make-up games and cancellations
-                    </div>
-                    <div className="league-feature-item">
-                      <CheckCircle className="league-feature-icon" />
-                      Season-long competition format
-                    </div>
-                    <div className="league-feature-item">
-                      <CheckCircle className="league-feature-icon" />
-                      Registration fee management
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Cancel/Create Button for New Leagues */}
-          {!league && (
-            <div className="mobile-league-section">
-              <div className="mobile-league-content">
-                <div className="grid grid-cols-2 gap-3">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={onCancel}
-                    disabled={loading || deleteLoading}
-                    className="mobile-league-touch-button"
-                  >
-                    Cancel
-                  </Button>
-                  
-                  <Button
-                    type="submit"
-                    loading={loading}
-                    disabled={loading || deleteLoading}
-                    className="mobile-league-touch-button"
-                  >
-                    Create League
-                  </Button>
-                </div>
-              </div>
-            </div>
-          )}
-        </form>
-      </div>
+        </div>
+      </Modal>
 
       {/* Delete Confirmation Dialog */}
       <ConfirmDialog
         isOpen={showDeleteConfirm}
         onClose={() => setShowDeleteConfirm(false)}
-        onConfirm={() => {}} // This will be handled by parent component
+        onConfirm={confirmDelete}
         title="Delete League"
         message={`Are you sure you want to delete "${formData.name}"? This action cannot be undone and will remove all associated data including participant registrations and standings.`}
         confirmText="Delete League"
@@ -992,7 +1039,7 @@ const LeagueForm = ({
         type="danger"
         loading={deleteLoading}
       />
-    </div>
+    </>
   );
 };
 

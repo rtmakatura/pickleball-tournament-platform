@@ -1,4 +1,4 @@
-// src/components/ui/Modal.jsx - FIXED: Enhanced header action styling with proper mobile touch support
+// src/components/ui/Modal.jsx - UPDATED: Enhanced header action styling with proper mobile touch support
 import React from 'react';
 import { X } from 'lucide-react';
 
@@ -70,7 +70,7 @@ const Modal = ({
 
   return (
     <>
-      {/* FIXED: Enhanced modal header button styles with proper mobile touch support */}
+      {/* ENHANCED: Modal header button styles with proper mobile touch support */}
       <style jsx>{`
         .modal-header-action {
           display: flex;
@@ -103,15 +103,14 @@ const Modal = ({
           cursor: not-allowed;
         }
         
-        /* FIXED: Mobile - Icon-only buttons with FORCED centering overrides */
+        /* ENHANCED: Mobile - Icon-only buttons with perfect centering */
         @media (max-width: 768px) {
           .modal-header-button {
             min-height: 52px;
-            min-width: 52px;  /* Square for icon-only */
-            padding: 0 !important;       /* Force remove padding */
+            min-width: 52px;
+            padding: 0 !important;
             font-size: 15px;
             border-radius: 12px;
-            /* Ensure perfect flexbox centering */
             display: flex;
             align-items: center;
             justify-content: center;
@@ -122,19 +121,18 @@ const Modal = ({
             display: none;
           }
           
-          /* FORCE override the margin and line-height that's causing offset */
+          /* Perfect icon centering on mobile */
           .modal-header-button .icon {
-            margin: 0 !important;           /* Kill the margin-right: 8px */
+            margin: 0 !important;
             padding: 0 !important;
             display: flex;
             align-items: center;
             justify-content: center;
-            line-height: 1 !important;      /* Kill the line-height: 15px */
+            line-height: 1 !important;
             width: 24px;
             height: 24px;
           }
           
-          /* Force SVG elements to be perfectly centered */
           .modal-header-button .icon svg {
             display: block;
             margin: 0 !important;
@@ -143,7 +141,7 @@ const Modal = ({
           }
           
           .modal-header-action {
-            gap: 8px;  /* Tighter gap for icon-only buttons */
+            gap: 8px;
           }
         }
         
@@ -154,7 +152,7 @@ const Modal = ({
           }
           
           .modal-header-button .icon {
-            margin-right: 8px;  /* Space between icon and text */
+            margin-right: 8px;
             display: inline-flex;
             align-items: center;
           }
@@ -232,14 +230,13 @@ const Modal = ({
           }
         }
         
-        /* Icon spacing */
-        .modal-header-button .icon {
-          margin-right: 8px;
-          flex-shrink: 0;
-        }
-        
-        .modal-header-button .icon-only {
-          margin-right: 0;
+        /* Enhanced loading state for mobile */
+        @media (max-width: 768px) {
+          .modal-header-button .loading-spinner {
+            margin-right: 0;
+            width: 20px;
+            height: 20px;
+          }
         }
       `}</style>
 
@@ -255,13 +252,13 @@ const Modal = ({
             max-h-[90vh] overflow-hidden flex flex-col
           `}
         >
-          {/* FIXED: Enhanced Modal Header with better action support */}
+          {/* ENHANCED: Modal Header with better action support */}
           <div className="flex items-center justify-between p-4 border-b bg-white">
             <h2 className="text-lg font-semibold text-gray-900 flex-1 mr-4">
               {title}
             </h2>
             
-            {/* FIXED: Better header action layout */}
+            {/* Enhanced header action layout */}
             <div className="flex items-center">
               {headerAction && (
                 <div className="modal-header-action mr-3">
@@ -297,7 +294,7 @@ const Modal = ({
 };
 
 /**
- * FIXED: Enhanced Modal Header Button Component with responsive icon/text display
+ * ENHANCED: Modal Header Button Component with responsive icon/text display
  */
 export const ModalHeaderButton = ({ 
   children, 
