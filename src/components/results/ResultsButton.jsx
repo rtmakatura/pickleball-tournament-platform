@@ -1,4 +1,4 @@
-// src/components/results/ResultsButton.jsx (FIXED - Resolved naming conflict)
+// src/components/results/ResultsButton.jsx (FIXED - Loading State Issue)
 import React, { useState } from 'react';
 import { Trophy, Award, Eye, Edit, Plus, BarChart3 } from 'lucide-react';
 import { Button, Modal } from '../ui';
@@ -27,7 +27,10 @@ const ResultsButton = ({
 }) => {
   const { user } = useAuth();
   const { members } = useMembers();
-  const { results, loading, hasResults } = useResults(event.id, eventType, { autoLoad: true });
+  const { results, loading, hasResults, error } = useResults(event.id, eventType, null, { 
+    autoLoad: true, 
+    realTime: false // FIXED: Disable real-time to prevent loops
+  });
   
   const [showModal, setShowModal] = useState(false);
   const [modalMode, setModalMode] = useState('view'); // 'view' or 'manage'
@@ -44,14 +47,19 @@ const ResultsButton = ({
     return null; // Don't show results button for incomplete events
   }
 
+  // FIXED: Don't show anything while loading OR if there's an error
+  if (loading || error) {
+    return null;
+  }
+
   // Determine button variant and action
   const getButtonConfig = () => {
     if (variant === 'manage' && canManage) {
       return {
-        icon: Edit,
+        icon: hasResults ? Edit : Plus,
         label: hasResults ? 'Manage Results' : 'Enter Results',
         action: 'manage',
-        variant: 'outline'
+        variant: hasResults ? 'outline' : 'primary'
       };
     }
     
@@ -105,7 +113,6 @@ const ResultsButton = ({
         variant={buttonConfig.variant}
         size={size}
         onClick={handleClick}
-        loading={loading}
         className={className}
       >
         <IconComponent className="h-4 w-4 mr-2" />

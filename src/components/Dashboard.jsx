@@ -53,6 +53,7 @@ import { LeagueForm, LeagueMemberSelector } from './league';
 import { SignUpForm } from './auth';
 import SignInForm from './auth/SignInForm';
 import { CommentSection } from './comments';
+import { ResultsButton, ResultsViewer } from './results';
 
 // CSS for responsive optimizations
 const dashboardStyles = `
@@ -232,6 +233,16 @@ const TournamentCard = React.memo(({ tournament, onView, onEdit }) => {
 
       {/* Action Buttons */}
       <div className="px-4 pb-4 flex space-x-2">
+        {/* Results Button for Completed Tournaments */}
+        {tournament.status === 'completed' && (
+          <ResultsButton 
+            event={tournament}
+            eventType="tournament"
+            variant="auto"
+            size="sm"
+            className="mobile-action-button flex-1"
+          />
+        )}
         <Button
           onClick={(e) => {
             e.stopPropagation();
@@ -469,6 +480,15 @@ const TournamentRow = React.memo(({ tournament, onView, onEdit }) => {
       {/* Actions Column */}
       <td className="py-4 px-4 align-top">
         <div className="flex flex-col space-y-1 table-actions">
+          {tournament.status === 'completed' && (
+            <ResultsButton 
+              event={tournament}
+              eventType="tournament"
+              variant="auto"
+              size="sm"
+              className="mb-1"
+            />
+          )}
           <button 
             className="inline-flex items-center justify-center px-3 py-1.5 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors w-20"
             onClick={handleViewClick}
@@ -572,6 +592,16 @@ const LeagueCard = React.memo(({ league, onView, onEdit }) => {
 
       {/* Action Buttons */}
       <div className="px-4 pb-4 flex space-x-2">
+        {/* Results Button for Completed Leagues */}
+        {league.status === 'completed' && (
+          <ResultsButton 
+            event={league}
+            eventType="league"
+            variant="auto"
+            size="sm"
+            className="mobile-action-button flex-1"
+          />
+        )}
         <Button
           onClick={(e) => {
             e.stopPropagation();
@@ -737,6 +767,15 @@ const LeagueRow = React.memo(({ league, onView, onEdit }) => {
 
       <td className="py-4 px-4 align-top">
         <div className="flex flex-col space-y-1 table-actions">
+          {league.status === 'completed' && (
+            <ResultsButton 
+              event={league}
+              eventType="league"
+              variant="auto"
+              size="sm"
+              className="mb-1"
+            />
+          )}
           <button 
             className="inline-flex items-center justify-center px-3 py-1.5 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors w-20"
             onClick={handleViewClick}
@@ -1772,6 +1811,76 @@ const Dashboard = () => {
             onLoadMore={() => setVisibleMembers(prev => prev + 8)}
             hasMore={members.length > visibleMembers}
           />
+        </Card>
+
+        {/* Results Section - NEW */}
+        <Card 
+          ref={refs.resultsRef}
+          title="Tournament & League Results"
+          subtitle="View past event results and standings"
+          className="mb-8 sm:mb-8"
+        >
+          <div className="space-y-6">
+            {/* Completed Tournaments with Results */}
+            {sortedTournaments.filter(t => t.status === 'completed').length > 0 && (
+              <div>
+                <h4 className="font-medium text-gray-900 mb-4">Tournament Results</h4>
+                <div className="space-y-4">
+                  {sortedTournaments.filter(t => t.status === 'completed').slice(0, 5).map((tournament) => (
+                    <div key={tournament.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                      <div>
+                        <h5 className="font-medium text-gray-900">{tournament.name}</h5>
+                        <p className="text-sm text-gray-600">
+                          {tournament.eventDate && new Date(tournament.eventDate.seconds * 1000).toLocaleDateString()}
+                        </p>
+                      </div>
+                      <ResultsButton 
+                        event={tournament}
+                        eventType="tournament"
+                        variant="auto"
+                        size="sm"
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Completed Leagues with Results */}
+            {sortedLeagues.filter(l => l.status === 'completed').length > 0 && (
+              <div>
+                <h4 className="font-medium text-gray-900 mb-4">League Results</h4>
+                <div className="space-y-4">
+                  {sortedLeagues.filter(l => l.status === 'completed').slice(0, 5).map((league) => (
+                    <div key={league.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                      <div>
+                        <h5 className="font-medium text-gray-900">{league.name}</h5>
+                        <p className="text-sm text-gray-600">
+                          {league.endDate && new Date(league.endDate.seconds * 1000).toLocaleDateString()}
+                        </p>
+                      </div>
+                      <ResultsButton 
+                        event={league}
+                        eventType="league"
+                        variant="auto"
+                        size="sm"
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Empty State */}
+            {sortedTournaments.filter(t => t.status === 'completed').length === 0 && 
+             sortedLeagues.filter(l => l.status === 'completed').length === 0 && (
+              <div className="text-center py-12 text-gray-500">
+                <Trophy className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                <p className="text-lg font-medium">No completed events yet</p>
+                <p className="text-sm mt-1">Results will appear here after tournaments and leagues are completed</p>
+              </div>
+            )}
+          </div>
         </Card>
 
         {/* Tournament Modal with proper header buttons */}

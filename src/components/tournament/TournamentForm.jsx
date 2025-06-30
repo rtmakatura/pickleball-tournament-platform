@@ -33,6 +33,7 @@ import {
   validateDivision
 } from '../../services/models';
 import { formatWebsiteUrl, isValidUrl, generateGoogleMapsLink, openLinkSafely } from '../../utils/linkUtils';
+import { ResultsButton } from '../results';
 
 // UPDATED: Added spacing improvements and tournament features styling
 const tournamentFormStyles = `

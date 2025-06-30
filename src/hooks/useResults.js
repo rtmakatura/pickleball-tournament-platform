@@ -1,5 +1,5 @@
-// src/hooks/useResults.js (UPDATED - Division Support)
-import { useState, useEffect } from 'react';
+// src/hooks/useResults.js (FIXED - Infinite Loop Issue)
+import { useState, useEffect, useCallback } from 'react';
 import firebaseOps from '../services/firebaseOperations';
 import { createEventResults, createParticipantResult, RESULT_STATUS } from '../services/models';
 
@@ -21,20 +21,10 @@ export const useResults = (eventId, eventType = 'tournament', divisionId = null,
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  useEffect(() => {
-    if (autoLoad && eventId) {
-      if (divisionId) {
-        loadDivisionResults();
-      } else {
-        loadResults();
-      }
-    }
-  }, [eventId, eventType, divisionId, autoLoad]);
-
   /**
-   * Load results for an event (legacy or league)
+   * Load results for an event (legacy or league) - FIXED with useCallback
    */
-  const loadResults = async () => {
+  const loadResults = useCallback(async () => {
     setLoading(true);
     setError(null);
     
@@ -63,12 +53,12 @@ export const useResults = (eventId, eventType = 'tournament', divisionId = null,
     } finally {
       setLoading(false);
     }
-  };
+  }, [eventId, eventType, realTime]);
 
   /**
-   * NEW: Load results for a specific division
+   * NEW: Load results for a specific division - FIXED with useCallback
    */
-  const loadDivisionResults = async () => {
+  const loadDivisionResults = useCallback(async () => {
     setLoading(true);
     setError(null);
     
@@ -98,12 +88,12 @@ export const useResults = (eventId, eventType = 'tournament', divisionId = null,
     } finally {
       setLoading(false);
     }
-  };
+  }, [eventId, eventType, divisionId, realTime]);
 
   /**
-   * NEW: Load all results for a tournament (all divisions)
+   * NEW: Load all results for a tournament (all divisions) - FIXED with useCallback
    */
-  const loadAllTournamentResults = async () => {
+  const loadAllTournamentResults = useCallback(async () => {
     setLoading(true);
     setError(null);
     
@@ -132,7 +122,18 @@ export const useResults = (eventId, eventType = 'tournament', divisionId = null,
     } finally {
       setLoading(false);
     }
-  };
+  }, [eventId, realTime]);
+
+  // FIXED: useEffect with proper dependencies
+  useEffect(() => {
+    if (autoLoad && eventId) {
+      if (divisionId) {
+        loadDivisionResults();
+      } else {
+        loadResults();
+      }
+    }
+  }, [autoLoad, eventId, divisionId, loadDivisionResults, loadResults]);
 
   /**
    * Create initial results structure for an event or division
