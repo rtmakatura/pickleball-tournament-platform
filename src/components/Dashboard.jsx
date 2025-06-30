@@ -1,4 +1,4 @@
-// src/components/Dashboard.jsx (FIXED - Proper Modal Header Button Usage)
+// src/components/Dashboard.jsx (FIXED - Removed duplicate Modal wrapper for League)
 import React, { useState, useMemo, useCallback } from 'react';
 import { 
   Plus, 
@@ -39,9 +39,9 @@ import StickyNavigation from './StickyNavigation';
 import { 
   Button, 
   Modal, 
-  ModalHeaderButton, // FIXED: Import ModalHeaderButton for proper header actions
+  ModalHeaderButton,
   Card, 
-  TableActions, // Your existing TableActions component
+  TableActions,
   Alert,
   ConfirmDialog
 } from './ui';
@@ -112,7 +112,7 @@ const dashboardStyles = `
     -webkit-overflow-scrolling: touch;
   }
 
-  /* FIXED: League member selector modal styling - consistent with forms */
+  /* FIXED: League member selector styling - consistent with forms */
   .league-modal-section {
     background: white;
     border-radius: 16px;
@@ -1774,7 +1774,7 @@ const Dashboard = () => {
           />
         </Card>
 
-        {/* FIXED: Tournament Modal with ModalHeaderButton for Update and Delete Buttons */}
+        {/* Tournament Modal with proper header buttons */}
         <Modal
           isOpen={showTournamentModal}
           onClose={handleTournamentModalClose}
@@ -1871,7 +1871,7 @@ const Dashboard = () => {
           )}
         </Modal>
 
-        {/* FIXED: League Modal with ModalHeaderButton for proper styling integration */}
+        {/* FIXED: League Modal - Single Modal wrapper with proper header buttons */}
         <Modal
           isOpen={showLeagueModal}
           onClose={handleLeagueModalClose}
@@ -1893,6 +1893,7 @@ const Dashboard = () => {
                 form="league-form"
                 loading={formLoading}
                 disabled={formLoading || deleteLoading}
+                icon={<CheckCircle className="h-4 w-4" />}
               >
                 Update League
               </ModalHeaderButton>
@@ -1900,6 +1901,7 @@ const Dashboard = () => {
           ) : null}
         >
           <div className="space-y-0">
+            {/* FIXED: LeagueForm is now a plain form component */}
             <LeagueForm
               league={editingLeague}
               onSubmit={editingLeague ? handleUpdateLeague : handleCreateLeague}
@@ -1908,7 +1910,7 @@ const Dashboard = () => {
               deleteLoading={deleteLoading}
             />
             
-            {/* FIXED: Properly styled member selection section */}
+            {/* Member selection section */}
             <div className="league-modal-section">
               <div className="league-modal-header">
                 <div className="flex items-center">
