@@ -1,4 +1,4 @@
-// src/components/league/LeagueForm.jsx (FIXED - Removed Modal wrapper, made plain form component)
+// src/components/league/LeagueForm.jsx (FIXED - Async form submission and proper event handling)
 import React, { useState, useEffect, useCallback } from 'react';
 import { 
   ExternalLink, 
@@ -228,7 +228,7 @@ const StyleSheet = () => (
 );
 
 /**
- * FIXED: Mobile-Optimized League Form Component - Plain form component without Modal wrapper
+ * FIXED: Mobile-Optimized League Form Component - Plain form component with proper async handling
  */
 const LeagueForm = ({ 
   league = null, 
@@ -321,6 +321,9 @@ const LeagueForm = ({
   });
 
   const [errors, setErrors] = useState({});
+  
+  // FIXED: Add internal loading state to prevent race conditions
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // FIXED: Mobile detection with proper cleanup
   useEffect(() => {
@@ -415,26 +418,43 @@ const LeagueForm = ({
     return Object.keys(newErrors).length === 0;
   }, [formData]);
 
-  // FIXED: Handle form submission - single submission path
-  const handleSubmit = useCallback((e) => {
+  // FIXED: Handle form submission - NOW ASYNC with proper error handling
+  const handleSubmit = useCallback(async (e) => {
     e.preventDefault();
+    e.stopPropagation(); // FIXED: Prevent event bubbling that causes page freeze
+    
+    // FIXED: Prevent double submissions
+    if (isSubmitting) return;
     
     if (!validateForm()) {
       return;
     }
 
-    // Convert date strings to Date objects and format website URL
-    const submissionData = {
-      ...formData,
-      startDate: new Date(formData.startDate),
-      endDate: new Date(formData.endDate),
-      website: formData.website ? formatWebsiteUrl(formData.website) : '',
-      registrationFee: parseFloat(formData.registrationFee),
-      maxParticipants: parseInt(formData.maxParticipants)
-    };
+    // FIXED: Set internal loading state
+    setIsSubmitting(true);
+    
+    try {
+      // Convert date strings to Date objects and format website URL
+      const submissionData = {
+        ...formData,
+        startDate: new Date(formData.startDate),
+        endDate: new Date(formData.endDate),
+        website: formData.website ? formatWebsiteUrl(formData.website) : '',
+        registrationFee: parseFloat(formData.registrationFee),
+        maxParticipants: parseInt(formData.maxParticipants)
+      };
 
-    onSubmit(submissionData);
-  }, [formData, validateForm, onSubmit]);
+      // FIXED: Properly await the submission
+      await onSubmit(submissionData);
+      
+    } catch (error) {
+      console.error('League submission error:', error);
+      setErrors({ submit: error.message });
+    } finally {
+      // FIXED: Always cleanup loading state
+      setIsSubmitting(false);
+    }
+  }, [formData, isSubmitting, validateForm, onSubmit]);
 
   // Handle link testing
   const handleTestWebsite = useCallback(() => {
@@ -524,6 +544,18 @@ const LeagueForm = ({
       <div className="mobile-league-form">
         {/* FIXED: Consistent container with proper padding */}
         <div className="league-form-container">
+          {/* FIXED: Error alerts for submission issues */}
+          {errors.submit && (
+            <div className="mobile-league-alert">
+              <Alert 
+                type="error" 
+                title="Submission Error" 
+                message={errors.submit}
+                onClose={() => setErrors(prev => ({ ...prev, submit: null }))}
+              />
+            </div>
+          )}
+          
           <form id="league-form" onSubmit={handleSubmit}>
             {/* League Basic Information */}
             <div className="mobile-league-section">
@@ -553,6 +585,7 @@ const LeagueForm = ({
                       required
                       placeholder="Enter league name"
                       className="text-lg"
+                      disabled={isSubmitting} // FIXED: Disable during submission
                     />
                   </div>
 
@@ -565,6 +598,7 @@ const LeagueForm = ({
                       error={errors.description}
                       placeholder="Brief description of the league"
                       helperText="What's special about this league? Format, rules, etc."
+                      disabled={isSubmitting}
                     />
                   </div>
 
@@ -578,6 +612,7 @@ const LeagueForm = ({
                         error={errors.skillLevel}
                         required
                         helperText="Target skill level for participants"
+                        disabled={isSubmitting}
                       />
                     </div>
 
@@ -590,6 +625,7 @@ const LeagueForm = ({
                         error={errors.eventType}
                         required
                         helperText="League format"
+                        disabled={isSubmitting}
                       />
                     </div>
 
@@ -600,6 +636,7 @@ const LeagueForm = ({
                         onChange={handleChange('status')}
                         options={statusOptions}
                         helperText="Current league status"
+                        disabled={isSubmitting}
                       />
                     </div>
                   </div>
@@ -635,6 +672,7 @@ const LeagueForm = ({
                         error={errors.startDate}
                         required
                         helperText="League can be backdated if needed"
+                        disabled={isSubmitting}
                       />
                     </div>
 
@@ -647,6 +685,7 @@ const LeagueForm = ({
                         error={errors.endDate}
                         required
                         helperText="When the league ends"
+                        disabled={isSubmitting}
                       />
                     </div>
                   </div>
@@ -711,6 +750,7 @@ const LeagueForm = ({
                       error={errors.location}
                       placeholder="Main venue, facility, or area for league play"
                       helperText="Optional - Enter primary venue or area where league games are played"
+                      disabled={isSubmitting}
                     />
                     {formData.location && (
                       <Button
@@ -719,6 +759,7 @@ const LeagueForm = ({
                         size="sm"
                         onClick={handleTestLocation}
                         className="mobile-league-touch-button mt-3"
+                        disabled={isSubmitting}
                       >
                         <MapPin className="h-4 w-4 mr-2" />
                         Preview Location on Map
@@ -735,6 +776,7 @@ const LeagueForm = ({
                       error={errors.website}
                       placeholder="https://example.com/league-info"
                       helperText="Optional - Link to league rules, schedule, standings, or information page"
+                      disabled={isSubmitting}
                     />
                     {formData.website && (
                       <Button
@@ -743,6 +785,7 @@ const LeagueForm = ({
                         size="sm"
                         onClick={handleTestWebsite}
                         className="mobile-league-touch-button mt-3"
+                        disabled={isSubmitting}
                       >
                         <ExternalLink className="h-4 w-4 mr-2" />
                         Test Website Link
@@ -764,6 +807,7 @@ const LeagueForm = ({
                               size="sm"
                               onClick={handleTestLocation}
                               className="mobile-league-touch-button"
+                              disabled={isSubmitting}
                             >
                               <MapPin className="h-3 w-3 mr-1" />
                               Maps
@@ -779,6 +823,7 @@ const LeagueForm = ({
                               size="sm"
                               onClick={handleTestWebsite}
                               className="mobile-league-touch-button"
+                              disabled={isSubmitting}
                             >
                               <ExternalLink className="h-3 w-3 mr-1" />
                               Visit
@@ -822,6 +867,7 @@ const LeagueForm = ({
                         step="0.01"
                         placeholder="0.00"
                         helperText="Cost to join the league"
+                        disabled={isSubmitting}
                       />
                     </div>
 
@@ -835,6 +881,7 @@ const LeagueForm = ({
                           { value: PAYMENT_MODES.GROUP, label: 'Group Payment (One Payer)' }
                         ]}
                         helperText="How participants will handle payments"
+                        disabled={isSubmitting}
                       />
                     </div>
 
@@ -848,6 +895,7 @@ const LeagueForm = ({
                         min="1"
                         placeholder="2"
                         helperText="Maximum number of league members"
+                        disabled={isSubmitting}
                       />
                     </div>
                   </div>
@@ -898,6 +946,7 @@ const LeagueForm = ({
                       checked={formData.isActive}
                       onChange={handleChange('isActive')}
                       className="h-5 w-5 text-green-600 focus:ring-green-500 border-gray-300 rounded"
+                      disabled={isSubmitting}
                     />
                     <label htmlFor="isActive" className="ml-3 flex-1">
                       <span className="block text-sm font-medium text-gray-900">Active league</span>
@@ -957,7 +1006,7 @@ const LeagueForm = ({
                   type="button"
                   variant="outline"
                   onClick={onCancel}
-                  disabled={loading || deleteLoading}
+                  disabled={loading || deleteLoading || isSubmitting} // FIXED: Include isSubmitting
                   className="mobile-league-touch-button flex-1"
                 >
                   Cancel
@@ -965,8 +1014,8 @@ const LeagueForm = ({
                 
                 <Button
                   type="submit"
-                  loading={loading}
-                  disabled={loading || deleteLoading}
+                  loading={loading || isSubmitting} // FIXED: Show loading during internal submission
+                  disabled={loading || deleteLoading || isSubmitting}
                   className="mobile-league-touch-button flex-1"
                 >
                   Create League
