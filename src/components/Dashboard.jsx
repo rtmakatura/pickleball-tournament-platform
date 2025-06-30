@@ -64,7 +64,7 @@ import {
   TournamentResultsForm, 
   LeagueResultsForm, 
   PlayerPerformanceForm 
-} from './results';
+} from './result';
 
 // CSS for responsive optimizations (keeping existing styles + new results styles)
 const dashboardStyles = `

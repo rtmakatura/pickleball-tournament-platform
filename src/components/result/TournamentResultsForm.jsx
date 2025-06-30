@@ -1,10 +1,10 @@
-// src/components/results/TournamentResultsForm.jsx
+// src/components/result/TournamentResultsForm.jsx - FIXED VERSION
 import React, { useState, useEffect } from 'react';
 import { Trophy, Users, Calendar, Plus, X, Save, AlertCircle } from 'lucide-react';
 
 const TournamentResultsForm = ({ 
   tournament, 
-  division, 
+  division = null, // Add default value to prevent undefined errors
   members = [], 
   onSubmit, 
   onCancel, 
@@ -180,10 +180,10 @@ const TournamentResultsForm = ({
     }
 
     const resultData = {
-      tournamentId: tournament.id,
-      tournamentName: tournament.name,
-      divisionId: division.id,
-      divisionName: division.name,
+      tournamentId: tournament?.id || 'unknown',
+      tournamentName: tournament?.name || 'Unknown Tournament',
+      divisionId: division?.id || 'main',
+      divisionName: division?.name || 'Main Division',
       standings: formData.standings.map(standing => ({
         memberId: standing.memberId,
         memberName: standing.memberName,
@@ -212,7 +212,7 @@ const TournamentResultsForm = ({
                 {existingResults ? 'Edit' : 'Enter'} Tournament Results
               </h2>
               <p className="text-sm text-gray-600">
-                {tournament.name} - {division.name}
+                {tournament?.name || 'Tournament'}{division ? ` - ${division.name}` : ''}
               </p>
             </div>
           </div>
@@ -235,18 +235,21 @@ const TournamentResultsForm = ({
                 <Calendar className="w-4 h-4 text-gray-500" />
                 <span className="text-gray-600">Date:</span>
                 <span className="font-medium">
-                  {new Date(tournament.date.seconds * 1000).toLocaleDateString()}
+                  {tournament?.eventDate ? 
+                    new Date(tournament.eventDate.seconds * 1000).toLocaleDateString() :
+                    'TBD'
+                  }
                 </span>
               </div>
               <div className="flex items-center space-x-2">
                 <Users className="w-4 h-4 text-gray-500" />
                 <span className="text-gray-600">Division:</span>
-                <span className="font-medium">{division.name}</span>
+                <span className="font-medium">{division?.name || 'Main Division'}</span>
               </div>
               <div className="flex items-center space-x-2">
                 <Trophy className="w-4 h-4 text-gray-500" />
                 <span className="text-gray-600">Max Players:</span>
-                <span className="font-medium">{division.maxPlayers}</span>
+                <span className="font-medium">{division?.maxParticipants || 'Unlimited'}</span>
               </div>
             </div>
           </div>

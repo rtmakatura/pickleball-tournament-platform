@@ -36,7 +36,7 @@ import {
 import { formatWebsiteUrl, isValidUrl, generateGoogleMapsLink, openLinkSafely } from '../../utils/linkUtils';
 
 // ADDED: Import results components
-import { TournamentResultsForm } from '../results';
+import { TournamentResultsForm } from '../result';
 import { useResults } from '../../hooks';
 
 // Updated tournament form styles with results section styling

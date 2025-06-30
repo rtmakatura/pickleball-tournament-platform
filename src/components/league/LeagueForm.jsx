@@ -22,7 +22,7 @@ import { SKILL_LEVELS, LEAGUE_STATUS, PAYMENT_MODES, EVENT_TYPES } from '../../s
 import { formatWebsiteUrl, isValidUrl, generateGoogleMapsLink, openLinkSafely } from '../../utils/linkUtils';
 
 // ADDED: Import results components
-import { LeagueResultsForm } from '../results';
+import { LeagueResultsForm } from '../result';
 import { useResults } from '../../hooks';
 
 // UPDATED: League form styles with results section styling
