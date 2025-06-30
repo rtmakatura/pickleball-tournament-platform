@@ -1,6 +1,6 @@
 import { useRef, useState, useEffect, useCallback } from 'react';
 
-// Simplified hook focused on fixing bottom section navigation
+// Enhanced hook with results section navigation
 export const useSmoothNavigation = () => {
   const [activeSection, setActiveSection] = useState('stats');
   
@@ -10,6 +10,7 @@ export const useSmoothNavigation = () => {
   const tournamentsRef = useRef(null);
   const leaguesRef = useRef(null);
   const membersRef = useRef(null);
+  const resultsRef = useRef(null); // ADDED: Results section ref
   
   // Navigation items configuration
   const navItems = [
@@ -18,6 +19,7 @@ export const useSmoothNavigation = () => {
     { id: 'tournaments', label: 'Tournaments', ref: tournamentsRef },
     { id: 'leagues', label: 'Leagues', ref: leaguesRef },
     { id: 'members', label: 'Members', ref: membersRef },
+    { id: 'results', label: 'Results', ref: resultsRef }, // ADDED: Results nav item
   ];
   
   // Enhanced smooth scroll with special handling for bottom sections
@@ -34,7 +36,7 @@ export const useSmoothNavigation = () => {
       let offset = 90; // Default offset for header
       
       // Special handling for sections near the bottom
-      if (sectionId === 'leagues' || sectionId === 'members') {
+      if (sectionId === 'leagues' || sectionId === 'members' || sectionId === 'results') {
         // For bottom sections, use a smaller offset or position them in the middle of viewport
         offset = windowHeight * 0.3; // Position section 30% from top of viewport
       }
@@ -56,7 +58,7 @@ export const useSmoothNavigation = () => {
     }
   }, [navItems]);
   
-  // Simplified scroll detection with better bottom section logic
+  // Enhanced scroll detection with results section logic
   useEffect(() => {
     const handleScroll = () => {
       const scrollPosition = window.scrollY;
@@ -67,21 +69,29 @@ export const useSmoothNavigation = () => {
       const isNearBottom = (scrollPosition + windowHeight) > (documentHeight * 0.8);
       
       if (isNearBottom) {
-        // In the bottom area, determine between leagues and members
+        // In the bottom area, determine between leagues, members, and results
         const leaguesElement = leaguesRef.current;
         const membersElement = membersRef.current;
+        const resultsElement = resultsRef.current;
         
-        if (leaguesElement && membersElement) {
+        if (leaguesElement && membersElement && resultsElement) {
           const leaguesTop = leaguesElement.offsetTop;
           const membersTop = membersElement.offsetTop;
+          const resultsTop = resultsElement.offsetTop;
           const currentScroll = scrollPosition + windowHeight * 0.5; // Middle of viewport
           
-          // If we're closer to members section, activate it, otherwise leagues
-          if (Math.abs(currentScroll - membersTop) < Math.abs(currentScroll - leaguesTop)) {
-            setActiveSection('members');
-          } else {
-            setActiveSection('leagues');
-          }
+          // Find the closest section
+          const distances = [
+            { section: 'leagues', distance: Math.abs(currentScroll - leaguesTop) },
+            { section: 'members', distance: Math.abs(currentScroll - membersTop) },
+            { section: 'results', distance: Math.abs(currentScroll - resultsTop) }
+          ];
+          
+          const closest = distances.reduce((prev, current) => 
+            current.distance < prev.distance ? current : prev
+          );
+          
+          setActiveSection(closest.section);
         }
         return;
       }
@@ -127,6 +137,7 @@ export const useSmoothNavigation = () => {
       tournamentsRef,
       leaguesRef,
       membersRef,
+      resultsRef, // ADDED: Results ref
     }
   };
 };

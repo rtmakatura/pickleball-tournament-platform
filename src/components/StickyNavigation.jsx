@@ -1,7 +1,7 @@
 import React from 'react';
-import { BarChart3, Zap, Trophy, Activity, Users } from 'lucide-react';
+import { BarChart3, Zap, Trophy, Activity, Users, Award } from 'lucide-react';
 
-// Sticky navigation component for dashboard sections
+// Sticky navigation component for dashboard sections with results support
 const StickyNavigation = ({ activeSection, onNavigate, navItems }) => {
   // Icon mapping for visual appeal
   const getIcon = (sectionId) => {
@@ -14,6 +14,7 @@ const StickyNavigation = ({ activeSection, onNavigate, navItems }) => {
       case 'tournaments': return <Trophy {...iconProps} />;
       case 'leagues': return <Activity {...iconProps} />;
       case 'members': return <Users {...iconProps} />;
+      case 'results': return <Award {...iconProps} />; // ADDED: Results icon
       default: return null;
     }
   };
@@ -24,7 +25,7 @@ const StickyNavigation = ({ activeSection, onNavigate, navItems }) => {
         <nav className="py-3">
           {/* Mobile: Compact grid to fit all items */}
           <div className="sm:hidden">
-            <div className="grid grid-cols-5 gap-1">
+            <div className="grid grid-cols-6 gap-1"> {/* UPDATED: Changed from grid-cols-5 to grid-cols-6 for results */}
               {navItems.map((item) => {
                 // Short labels for mobile
                 const mobileLabel = {
@@ -32,7 +33,8 @@ const StickyNavigation = ({ activeSection, onNavigate, navItems }) => {
                   'Quick Actions': 'Actions', 
                   'Tournaments': 'Events',
                   'Leagues': 'Leagues',
-                  'Members': 'People'
+                  'Members': 'People',
+                  'Results': 'Results' // ADDED: Results mobile label
                 }[item.label] || item.label;
 
                 return (
@@ -56,15 +58,15 @@ const StickyNavigation = ({ activeSection, onNavigate, navItems }) => {
             </div>
           </div>
 
-          {/* Desktop: Centered navigation */}
+          {/* Desktop: Centered navigation with horizontal scrolling for many items */}
           <div className="hidden sm:flex justify-center">
-            <div className="flex space-x-1 bg-gray-100 p-1 rounded-lg">
+            <div className="flex space-x-1 bg-gray-100 p-1 rounded-lg overflow-x-auto max-w-full">
               {navItems.map((item) => (
                 <button
                   key={item.id}
                   onClick={() => onNavigate(item.id)}
                   className={`
-                    flex items-center space-x-2 px-4 py-2 text-sm font-medium rounded-md transition-all duration-200
+                    flex items-center space-x-2 px-4 py-2 text-sm font-medium rounded-md transition-all duration-200 whitespace-nowrap
                     ${activeSection === item.id 
                       ? 'bg-white text-blue-600 shadow-sm' 
                       : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'

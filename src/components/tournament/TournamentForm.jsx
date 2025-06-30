@@ -350,7 +350,7 @@ const TournamentForm = ({
   // ADDED: Results hook integration
   const { 
     results, 
-    loading: resultsLoading, 
+    loading: resultsHookLoading, 
     addTournamentResults, 
     updateTournamentResults 
   } = useResults();
@@ -487,7 +487,7 @@ const TournamentForm = ({
   
   // ADDED: Results modal state
   const [showResultsModal, setShowResultsModal] = useState(false);
-  const [resultsLoading, setResultsLoading] = useState(false);
+  const [resultsSubmitLoading, setResultsSubmitLoading] = useState(false);
 
   // Mobile detection effect
   useEffect(() => {
@@ -675,7 +675,7 @@ const TournamentForm = ({
   const handleResultsSubmit = useCallback(async (resultsData) => {
     if (!tournament) return;
     
-    setResultsLoading(true);
+    setResultsSubmitLoading(true);
     try {
       if (hasResults()) {
         await updateTournamentResults(tournament.id, resultsData);
@@ -688,7 +688,7 @@ const TournamentForm = ({
     } catch (error) {
       setErrors({ resultsSubmit: `Failed to save results: ${error.message}` });
     } finally {
-      setResultsLoading(false);
+      setResultsSubmitLoading(false);
     }
   }, [tournament, hasResults, addTournamentResults, updateTournamentResults]);
 
@@ -1289,7 +1289,7 @@ const TournamentForm = ({
                             type="button"
                             onClick={handleMarkCompleteAndEnterResults}
                             className="results-button"
-                            disabled={resultsLoading}
+                            disabled={resultsSubmitLoading}
                           >
                             <CheckCircle className="h-4 w-4 mr-2" />
                             Mark Complete & Enter Results
@@ -1300,7 +1300,7 @@ const TournamentForm = ({
                           type="button"
                           onClick={handleEnterResults}
                           className="results-button"
-                          disabled={resultsLoading}
+                          disabled={resultsSubmitLoading}
                         >
                           <BarChart3 className="h-4 w-4 mr-2" />
                           Enter Results
@@ -1384,7 +1384,7 @@ const TournamentForm = ({
             members={members}
             onSubmit={handleResultsSubmit}
             onCancel={handleResultsCancel}
-            loading={resultsLoading}
+            loading={resultsSubmitLoading}
             existingResults={existingResults()}
           />
         </Modal>

@@ -178,11 +178,6 @@ const dashboardStyles = `
     box-shadow: 0 2px 4px rgba(16, 185, 129, 0.3);
   }
   
-  .results-dashboard {
-    margin-top: 48px;
-    padding-top: 32px;
-    border-top: 2px solid #e5e7eb;
-  }
 `;
 
 const DashboardStyles = () => {
@@ -1089,14 +1084,10 @@ const ResultsDashboard = ({ results, tournaments, leagues, members, onViewTourna
 
   if (allResults.length === 0) {
     return (
-      <div className="results-dashboard">
-        <Card title="Event Results History" className="mb-8">
-          <div className="text-center py-12 text-gray-500">
-            <BarChart3 className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-            <p className="text-lg font-medium">No results yet</p>
-            <p className="text-sm mt-1">Tournament and league results will appear here when entered</p>
-          </div>
-        </Card>
+      <div className="text-center py-12 text-gray-500">
+        <BarChart3 className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+        <p className="text-lg font-medium">No results yet</p>
+        <p className="text-sm mt-1">Tournament and league results will appear here when entered</p>
       </div>
     );
   }
@@ -1123,68 +1114,60 @@ const ResultsDashboard = ({ results, tournaments, leagues, members, onViewTourna
   };
 
   return (
-    <div className="results-dashboard">
-      <Card 
-        title="Event Results History"
-        subtitle={`${allResults.length} completed event${allResults.length !== 1 ? 's' : ''} with results`}
-        className="mb-8"
-      >
-        <div className="space-y-4">
-          {allResults.map((result) => (
-            <div 
-              key={`${result.type}-${result.id}`}
-              className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow cursor-pointer"
-              onClick={() => {
-                if (result.type === 'tournament') {
-                  onViewTournamentResults(tournaments.find(t => t.id === result.eventId));
-                } else {
-                  onViewLeagueResults(leagues.find(l => l.id === result.eventId));
-                }
-              }}
-            >
-              <div className="flex items-start justify-between">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center space-x-3 mb-2">
-                    <div className={`p-2 rounded-lg ${
-                      result.type === 'tournament' 
-                        ? 'bg-yellow-100 text-yellow-700' 
-                        : 'bg-blue-100 text-blue-700'
-                    }`}>
-                      {result.type === 'tournament' ? (
-                        <Trophy className="h-4 w-4" />
-                      ) : (
-                        <Activity className="h-4 w-4" />
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <h4 className="font-semibold text-gray-900 truncate">
-                        {result.eventName}
-                      </h4>
-                      <p className="text-sm text-gray-600 capitalize">
-                        {result.type} • {formatDate(result.eventDate)}
-                      </p>
-                    </div>
-                    <span className="results-indicator">
-                      <Award className="h-3 w-3 mr-1" />
-                      Complete
-                    </span>
-                  </div>
-                  
-                  <div className="flex items-center justify-between text-sm text-gray-600">
-                    <span>{getResultSummary(result)}</span>
-                    {result.location && (
-                      <span className="flex items-center">
-                        <MapPin className="h-3 w-3 mr-1" />
-                        {result.location}
-                      </span>
-                    )}
-                  </div>
+    <div className="space-y-4">
+      {allResults.map((result) => (
+        <div 
+          key={`${result.type}-${result.id}`}
+          className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow cursor-pointer"
+          onClick={() => {
+            if (result.type === 'tournament') {
+              onViewTournamentResults(tournaments.find(t => t.id === result.eventId));
+            } else {
+              onViewLeagueResults(leagues.find(l => l.id === result.eventId));
+            }
+          }}
+        >
+          <div className="flex items-start justify-between">
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center space-x-3 mb-2">
+                <div className={`p-2 rounded-lg ${
+                  result.type === 'tournament' 
+                    ? 'bg-yellow-100 text-yellow-700' 
+                    : 'bg-blue-100 text-blue-700'
+                }`}>
+                  {result.type === 'tournament' ? (
+                    <Trophy className="h-4 w-4" />
+                  ) : (
+                    <Activity className="h-4 w-4" />
+                  )}
                 </div>
+                <div className="flex-1 min-w-0">
+                  <h4 className="font-semibold text-gray-900 truncate">
+                    {result.eventName}
+                  </h4>
+                  <p className="text-sm text-gray-600 capitalize">
+                    {result.type} • {formatDate(result.eventDate)}
+                  </p>
+                </div>
+                <span className="results-indicator">
+                  <Award className="h-3 w-3 mr-1" />
+                  Complete
+                </span>
+              </div>
+              
+              <div className="flex items-center justify-between text-sm text-gray-600">
+                <span>{getResultSummary(result)}</span>
+                {result.location && (
+                  <span className="flex items-center">
+                    <MapPin className="h-3 w-3 mr-1" />
+                    {result.location}
+                  </span>
+                )}
               </div>
             </div>
-          ))}
+          </div>
         </div>
-      </Card>
+      ))}
     </div>
   );
 };
@@ -2282,15 +2265,22 @@ const Dashboard = () => {
           />
         </Card>
 
-        {/* ADDED: Results Dashboard */}
-        <ResultsDashboard 
-          results={results}
-          tournaments={tournaments}
-          leagues={leagues}
-          members={members}
-          onViewTournamentResults={handleViewTournamentResults}
-          onViewLeagueResults={handleViewLeagueResults}
-        />
+        {/* Results Section - RESPONSIVE */}
+        <Card 
+          ref={refs.resultsRef}
+          title="Event Results History"
+          subtitle={`${(results.tournament?.length || 0) + (results.league?.length || 0)} completed event${((results.tournament?.length || 0) + (results.league?.length || 0)) !== 1 ? 's' : ''} with results`}
+          className="mb-8 sm:mb-8"
+        >
+          <ResultsDashboard 
+            results={results}
+            tournaments={tournaments}
+            leagues={leagues}
+            members={members}
+            onViewTournamentResults={handleViewTournamentResults}
+            onViewLeagueResults={handleViewLeagueResults}
+          />
+        </Card>
         
         {/* Tournament Modal with proper header buttons */}
         <Modal
