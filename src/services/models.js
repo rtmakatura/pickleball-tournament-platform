@@ -1,4 +1,4 @@
-// src/services/models.js (UPDATED - Division Support)
+// src/services/models.js (UPDATED - Results & Performance Tracking Support)
 // Data models and validation schemas for the pickleball app
 
 // Member roles
@@ -76,7 +76,7 @@ export const COMMENT_STATUS = {
   HIDDEN: 'hidden'
 };
 
-// NEW: Division status
+// Division status
 export const DIVISION_STATUS = {
   OPEN: 'open',
   CLOSED: 'closed',
@@ -84,7 +84,41 @@ export const DIVISION_STATUS = {
   COMPLETED: 'completed'
 };
 
-// NEW: Create a tournament division
+// NEW: Result statuses
+export const RESULT_STATUS = {
+  PENDING: 'pending',
+  COMPLETED: 'completed',
+  ARCHIVED: 'archived'
+};
+
+// NEW: Performance categories for player self-assessment
+export const PERFORMANCE_CATEGORIES = {
+  SERVE: 'serve',
+  RETURN: 'return',
+  NET_PLAY: 'net_play',
+  GROUNDSTROKES: 'groundstrokes',
+  STRATEGY: 'strategy',
+  MOVEMENT: 'movement',
+  COMMUNICATION: 'communication',
+  MENTAL_GAME: 'mental_game'
+};
+
+// NEW: Performance rating scale
+export const PERFORMANCE_RATINGS = {
+  NEEDS_WORK: 1,
+  DEVELOPING: 2,
+  COMPETENT: 3,
+  STRONG: 4,
+  EXCELLENT: 5
+};
+
+// NEW: Event types for results (to distinguish tournament divisions from leagues)
+export const RESULT_EVENT_TYPES = {
+  TOURNAMENT_DIVISION: 'tournament_division',
+  LEAGUE: 'league'
+};
+
+// Create a tournament division
 export const createTournamentDivision = (divisionData) => {
   return {
     id: divisionData.id || `div_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
@@ -101,6 +135,94 @@ export const createTournamentDivision = (divisionData) => {
     commentsEnabled: divisionData.commentsEnabled !== false,
     commentCount: 0,
     order: divisionData.order || 0 // For sorting divisions
+  };
+};
+
+// NEW: Create a tournament division result
+export const createTournamentDivisionResult = (resultData) => {
+  const now = new Date();
+  
+  return {
+    id: resultData.id || `result_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+    tournamentId: resultData.tournamentId || '',
+    tournamentName: resultData.tournamentName || '',
+    divisionId: resultData.divisionId || '',
+    divisionName: resultData.divisionName || '',
+    eventType: resultData.eventType || EVENT_TYPES.MIXED_DOUBLES,
+    skillLevel: resultData.skillLevel || '',
+    eventDate: resultData.eventDate || null,
+    completedDate: resultData.completedDate || now,
+    status: resultData.status || RESULT_STATUS.PENDING,
+    standings: resultData.standings || [], // Array of {playerId, playerName, position, notes}
+    totalParticipants: resultData.totalParticipants || 0,
+    notes: resultData.notes || '',
+    createdBy: resultData.createdBy || '',
+    createdAt: now,
+    updatedAt: now
+  };
+};
+
+// NEW: Create a league result
+export const createLeagueResult = (resultData) => {
+  const now = new Date();
+  
+  return {
+    id: resultData.id || `result_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+    leagueId: resultData.leagueId || '',
+    leagueName: resultData.leagueName || '',
+    eventType: resultData.eventType || EVENT_TYPES.MIXED_DOUBLES,
+    skillLevel: resultData.skillLevel || '',
+    startDate: resultData.startDate || null,
+    endDate: resultData.endDate || null,
+    completedDate: resultData.completedDate || now,
+    status: resultData.status || RESULT_STATUS.PENDING,
+    standings: resultData.standings || [], // Array of {playerId, playerName, position, wins, losses, points, notes}
+    totalParticipants: resultData.totalParticipants || 0,
+    notes: resultData.notes || '',
+    createdBy: resultData.createdBy || '',
+    createdAt: now,
+    updatedAt: now
+  };
+};
+
+// NEW: Create a player performance entry
+export const createPlayerPerformance = (performanceData) => {
+  const now = new Date();
+  
+  return {
+    id: performanceData.id || `perf_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+    playerId: performanceData.playerId || '',
+    playerName: performanceData.playerName || '',
+    eventType: performanceData.eventType || RESULT_EVENT_TYPES.TOURNAMENT_DIVISION,
+    eventId: performanceData.eventId || '', // tournamentId or leagueId
+    eventName: performanceData.eventName || '',
+    divisionId: performanceData.divisionId || null, // Only for tournament divisions
+    divisionName: performanceData.divisionName || null,
+    eventDate: performanceData.eventDate || null,
+    skillLevel: performanceData.skillLevel || '',
+    
+    // Self-assessment ratings (1-5 scale)
+    ratings: performanceData.ratings || {
+      [PERFORMANCE_CATEGORIES.SERVE]: null,
+      [PERFORMANCE_CATEGORIES.RETURN]: null,
+      [PERFORMANCE_CATEGORIES.NET_PLAY]: null,
+      [PERFORMANCE_CATEGORIES.GROUNDSTROKES]: null,
+      [PERFORMANCE_CATEGORIES.STRATEGY]: null,
+      [PERFORMANCE_CATEGORIES.MOVEMENT]: null,
+      [PERFORMANCE_CATEGORIES.COMMUNICATION]: null,
+      [PERFORMANCE_CATEGORIES.MENTAL_GAME]: null
+    },
+    
+    // Text fields for detailed feedback
+    strengths: performanceData.strengths || '', // What went well
+    improvementAreas: performanceData.improvementAreas || '', // What needs work
+    goalsForNext: performanceData.goalsForNext || '', // Goals for next event
+    overallNotes: performanceData.overallNotes || '', // General thoughts
+    
+    // Metadata
+    isComplete: performanceData.isComplete || false,
+    createdAt: now,
+    updatedAt: now
   };
 };
 
@@ -122,7 +244,7 @@ export const createMember = (memberData) => {
   };
 };
 
-// UPDATED: Create a new tournament with divisions support
+// Create a new tournament with divisions support
 export const createTournament = (tournamentData) => {
   const now = new Date();
   
@@ -160,7 +282,7 @@ export const createTournament = (tournamentData) => {
   };
 };
 
-// Create a new league (unchanged)
+// Create a new league
 export const createLeague = (leagueData) => {
   const now = new Date();
   
@@ -192,7 +314,7 @@ export const createComment = (commentData) => {
   return {
     eventId: commentData.eventId || '',
     eventType: commentData.eventType || 'tournament',
-    divisionId: commentData.divisionId || null, // NEW: Division-specific comments
+    divisionId: commentData.divisionId || null,
     authorId: commentData.authorId || '',
     authorName: commentData.authorName || '',
     content: commentData.content || '',
@@ -208,7 +330,7 @@ export const createComment = (commentData) => {
   };
 };
 
-// NEW: Tournament helper functions
+// Tournament helper functions
 export const getTournamentTotalParticipants = (tournament) => {
   if (!tournament.divisions) return 0;
   return tournament.divisions.reduce((total, division) => {
@@ -261,45 +383,74 @@ export const removeParticipantFromDivision = (tournament, divisionId, participan
   return { ...tournament };
 };
 
-// NEW: Division validation
-export const validateDivision = (divisionData) => {
-  const errors = [];
-  
-  if (!divisionData.name?.trim()) {
-    errors.push('Division name is required');
+// NEW: Results helper functions
+export const getEventParticipantsForResult = (eventData, eventType) => {
+  if (eventType === RESULT_EVENT_TYPES.LEAGUE) {
+    return eventData.participants || [];
+  } else if (eventType === RESULT_EVENT_TYPES.TOURNAMENT_DIVISION) {
+    // For tournament divisions, participants are in the division
+    return eventData.participants || [];
   }
-  
-  if (!divisionData.eventType) {
-    errors.push('Event type is required');
-  } else if (!validateEventType(divisionData.eventType)) {
-    errors.push('Invalid event type');
-  }
-  
-  if (!divisionData.skillLevel) {
-    errors.push('Skill level is required');
-  } else if (!validateSkillLevel(divisionData.skillLevel)) {
-    errors.push('Invalid skill level');
-  }
-  
-  if (divisionData.entryFee < 0) {
-    errors.push('Entry fee cannot be negative');
-  }
-  
-  if (divisionData.maxParticipants && divisionData.maxParticipants < 1) {
-    errors.push('Max participants must be at least 1');
-  }
-  
-  if (divisionData.paymentMode && !validatePaymentMode(divisionData.paymentMode)) {
-    errors.push('Invalid payment mode');
-  }
-  
+  return [];
+};
+
+export const createStandingEntry = (playerId, playerName, position, additionalData = {}) => {
   return {
-    isValid: errors.length === 0,
-    errors
+    playerId,
+    playerName,
+    position,
+    ...additionalData
   };
 };
 
-// Validation helpers (unchanged)
+export const createTournamentStandingEntry = (playerId, playerName, position, notes = '') => {
+  return createStandingEntry(playerId, playerName, position, { notes });
+};
+
+export const createLeagueStandingEntry = (playerId, playerName, position, wins = 0, losses = 0, points = 0, notes = '') => {
+  return createStandingEntry(playerId, playerName, position, { wins, losses, points, notes });
+};
+
+export const sortStandingsByPosition = (standings) => {
+  return [...standings].sort((a, b) => a.position - b.position);
+};
+
+export const getPlayerPerformanceRatingAverage = (performance) => {
+  const ratings = Object.values(performance.ratings || {}).filter(rating => rating !== null);
+  if (ratings.length === 0) return null;
+  
+  const sum = ratings.reduce((total, rating) => total + rating, 0);
+  return (sum / ratings.length).toFixed(1);
+};
+
+export const getPerformanceCategoryName = (category) => {
+  const categoryNames = {
+    [PERFORMANCE_CATEGORIES.SERVE]: 'Serve',
+    [PERFORMANCE_CATEGORIES.RETURN]: 'Return',
+    [PERFORMANCE_CATEGORIES.NET_PLAY]: 'Net Play',
+    [PERFORMANCE_CATEGORIES.GROUNDSTROKES]: 'Groundstrokes',
+    [PERFORMANCE_CATEGORIES.STRATEGY]: 'Strategy',
+    [PERFORMANCE_CATEGORIES.MOVEMENT]: 'Movement',
+    [PERFORMANCE_CATEGORIES.COMMUNICATION]: 'Communication',
+    [PERFORMANCE_CATEGORIES.MENTAL_GAME]: 'Mental Game'
+  };
+  
+  return categoryNames[category] || category;
+};
+
+export const getPerformanceRatingLabel = (rating) => {
+  const ratingLabels = {
+    [PERFORMANCE_RATINGS.NEEDS_WORK]: 'Needs Work',
+    [PERFORMANCE_RATINGS.DEVELOPING]: 'Developing',
+    [PERFORMANCE_RATINGS.COMPETENT]: 'Competent',
+    [PERFORMANCE_RATINGS.STRONG]: 'Strong',
+    [PERFORMANCE_RATINGS.EXCELLENT]: 'Excellent'
+  };
+  
+  return ratingLabels[rating] || 'Not Rated';
+};
+
+// Validation helpers
 export const validateEmail = (email) => {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   return emailRegex.test(email);
@@ -361,6 +512,225 @@ export const validateDivisionStatus = (status) => {
   return Object.values(DIVISION_STATUS).includes(status);
 };
 
+// NEW: Results validation helpers
+export const validateResultStatus = (status) => {
+  return Object.values(RESULT_STATUS).includes(status);
+};
+
+export const validatePerformanceCategory = (category) => {
+  return Object.values(PERFORMANCE_CATEGORIES).includes(category);
+};
+
+export const validatePerformanceRating = (rating) => {
+  return Object.values(PERFORMANCE_RATINGS).includes(rating);
+};
+
+export const validateResultEventType = (eventType) => {
+  return Object.values(RESULT_EVENT_TYPES).includes(eventType);
+};
+
+export const validateStandingEntry = (entry) => {
+  return entry && 
+         typeof entry.playerId === 'string' && 
+         typeof entry.playerName === 'string' && 
+         typeof entry.position === 'number' && 
+         entry.position > 0;
+};
+
+// Division validation
+export const validateDivision = (divisionData) => {
+  const errors = [];
+  
+  if (!divisionData.name?.trim()) {
+    errors.push('Division name is required');
+  }
+  
+  if (!divisionData.eventType) {
+    errors.push('Event type is required');
+  } else if (!validateEventType(divisionData.eventType)) {
+    errors.push('Invalid event type');
+  }
+  
+  if (!divisionData.skillLevel) {
+    errors.push('Skill level is required');
+  } else if (!validateSkillLevel(divisionData.skillLevel)) {
+    errors.push('Invalid skill level');
+  }
+  
+  if (divisionData.entryFee < 0) {
+    errors.push('Entry fee cannot be negative');
+  }
+  
+  if (divisionData.maxParticipants && divisionData.maxParticipants < 1) {
+    errors.push('Max participants must be at least 1');
+  }
+  
+  if (divisionData.paymentMode && !validatePaymentMode(divisionData.paymentMode)) {
+    errors.push('Invalid payment mode');
+  }
+  
+  return {
+    isValid: errors.length === 0,
+    errors
+  };
+};
+
+// NEW: Tournament division result validation
+export const validateTournamentDivisionResult = (resultData) => {
+  const errors = [];
+  
+  if (!resultData.tournamentId?.trim()) {
+    errors.push('Tournament ID is required');
+  }
+  
+  if (!resultData.tournamentName?.trim()) {
+    errors.push('Tournament name is required');
+  }
+  
+  if (!resultData.divisionId?.trim()) {
+    errors.push('Division ID is required');
+  }
+  
+  if (!resultData.divisionName?.trim()) {
+    errors.push('Division name is required');
+  }
+  
+  if (!resultData.eventType || !validateEventType(resultData.eventType)) {
+    errors.push('Valid event type is required');
+  }
+  
+  if (resultData.status && !validateResultStatus(resultData.status)) {
+    errors.push('Invalid result status');
+  }
+  
+  if (!Array.isArray(resultData.standings)) {
+    errors.push('Standings must be an array');
+  } else {
+    resultData.standings.forEach((entry, index) => {
+      if (!validateStandingEntry(entry)) {
+        errors.push(`Invalid standing entry at position ${index + 1}`);
+      }
+    });
+  }
+  
+  if (resultData.totalParticipants < 0) {
+    errors.push('Total participants cannot be negative');
+  }
+  
+  return {
+    isValid: errors.length === 0,
+    errors
+  };
+};
+
+// NEW: League result validation
+export const validateLeagueResult = (resultData) => {
+  const errors = [];
+  
+  if (!resultData.leagueId?.trim()) {
+    errors.push('League ID is required');
+  }
+  
+  if (!resultData.leagueName?.trim()) {
+    errors.push('League name is required');
+  }
+  
+  if (!resultData.eventType || !validateEventType(resultData.eventType)) {
+    errors.push('Valid event type is required');
+  }
+  
+  if (resultData.status && !validateResultStatus(resultData.status)) {
+    errors.push('Invalid result status');
+  }
+  
+  if (!Array.isArray(resultData.standings)) {
+    errors.push('Standings must be an array');
+  } else {
+    resultData.standings.forEach((entry, index) => {
+      if (!validateStandingEntry(entry)) {
+        errors.push(`Invalid standing entry at position ${index + 1}`);
+      }
+      
+      // League-specific validation
+      if (typeof entry.wins !== 'number' || entry.wins < 0) {
+        errors.push(`Invalid wins value at position ${index + 1}`);
+      }
+      
+      if (typeof entry.losses !== 'number' || entry.losses < 0) {
+        errors.push(`Invalid losses value at position ${index + 1}`);
+      }
+      
+      if (typeof entry.points !== 'number' || entry.points < 0) {
+        errors.push(`Invalid points value at position ${index + 1}`);
+      }
+    });
+  }
+  
+  if (resultData.totalParticipants < 0) {
+    errors.push('Total participants cannot be negative');
+  }
+  
+  return {
+    isValid: errors.length === 0,
+    errors
+  };
+};
+
+// NEW: Player performance validation
+export const validatePlayerPerformance = (performanceData) => {
+  const errors = [];
+  
+  if (!performanceData.playerId?.trim()) {
+    errors.push('Player ID is required');
+  }
+  
+  if (!performanceData.playerName?.trim()) {
+    errors.push('Player name is required');
+  }
+  
+  if (!performanceData.eventType || !validateResultEventType(performanceData.eventType)) {
+    errors.push('Valid event type is required');
+  }
+  
+  if (!performanceData.eventId?.trim()) {
+    errors.push('Event ID is required');
+  }
+  
+  if (!performanceData.eventName?.trim()) {
+    errors.push('Event name is required');
+  }
+  
+  // Validate ratings if provided
+  if (performanceData.ratings) {
+    Object.entries(performanceData.ratings).forEach(([category, rating]) => {
+      if (rating !== null) {
+        if (!validatePerformanceCategory(category)) {
+          errors.push(`Invalid performance category: ${category}`);
+        }
+        
+        if (!validatePerformanceRating(rating)) {
+          errors.push(`Invalid rating value for ${category}: ${rating}`);
+        }
+      }
+    });
+  }
+  
+  // Text fields validation (optional but with length limits)
+  const textFields = ['strengths', 'improvementAreas', 'goalsForNext', 'overallNotes'];
+  textFields.forEach(field => {
+    if (performanceData[field] && typeof performanceData[field] === 'string') {
+      if (performanceData[field].length > 1000) {
+        errors.push(`${field} must be 1000 characters or less`);
+      }
+    }
+  });
+  
+  return {
+    isValid: errors.length === 0,
+    errors
+  };
+};
+
 // Model validation functions
 export const validateMember = (memberData) => {
   const errors = [];
@@ -397,7 +767,7 @@ export const validateMember = (memberData) => {
   };
 };
 
-// UPDATED: Tournament validation with divisions
+// Tournament validation with divisions
 export const validateTournament = (tournamentData) => {
   const errors = [];
   
@@ -527,13 +897,20 @@ export default {
   COMMENT_TYPES,
   COMMENT_STATUS,
   DIVISION_STATUS,
+  RESULT_STATUS,
+  PERFORMANCE_CATEGORIES,
+  PERFORMANCE_RATINGS,
+  RESULT_EVENT_TYPES,
   
   // Creators
   createMember,
   createTournament,
   createTournamentDivision,
+  createTournamentDivisionResult,
   createLeague,
+  createLeagueResult,
   createComment,
+  createPlayerPerformance,
 
   // Tournament helpers
   getTournamentTotalParticipants,
@@ -542,6 +919,16 @@ export default {
   getUserDivisionsInTournament,
   addParticipantToDivision,
   removeParticipantFromDivision,
+  
+  // Results helpers
+  getEventParticipantsForResult,
+  createStandingEntry,
+  createTournamentStandingEntry,
+  createLeagueStandingEntry,
+  sortStandingsByPosition,
+  getPlayerPerformanceRatingAverage,
+  getPerformanceCategoryName,
+  getPerformanceRatingLabel,
   
   // Validators
   validateEmail,
@@ -558,9 +945,17 @@ export default {
   validateCommentType,
   validateCommentContent,
   validateDivisionStatus,
+  validateResultStatus,
+  validatePerformanceCategory,
+  validatePerformanceRating,
+  validateResultEventType,
+  validateStandingEntry,
   validateMember,
   validateTournament,
   validateDivision,
   validateLeague,
   validateComment,
+  validateTournamentDivisionResult,
+  validateLeagueResult,
+  validatePlayerPerformance
 };

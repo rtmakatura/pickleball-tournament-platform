@@ -1,4 +1,4 @@
-// src/services/firebaseOperations.js (UPDATED - Division Support)
+// src/services/firebaseOperations.js (COMPLETE - With Results Support)
 import {
   collection,
   doc,
@@ -19,7 +19,7 @@ import {
 } from 'firebase/firestore';
 import { db } from './firebase';
 
-// Basic CRUD operations (unchanged)
+// Basic CRUD operations
 export const create = async (collectionName, data) => {
   const docData = {
     ...data,
@@ -50,7 +50,7 @@ export const remove = async (collectionName, id) => {
   await deleteDoc(docRef);
 };
 
-// Enhanced query operations (unchanged)
+// Enhanced query operations
 export const getAll = async (collectionName, filters = {}, orderField = null, limitCount = null) => {
   let q = collection(db, collectionName);
   
@@ -75,7 +75,7 @@ export const getAll = async (collectionName, filters = {}, orderField = null, li
   }));
 };
 
-// Real-time subscriptions with enhanced filtering (unchanged)
+// Real-time subscriptions with enhanced filtering
 export const subscribe = (collectionName, callback, filters = {}, orderField = null) => {
   let q = collection(db, collectionName);
   
@@ -106,7 +106,7 @@ export const subscribeToDoc = (collectionName, id, callback) => {
   });
 };
 
-// User-specific operations (unchanged)
+// User-specific operations
 export const getUserMembers = async (authUid) => {
   const membersRef = collection(db, 'members');
   const q = query(membersRef, where('authUid', '==', authUid));
@@ -123,7 +123,7 @@ export const getMemberByAuthUid = async (authUid) => {
   return members.length > 0 ? members[0] : null;
 };
 
-// UPDATED: Get user's tournaments with division support
+// Get user's tournaments with division support
 export const getUserTournaments = async (memberId) => {
   const tournamentsRef = collection(db, 'tournaments');
   const allTournaments = await getDocs(tournamentsRef);
@@ -142,7 +142,7 @@ export const getUserTournaments = async (memberId) => {
     });
 };
 
-// Get user's leagues (unchanged)
+// Get user's leagues
 export const getUserLeagues = async (memberId) => {
   const leaguesRef = collection(db, 'leagues');
   const q = query(leaguesRef, where('participants', 'array-contains', memberId));
@@ -154,7 +154,7 @@ export const getUserLeagues = async (memberId) => {
   }));
 };
 
-// UPDATED: Admin operations with division support
+// Admin operations with division support
 export const getAllUsersWithStats = async () => {
   const members = await getAll('members');
   const tournaments = await getAll('tournaments');
@@ -198,7 +198,7 @@ export const getAllUsersWithStats = async () => {
   });
 };
 
-// Batch operations for better performance (unchanged)
+// Batch operations for better performance
 export const batchUpdate = async (updates) => {
   const batch = writeBatch(db);
   
@@ -224,7 +224,7 @@ export const batchDelete = async (deletions) => {
   await batch.commit();
 };
 
-// UPDATED: Array operations for participants with division support
+// Array operations for participants with division support
 export const addParticipantToDivision = async (tournamentId, divisionId, memberId) => {
   const tournament = await read('tournaments', tournamentId);
   if (!tournament || !tournament.divisions) {
@@ -281,7 +281,7 @@ export const removeParticipant = async (collectionName, id, memberId) => {
   });
 };
 
-// UPDATED: Complex queries with division support
+// Complex queries with division support
 export const getEventsWithParticipant = async (memberId) => {
   const tournaments = await getUserTournaments(memberId);
   const leagues = await getUserLeagues(memberId);
@@ -312,7 +312,7 @@ export const getEventsWithParticipant = async (memberId) => {
   };
 };
 
-// UPDATED: Search operations with division support
+// Search operations with division support
 export const searchMembers = async (searchTerm, filters = {}) => {
   const members = await getAll('members', filters);
   
@@ -358,7 +358,7 @@ export const searchEvents = async (searchTerm, eventType = 'both') => {
   return results;
 };
 
-// UPDATED: Analytics and reporting with division support
+// Analytics and reporting with division support
 export const getSystemStats = async () => {
   const [members, tournaments, leagues] = await Promise.all([
     getAll('members'),
@@ -426,7 +426,7 @@ export const getSystemStats = async () => {
   };
 };
 
-// UPDATED: Payment operations with division support
+// Payment operations with division support
 export const updateDivisionPaymentData = async (tournamentId, divisionId, memberId, paymentInfo) => {
   const tournament = await read('tournaments', tournamentId);
   if (!tournament || !tournament.divisions) {
@@ -471,7 +471,7 @@ export const removeDivisionPaymentData = async (tournamentId, divisionId, member
   await update('tournaments', tournamentId, { divisions: updatedDivisions });
 };
 
-// Legacy payment operations (unchanged)
+// Legacy payment operations
 export const updatePaymentData = async (collectionName, eventId, memberId, paymentInfo) => {
   const docRef = doc(db, collectionName, eventId);
   const paymentPath = `paymentData.${memberId}`;
@@ -497,7 +497,7 @@ export const removePaymentData = async (collectionName, eventId, memberId) => {
   }
 };
 
-// UPDATED: Cleanup operations for user deletion with division support
+// Cleanup operations for user deletion with division support
 export const cleanupUserReferences = async (memberId, authUid) => {
   const batch = writeBatch(db);
   
@@ -548,7 +548,7 @@ export const cleanupUserReferences = async (memberId, authUid) => {
     }
   });
   
-  // Remove from leagues (unchanged)
+  // Remove from leagues
   const leagues = await getUserLeagues(memberId);
   leagues.forEach(league => {
     const docRef = doc(db, 'leagues', league.id);
@@ -566,7 +566,7 @@ export const cleanupUserReferences = async (memberId, authUid) => {
   await batch.commit();
 };
 
-// NEW: Division-specific operations
+// Division-specific operations
 export const getDivisionParticipants = async (tournamentId, divisionId) => {
   const tournament = await read('tournaments', tournamentId);
   if (!tournament || !tournament.divisions) {
@@ -600,7 +600,7 @@ export const deleteDivision = async (tournamentId, divisionId) => {
   await update('tournaments', tournamentId, { divisions: updatedDivisions });
 };
 
-// NEW: Get tournaments by division criteria
+// Get tournaments by division criteria
 export const getTournamentsByDivisionCriteria = async (criteria = {}) => {
   const tournaments = await getAll('tournaments');
   
@@ -633,7 +633,7 @@ export const getTournamentsByDivisionCriteria = async (criteria = {}) => {
   });
 };
 
-// NEW: Get member participation summary across all divisions
+// Get member participation summary across all divisions
 export const getMemberParticipationSummary = async (memberId) => {
   const tournaments = await getUserTournaments(memberId);
   const leagues = await getUserLeagues(memberId);
@@ -682,7 +682,554 @@ export const getMemberParticipationSummary = async (memberId) => {
   };
 };
 
+// =============================================================================
+// NEW RESULTS-SPECIFIC OPERATIONS
+// =============================================================================
+
+// Get completed tournaments/leagues that need results
+export const getCompletedEventsNeedingResults = async () => {
+  const [tournaments, leagues, existingTournamentResults, existingLeagueResults] = await Promise.all([
+    getAll('tournaments', { status: 'completed' }),
+    getAll('leagues', { status: 'completed' }),
+    getAll('tournamentDivisionResults'),
+    getAll('leagueResults')
+  ]);
+
+  // Check which tournament divisions need results
+  const tournamentsNeedingResults = tournaments.filter(tournament => {
+    if (!tournament.divisions || tournament.divisions.length === 0) return false;
+    
+    return tournament.divisions.some(division => {
+      const hasParticipants = division.participants && division.participants.length > 0;
+      const hasExistingResult = existingTournamentResults.some(result => 
+        result.tournamentId === tournament.id && result.divisionId === division.id
+      );
+      return hasParticipants && !hasExistingResult;
+    });
+  });
+
+  // Check which leagues need results  
+  const leaguesNeedingResults = leagues.filter(league => {
+    const hasParticipants = league.participants && league.participants.length > 0;
+    const hasExistingResult = existingLeagueResults.some(result => 
+      result.leagueId === league.id
+    );
+    return hasParticipants && !hasExistingResult;
+  });
+
+  return {
+    tournaments: tournamentsNeedingResults,
+    leagues: leaguesNeedingResults,
+    totalPending: tournamentsNeedingResults.length + leaguesNeedingResults.length
+  };
+};
+
+// Get all results for a specific tournament
+export const getTournamentResults = async (tournamentId) => {
+  const results = await getAll('tournamentDivisionResults', { tournamentId });
+  const tournament = await read('tournaments', tournamentId);
+  
+  if (!tournament) return null;
+
+  // Enrich results with division details
+  const enrichedResults = results.map(result => {
+    const division = tournament.divisions?.find(div => div.id === result.divisionId);
+    return {
+      ...result,
+      divisionName: division?.name || 'Unknown Division',
+      eventType: division?.eventType,
+      skillLevel: division?.skillLevel
+    };
+  });
+
+  return {
+    tournament,
+    results: enrichedResults,
+    totalDivisions: tournament.divisions?.length || 0,
+    completedDivisions: results.length
+  };
+};
+
+// Get all results for a specific league
+export const getLeagueResults = async (leagueId) => {
+  const results = await getAll('leagueResults', { leagueId });
+  const league = await read('leagues', leagueId);
+  
+  return {
+    league,
+    results: results[0] || null // Should only be one result per league
+  };
+};
+
+// Get member's results history
+export const getMemberResultsHistory = async (memberId) => {
+  // Get all tournament division results where member participated
+  const allTournamentResults = await getAll('tournamentDivisionResults');
+  const tournamentResults = [];
+  
+  for (const result of allTournamentResults) {
+    const memberPosition = result.standings?.find(standing => standing.memberId === memberId);
+    if (memberPosition) {
+      const tournament = await read('tournaments', result.tournamentId);
+      const division = tournament?.divisions?.find(div => div.id === result.divisionId);
+      
+      tournamentResults.push({
+        ...result,
+        tournamentName: tournament?.name,
+        divisionName: division?.name,
+        eventType: division?.eventType,
+        skillLevel: division?.skillLevel,
+        memberPosition: memberPosition.position,
+        memberScore: memberPosition.score
+      });
+    }
+  }
+
+  // Get all league results where member participated
+  const allLeagueResults = await getAll('leagueResults');
+  const leagueResults = [];
+  
+  for (const result of allLeagueResults) {
+    const memberStats = result.standings?.find(standing => standing.memberId === memberId);
+    if (memberStats) {
+      const league = await read('leagues', result.leagueId);
+      
+      leagueResults.push({
+        ...result,
+        leagueName: league?.name,
+        memberPosition: memberStats.position,
+        memberStats: {
+          wins: memberStats.wins,
+          losses: memberStats.losses,
+          points: memberStats.points
+        }
+      });
+    }
+  }
+
+  return {
+    tournaments: tournamentResults.sort((a, b) => new Date(b.completedAt?.toDate?.() || b.completedAt) - new Date(a.completedAt?.toDate?.() || a.completedAt)),
+    leagues: leagueResults.sort((a, b) => new Date(b.completedAt?.toDate?.() || b.completedAt) - new Date(a.completedAt?.toDate?.() || a.completedAt)),
+    totalEvents: tournamentResults.length + leagueResults.length
+  };
+};
+
+// Create tournament division result
+export const createTournamentDivisionResult = async (resultData) => {
+  const { tournamentId, divisionId, standings, notes } = resultData;
+  
+  // Validate tournament and division exist
+  const tournament = await read('tournaments', tournamentId);
+  if (!tournament) throw new Error('Tournament not found');
+  
+  const division = tournament.divisions?.find(div => div.id === divisionId);
+  if (!division) throw new Error('Division not found');
+
+  // Check if result already exists
+  const existingResults = await getAll('tournamentDivisionResults', { 
+    tournamentId, 
+    divisionId 
+  });
+  if (existingResults.length > 0) {
+    throw new Error('Result already exists for this division');
+  }
+
+  const resultId = await create('tournamentDivisionResults', {
+    tournamentId,
+    divisionId,
+    standings: standings.map((standing, index) => ({
+      ...standing,
+      position: standing.position || index + 1
+    })),
+    notes: notes || '',
+    status: 'completed',
+    completedAt: serverTimestamp()
+  });
+
+  return resultId;
+};
+
+// Create league result
+export const createLeagueResult = async (resultData) => {
+  const { leagueId, standings, notes } = resultData;
+  
+  // Validate league exists
+  const league = await read('leagues', leagueId);
+  if (!league) throw new Error('League not found');
+
+  // Check if result already exists
+  const existingResults = await getAll('leagueResults', { leagueId });
+  if (existingResults.length > 0) {
+    throw new Error('Result already exists for this league');
+  }
+
+  const resultId = await create('leagueResults', {
+    leagueId,
+    standings: standings.map((standing, index) => ({
+      ...standing,
+      position: standing.position || index + 1
+    })),
+    notes: notes || '',
+    status: 'completed',
+    completedAt: serverTimestamp()
+  });
+
+  return resultId;
+};
+
+// =============================================================================
+// PLAYER PERFORMANCE OPERATIONS
+// =============================================================================
+
+// Get member's performance assessments
+export const getMemberPerformanceHistory = async (memberId) => {
+  const performances = await getAll('playerPerformances', { memberId });
+  
+  // Enrich with event details
+  const enrichedPerformances = [];
+  
+  for (const performance of performances) {
+    let eventDetails = {};
+    
+    if (performance.eventType === 'tournament') {
+      const tournament = await read('tournaments', performance.eventId);
+      const division = tournament?.divisions?.find(div => div.id === performance.divisionId);
+      eventDetails = {
+        eventName: tournament?.name,
+        divisionName: division?.name,
+        skillLevel: division?.skillLevel,
+        eventDate: tournament?.eventDate
+      };
+    } else if (performance.eventType === 'league') {
+      const league = await read('leagues', performance.eventId);
+      eventDetails = {
+        eventName: league?.name,
+        eventDate: league?.startDate
+      };
+    }
+    
+    enrichedPerformances.push({
+      ...performance,
+      ...eventDetails
+    });
+  }
+
+  return enrichedPerformances.sort((a, b) => 
+    new Date(b.createdAt?.toDate?.() || b.createdAt) - new Date(a.createdAt?.toDate?.() || a.createdAt)
+  );
+};
+
+// Create player performance assessment
+export const createPlayerPerformance = async (performanceData) => {
+  const { 
+    memberId, 
+    eventType, 
+    eventId, 
+    divisionId, 
+    ratings, 
+    strengths, 
+    improvements, 
+    goals 
+  } = performanceData;
+
+  // Validate event exists
+  let eventExists = false;
+  if (eventType === 'tournament') {
+    const tournament = await read('tournaments', eventId);
+    if (tournament && divisionId) {
+      const division = tournament.divisions?.find(div => div.id === divisionId);
+      eventExists = division?.participants?.includes(memberId);
+    }
+  } else if (eventType === 'league') {
+    const league = await read('leagues', eventId);
+    eventExists = league?.participants?.includes(memberId);
+  }
+
+  if (!eventExists) {
+    throw new Error('Member did not participate in this event');
+  }
+
+  // Check if assessment already exists
+  const existingPerformances = await getAll('playerPerformances', {
+    memberId,
+    eventType,
+    eventId,
+    ...(divisionId && { divisionId })
+  });
+
+  if (existingPerformances.length > 0) {
+    throw new Error('Performance assessment already exists for this event');
+  }
+
+  const performanceId = await create('playerPerformances', {
+    memberId,
+    eventType,
+    eventId,
+    ...(divisionId && { divisionId }),
+    ratings,
+    strengths: strengths || [],
+    improvements: improvements || [],
+    goals: goals || []
+  });
+
+  return performanceId;
+};
+
+// Update player performance assessment
+export const updatePlayerPerformance = async (performanceId, updates) => {
+  const performance = await read('playerPerformances', performanceId);
+  if (!performance) {
+    throw new Error('Performance assessment not found');
+  }
+
+  await update('playerPerformances', performanceId, updates);
+};
+
+// Get performance analytics for a member
+export const getMemberPerformanceAnalytics = async (memberId) => {
+  const performances = await getMemberPerformanceHistory(memberId);
+  
+  if (performances.length === 0) {
+    return {
+      totalAssessments: 0,
+      averageRatings: {},
+      improvementTrends: {},
+      commonStrengths: [],
+      commonImprovements: []
+    };
+  }
+
+  // Calculate average ratings across all categories
+  const ratingCategories = [
+    'serve', 'return', 'netPlay', 'groundstrokes', 
+    'strategy', 'movement', 'communication', 'mentalGame'
+  ];
+  
+  const averageRatings = {};
+  ratingCategories.forEach(category => {
+    const ratings = performances
+      .map(p => p.ratings?.[category])
+      .filter(rating => rating !== undefined);
+    
+    if (ratings.length > 0) {
+      averageRatings[category] = ratings.reduce((sum, rating) => sum + rating, 0) / ratings.length;
+    }
+  });
+
+  // Calculate improvement trends (comparing first vs last 3 assessments)
+  const improvementTrends = {};
+  if (performances.length >= 4) {
+    const recent = performances.slice(0, 3);
+    const older = performances.slice(-3);
+    
+    ratingCategories.forEach(category => {
+      const recentAvg = recent
+        .map(p => p.ratings?.[category])
+        .filter(r => r !== undefined)
+        .reduce((sum, r, _, arr) => sum + r / arr.length, 0);
+      
+      const olderAvg = older
+        .map(p => p.ratings?.[category])
+        .filter(r => r !== undefined)
+        .reduce((sum, r, _, arr) => sum + r / arr.length, 0);
+      
+      if (recentAvg && olderAvg) {
+        improvementTrends[category] = ((recentAvg - olderAvg) / olderAvg) * 100;
+      }
+    });
+  }
+
+  // Find most common strengths and improvement areas
+  const allStrengths = performances.flatMap(p => p.strengths || []);
+  const allImprovements = performances.flatMap(p => p.improvements || []);
+  
+  const strengthCounts = {};
+  const improvementCounts = {};
+  
+  allStrengths.forEach(strength => {
+    strengthCounts[strength] = (strengthCounts[strength] || 0) + 1;
+  });
+  
+  allImprovements.forEach(improvement => {
+    improvementCounts[improvement] = (improvementCounts[improvement] || 0) + 1;
+  });
+
+  return {
+    totalAssessments: performances.length,
+    averageRatings,
+    improvementTrends,
+    commonStrengths: Object.entries(strengthCounts)
+      .sort(([,a], [,b]) => b - a)
+      .slice(0, 5)
+      .map(([strength, count]) => ({ strength, count })),
+    commonImprovements: Object.entries(improvementCounts)
+      .sort(([,a], [,b]) => b - a)
+      .slice(0, 5)
+      .map(([improvement, count]) => ({ improvement, count }))
+  };
+};
+
+// =============================================================================
+// RESULTS ANALYTICS & REPORTING
+// =============================================================================
+
+// Get system-wide results statistics
+export const getResultsAnalytics = async () => {
+  const [tournamentResults, leagueResults, playerPerformances] = await Promise.all([
+    getAll('tournamentDivisionResults'),
+    getAll('leagueResults'),
+    getAll('playerPerformances')
+  ]);
+
+  // Results completion rates
+  const completedTournaments = await getAll('tournaments', { status: 'completed' });
+  const completedLeagues = await getAll('leagues', { status: 'completed' });
+  
+  const tournamentDivisionsTotal = completedTournaments.reduce((sum, t) => 
+    sum + (t.divisions?.length || 0), 0
+  );
+  
+  const resultsCompletionRate = {
+    tournamentDivisions: tournamentDivisionsTotal > 0 
+      ? (tournamentResults.length / tournamentDivisionsTotal) * 100 
+      : 0,
+    leagues: completedLeagues.length > 0 
+      ? (leagueResults.length / completedLeagues.length) * 100 
+      : 0
+  };
+
+  // Performance assessment statistics
+  const performanceStats = {
+    totalAssessments: playerPerformances.length,
+    uniqueMembers: new Set(playerPerformances.map(p => p.memberId)).size,
+    averageAssessmentsPerMember: playerPerformances.length > 0 
+      ? playerPerformances.length / new Set(playerPerformances.map(p => p.memberId)).size 
+      : 0
+  };
+
+  // Recent activity (last 30 days)
+  const thirtyDaysAgo = new Date();
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+  
+  const recentResults = [...tournamentResults, ...leagueResults].filter(result => {
+    const completedDate = result.completedAt?.toDate?.() || new Date(result.completedAt);
+    return completedDate >= thirtyDaysAgo;
+  });
+
+  const recentPerformances = playerPerformances.filter(performance => {
+    const createdDate = performance.createdAt?.toDate?.() || new Date(performance.createdAt);
+    return createdDate >= thirtyDaysAgo;
+  });
+
+  return {
+    results: {
+      total: tournamentResults.length + leagueResults.length,
+      tournamentDivisions: tournamentResults.length,
+      leagues: leagueResults.length,
+      completionRates: resultsCompletionRate
+    },
+    performances: performanceStats,
+    recentActivity: {
+      newResults: recentResults.length,
+      newPerformances: recentPerformances.length,
+      period: '30 days'
+    }
+  };
+};
+
+// Search results by various criteria
+export const searchResults = async (searchTerm, filters = {}) => {
+  const [tournamentResults, leagueResults] = await Promise.all([
+    getAll('tournamentDivisionResults'),
+    getAll('leagueResults')
+  ]);
+
+  let filteredTournamentResults = tournamentResults;
+  let filteredLeagueResults = leagueResults;
+
+  // Apply status filter
+  if (filters.status) {
+    filteredTournamentResults = filteredTournamentResults.filter(r => r.status === filters.status);
+    filteredLeagueResults = filteredLeagueResults.filter(r => r.status === filters.status);
+  }
+
+  // Apply date range filter
+  if (filters.startDate || filters.endDate) {
+    const startDate = filters.startDate ? new Date(filters.startDate) : new Date(0);
+    const endDate = filters.endDate ? new Date(filters.endDate) : new Date();
+    
+    filteredTournamentResults = filteredTournamentResults.filter(result => {
+      const date = result.completedAt?.toDate?.() || new Date(result.completedAt);
+      return date >= startDate && date <= endDate;
+    });
+    
+    filteredLeagueResults = filteredLeagueResults.filter(result => {
+      const date = result.completedAt?.toDate?.() || new Date(result.completedAt);
+      return date >= startDate && date <= endDate;
+    });
+  }
+
+  // Apply text search if provided
+  if (searchTerm) {
+    const searchLower = searchTerm.toLowerCase();
+    
+    // For tournament results, we need to get tournament details to search names
+    const enrichedTournamentResults = [];
+    for (const result of filteredTournamentResults) {
+      const tournament = await read('tournaments', result.tournamentId);
+      const division = tournament?.divisions?.find(div => div.id === result.divisionId);
+      
+      const matches = 
+        tournament?.name?.toLowerCase().includes(searchLower) ||
+        division?.name?.toLowerCase().includes(searchLower) ||
+        result.notes?.toLowerCase().includes(searchLower);
+      
+      if (matches) {
+        enrichedTournamentResults.push({
+          ...result,
+          tournamentName: tournament?.name,
+          divisionName: division?.name
+        });
+      }
+    }
+    
+    // For league results, search league names
+    const enrichedLeagueResults = [];
+    for (const result of filteredLeagueResults) {
+      const league = await read('leagues', result.leagueId);
+      
+      const matches = 
+        league?.name?.toLowerCase().includes(searchLower) ||
+        result.notes?.toLowerCase().includes(searchLower);
+      
+      if (matches) {
+        enrichedLeagueResults.push({
+          ...result,
+          leagueName: league?.name
+        });
+      }
+    }
+    
+    return {
+      tournaments: enrichedTournamentResults,
+      leagues: enrichedLeagueResults,
+      total: enrichedTournamentResults.length + enrichedLeagueResults.length
+    };
+  }
+
+  return {
+    tournaments: filteredTournamentResults,
+    leagues: filteredLeagueResults,
+    total: filteredTournamentResults.length + filteredLeagueResults.length
+  };
+};
+
+// =============================================================================
+// UPDATED DEFAULT EXPORT (includes all existing + new functions)
+// =============================================================================
+
 export default {
+  // Original CRUD operations
   create,
   read,
   update,
@@ -690,29 +1237,61 @@ export default {
   getAll,
   subscribe,
   subscribeToDoc,
+  
+  // User operations
   getUserMembers,
   getMemberByAuthUid,
   getUserTournaments,
   getUserLeagues,
   getAllUsersWithStats,
+  
+  // Batch operations
   batchUpdate,
   batchDelete,
+  
+  // Participant operations
   addParticipant,
   removeParticipant,
   addParticipantToDivision,
   removeParticipantFromDivision,
+  
+  // Event operations
   getEventsWithParticipant,
   searchMembers,
   searchEvents,
   getSystemStats,
+  
+  // Payment operations
   updatePaymentData,
   removePaymentData,
   updateDivisionPaymentData,
   removeDivisionPaymentData,
+  
+  // Cleanup operations
   cleanupUserReferences,
+  
+  // Division operations
   getDivisionParticipants,
   updateDivisionData,
   deleteDivision,
   getTournamentsByDivisionCriteria,
-  getMemberParticipationSummary
+  getMemberParticipationSummary,
+  
+  // NEW: Results operations
+  getCompletedEventsNeedingResults,
+  getTournamentResults,
+  getLeagueResults,
+  getMemberResultsHistory,
+  createTournamentDivisionResult,
+  createLeagueResult,
+  
+  // NEW: Player performance operations
+  getMemberPerformanceHistory,
+  createPlayerPerformance,
+  updatePlayerPerformance,
+  getMemberPerformanceAnalytics,
+  
+  // NEW: Results analytics
+  getResultsAnalytics,
+  searchResults
 };
