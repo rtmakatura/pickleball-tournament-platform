@@ -1,4 +1,4 @@
-// src/components/Dashboard.jsx (FIXED - Removed duplicate Modal wrapper for League)
+// src/components/Dashboard.jsx (UPDATED - Added Results Entry Integration)
 import React, { useState, useMemo, useCallback } from 'react';
 import { 
   Plus, 
@@ -15,13 +15,18 @@ import {
   Phone,
   Clock,
   CheckCircle,
-  Trash2
+  Trash2,
+  BarChart3,
+  Target,
+  Award
 } from 'lucide-react';
 import { 
   useMembers, 
   useLeagues, 
   useTournaments, 
-  useAuth
+  useAuth,
+  useResults,
+  usePlayerPerformance
 } from '../hooks';
 import { useSmoothNavigation } from '../hooks/useSmoothNavigation';
 import { 
@@ -54,7 +59,14 @@ import { SignUpForm } from './auth';
 import SignInForm from './auth/SignInForm';
 import { CommentSection } from './comments';
 
-// CSS for responsive optimizations
+// ADDED: Import results entry forms
+import { 
+  TournamentResultsForm, 
+  LeagueResultsForm, 
+  PlayerPerformanceForm 
+} from './results';
+
+// CSS for responsive optimizations (keeping existing styles + new results styles)
 const dashboardStyles = `
   /* Mobile-first optimizations */
   .mobile-card {
@@ -112,7 +124,7 @@ const dashboardStyles = `
     -webkit-overflow-scrolling: touch;
   }
 
-  /* FIXED: League member selector styling - consistent with forms */
+  /* League member selector styling - consistent with forms */
   .league-modal-section {
     background: white;
     border-radius: 16px;
@@ -139,6 +151,38 @@ const dashboardStyles = `
   .league-modal-input-group:last-child {
     margin-bottom: 0;
   }
+
+  /* ADDED: Results entry styling */
+  .results-button {
+    background: linear-gradient(135deg, #059669 0%, #047857 100%);
+    color: white;
+    border: none;
+    transition: all 0.2s ease;
+  }
+  
+  .results-button:hover {
+    background: linear-gradient(135deg, #047857 0%, #065f46 100%);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(5, 150, 105, 0.4);
+  }
+  
+  .results-indicator {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 8px;
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    color: white;
+    font-size: 0.75rem;
+    font-weight: 500;
+    border-radius: 12px;
+    box-shadow: 0 2px 4px rgba(16, 185, 129, 0.3);
+  }
+  
+  .results-dashboard {
+    margin-top: 48px;
+    padding-top: 32px;
+    border-top: 2px solid #e5e7eb;
+  }
 `;
 
 const DashboardStyles = () => {
@@ -162,8 +206,8 @@ const DashboardStyles = () => {
   return null;
 };
 
-// Mobile-First Tournament Card Component (for mobile only)
-const TournamentCard = React.memo(({ tournament, onView, onEdit }) => {
+// UPDATED: Tournament Card Component with Results Entry
+const TournamentCard = React.memo(({ tournament, onView, onEdit, onEnterResults, onViewResults, hasResults }) => {
   const totalParticipants = getTournamentTotalParticipants(tournament);
   const totalExpected = getTournamentTotalExpected(tournament);
   const divisionCount = tournament.divisions?.length || 0;
@@ -196,6 +240,10 @@ const TournamentCard = React.memo(({ tournament, onView, onEdit }) => {
     });
   };
 
+  // ADDED: Check if tournament is ready for results entry
+  const canEnterResults = tournament.status === TOURNAMENT_STATUS.IN_PROGRESS || 
+                         (tournament.status === TOURNAMENT_STATUS.COMPLETED && !hasResults);
+
   return (
     <div className="mobile-card bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden">
       {/* Card Header */}
@@ -214,6 +262,13 @@ const TournamentCard = React.memo(({ tournament, onView, onEdit }) => {
                 <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
                   <Layers className="h-3 w-3 mr-1" />
                   {divisionCount} division{divisionCount !== 1 ? 's' : ''}
+                </span>
+              )}
+              {/* ADDED: Results indicator */}
+              {hasResults && (
+                <span className="results-indicator">
+                  <Award className="h-3 w-3 mr-1" />
+                  Results
                 </span>
               )}
             </div>
@@ -247,31 +302,63 @@ const TournamentCard = React.memo(({ tournament, onView, onEdit }) => {
         )}
       </div>
 
-      {/* Action Buttons */}
-      <div className="px-4 pb-4 flex space-x-2">
-        <Button
-          onClick={(e) => {
-            e.stopPropagation();
-            onView(tournament);
-          }}
-          className="mobile-action-button flex-1 bg-blue-600 hover:bg-blue-700 text-white"
-          size="md"
-        >
-          <MessageSquare className="h-4 w-4 mr-2" />
-          Discuss
-        </Button>
-        <Button
-          onClick={(e) => {
-            e.stopPropagation();
-            onEdit(tournament);
-          }}
-          variant="outline"
-          className="mobile-action-button flex-1"
-          size="md"
-        >
-          <Trophy className="h-4 w-4 mr-2" />
-          Manage
-        </Button>
+      {/* UPDATED: Action Buttons with Results Entry */}
+      <div className="px-4 pb-4 space-y-2">
+        <div className="flex space-x-2">
+          <Button
+            onClick={(e) => {
+              e.stopPropagation();
+              onView(tournament);
+            }}
+            className="mobile-action-button flex-1 bg-blue-600 hover:bg-blue-700 text-white"
+            size="md"
+          >
+            <MessageSquare className="h-4 w-4 mr-2" />
+            Discuss
+          </Button>
+          <Button
+            onClick={(e) => {
+              e.stopPropagation();
+              onEdit(tournament);
+            }}
+            variant="outline"
+            className="mobile-action-button flex-1"
+            size="md"
+          >
+            <Trophy className="h-4 w-4 mr-2" />
+            Manage
+          </Button>
+        </div>
+        
+        {/* ADDED: Results action button */}
+        {canEnterResults && (
+          <Button
+            onClick={(e) => {
+              e.stopPropagation();
+              onEnterResults(tournament);
+            }}
+            className="mobile-action-button w-full results-button"
+            size="md"
+          >
+            <BarChart3 className="h-4 w-4 mr-2" />
+            Enter Results
+          </Button>
+        )}
+        
+        {hasResults && (
+          <Button
+            onClick={(e) => {
+              e.stopPropagation();
+              onViewResults(tournament);
+            }}
+            variant="outline"
+            className="mobile-action-button w-full border-green-300 text-green-700 hover:bg-green-50"
+            size="md"
+          >
+            <Award className="h-4 w-4 mr-2" />
+            View Results
+          </Button>
+        )}
       </div>
 
       {/* Quick Actions Bar */}
@@ -320,8 +407,8 @@ const TournamentCard = React.memo(({ tournament, onView, onEdit }) => {
   );
 });
 
-// Desktop Tournament Row Component (for desktop tables)
-const TournamentRow = React.memo(({ tournament, onView, onEdit }) => {
+// UPDATED: Desktop Tournament Row Component with Results Entry
+const TournamentRow = React.memo(({ tournament, onView, onEdit, onEnterResults, onViewResults, hasResults }) => {
   const totalParticipants = getTournamentTotalParticipants(tournament);
   const totalExpected = getTournamentTotalExpected(tournament);
   const divisionCount = tournament.divisions?.length || 0;
@@ -351,6 +438,23 @@ const TournamentRow = React.memo(({ tournament, onView, onEdit }) => {
     e.stopPropagation();
     onEdit(tournament);
   }, [tournament, onEdit]);
+
+  // ADDED: Results handlers
+  const handleEnterResultsClick = useCallback((e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    onEnterResults(tournament);
+  }, [tournament, onEnterResults]);
+
+  const handleViewResultsClick = useCallback((e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    onViewResults(tournament);
+  }, [tournament, onViewResults]);
+
+  // ADDED: Check if tournament is ready for results entry
+  const canEnterResults = tournament.status === TOURNAMENT_STATUS.IN_PROGRESS || 
+                         (tournament.status === TOURNAMENT_STATUS.COMPLETED && !hasResults);
 
   return (
     <tr key={tournament.id} className="tournament-row">
@@ -382,6 +486,13 @@ const TournamentRow = React.memo(({ tournament, onView, onEdit }) => {
               <div className="flex items-center text-gray-400">
                 <MessageSquare className="h-3 w-3 mr-1" />
                 <span>{tournament.commentCount}</span>
+              </div>
+            )}
+            {/* ADDED: Results indicator */}
+            {hasResults && (
+              <div className="results-indicator">
+                <Award className="h-3 w-3 mr-1" />
+                Results
               </div>
             )}
           </div>
@@ -483,7 +594,7 @@ const TournamentRow = React.memo(({ tournament, onView, onEdit }) => {
         </div>
       </td>
 
-      {/* Actions Column */}
+      {/* UPDATED: Actions Column with Results */}
       <td className="py-4 px-4 align-top">
         <div className="flex flex-col space-y-1 table-actions">
           <button 
@@ -500,14 +611,33 @@ const TournamentRow = React.memo(({ tournament, onView, onEdit }) => {
           >
             Edit
           </button>
+          {/* ADDED: Results buttons */}
+          {canEnterResults && (
+            <button 
+              className="inline-flex items-center justify-center px-3 py-1.5 text-sm results-button rounded-md hover:opacity-90 transition-colors w-20"
+              onClick={handleEnterResultsClick}
+              type="button"
+            >
+              Results
+            </button>
+          )}
+          {hasResults && (
+            <button 
+              className="inline-flex items-center justify-center px-3 py-1.5 text-sm border border-green-300 text-green-700 rounded-md hover:bg-green-50 transition-colors w-20"
+              onClick={handleViewResultsClick}
+              type="button"
+            >
+              View
+            </button>
+          )}
         </div>
       </td>
     </tr>
   );
 });
 
-// League Card Component (mobile only)
-const LeagueCard = React.memo(({ league, onView, onEdit }) => {
+// UPDATED: League Card Component with Results Entry
+const LeagueCard = React.memo(({ league, onView, onEdit, onEnterResults, onViewResults, hasResults }) => {
   const participantCount = league.participants?.length || 0;
   
   const formatEventType = (eventType) => {
@@ -534,6 +664,9 @@ const LeagueCard = React.memo(({ league, onView, onEdit }) => {
     }
   };
 
+  // ADDED: Check if league can have results entered
+  const canEnterResults = league.status === LEAGUE_STATUS.COMPLETED && !hasResults;
+
   return (
     <div className="mobile-card bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden">
       {/* Card Header */}
@@ -550,6 +683,13 @@ const LeagueCard = React.memo(({ league, onView, onEdit }) => {
               <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700 capitalize">
                 {league.skillLevel}
               </span>
+              {/* ADDED: Results indicator */}
+              {hasResults && (
+                <span className="results-indicator">
+                  <Award className="h-3 w-3 mr-1" />
+                  Results
+                </span>
+              )}
             </div>
           </div>
         </div>
@@ -587,38 +727,70 @@ const LeagueCard = React.memo(({ league, onView, onEdit }) => {
         )}
       </div>
 
-      {/* Action Buttons */}
-      <div className="px-4 pb-4 flex space-x-2">
-        <Button
-          onClick={(e) => {
-            e.stopPropagation();
-            onView(league);
-          }}
-          className="mobile-action-button flex-1 bg-blue-600 hover:bg-blue-700 text-white"
-          size="md"
-        >
-          <MessageSquare className="h-4 w-4 mr-2" />
-          Discuss
-        </Button>
-        <Button
-          onClick={(e) => {
-            e.stopPropagation();
-            onEdit(league);
-          }}
-          variant="outline"
-          className="mobile-action-button flex-1"
-          size="md"
-        >
-          <Activity className="h-4 w-4 mr-2" />
-          Manage
-        </Button>
+      {/* UPDATED: Action Buttons with Results Entry */}
+      <div className="px-4 pb-4 space-y-2">
+        <div className="flex space-x-2">
+          <Button
+            onClick={(e) => {
+              e.stopPropagation();
+              onView(league);
+            }}
+            className="mobile-action-button flex-1 bg-blue-600 hover:bg-blue-700 text-white"
+            size="md"
+          >
+            <MessageSquare className="h-4 w-4 mr-2" />
+            Discuss
+          </Button>
+          <Button
+            onClick={(e) => {
+              e.stopPropagation();
+              onEdit(league);
+            }}
+            variant="outline"
+            className="mobile-action-button flex-1"
+            size="md"
+          >
+            <Activity className="h-4 w-4 mr-2" />
+            Manage
+          </Button>
+        </div>
+        
+        {/* ADDED: Results action button */}
+        {canEnterResults && (
+          <Button
+            onClick={(e) => {
+              e.stopPropagation();
+              onEnterResults(league);
+            }}
+            className="mobile-action-button w-full results-button"
+            size="md"
+          >
+            <BarChart3 className="h-4 w-4 mr-2" />
+            Enter Results
+          </Button>
+        )}
+        
+        {hasResults && (
+          <Button
+            onClick={(e) => {
+              e.stopPropagation();
+              onViewResults(league);
+            }}
+            variant="outline"
+            className="mobile-action-button w-full border-green-300 text-green-700 hover:bg-green-50"
+            size="md"
+          >
+            <Award className="h-4 w-4 mr-2" />
+            View Results
+          </Button>
+        )}
       </div>
     </div>
   );
 });
 
-// Desktop League Row Component (for desktop tables)
-const LeagueRow = React.memo(({ league, onView, onEdit }) => {
+// UPDATED: Desktop League Row Component with Results Entry
+const LeagueRow = React.memo(({ league, onView, onEdit, onEnterResults, onViewResults, hasResults }) => {
   const formatEventType = (eventType) => {
     if (!eventType) return '';
     return eventType.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase());
@@ -635,6 +807,22 @@ const LeagueRow = React.memo(({ league, onView, onEdit }) => {
     e.stopPropagation();
     onEdit(league);
   }, [league, onEdit]);
+
+  // ADDED: Results handlers
+  const handleEnterResultsClick = useCallback((e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    onEnterResults(league);
+  }, [league, onEnterResults]);
+
+  const handleViewResultsClick = useCallback((e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    onViewResults(league);
+  }, [league, onViewResults]);
+
+  // ADDED: Check if league can have results entered
+  const canEnterResults = league.status === LEAGUE_STATUS.COMPLETED && !hasResults;
 
   return (
     <tr key={league.id} className="league-row">
@@ -658,6 +846,13 @@ const LeagueRow = React.memo(({ league, onView, onEdit }) => {
               <div className="flex items-center text-gray-400">
                 <MessageSquare className="h-3 w-3 mr-1" />
                 <span>{league.commentCount}</span>
+              </div>
+            )}
+            {/* ADDED: Results indicator */}
+            {hasResults && (
+              <div className="results-indicator">
+                <Award className="h-3 w-3 mr-1" />
+                Results
               </div>
             )}
           </div>
@@ -752,6 +947,7 @@ const LeagueRow = React.memo(({ league, onView, onEdit }) => {
         </div>
       </td>
 
+      {/* UPDATED: Actions Column with Results */}
       <td className="py-4 px-4 align-top">
         <div className="flex flex-col space-y-1 table-actions">
           <button 
@@ -768,13 +964,32 @@ const LeagueRow = React.memo(({ league, onView, onEdit }) => {
           >
             Edit
           </button>
+          {/* ADDED: Results buttons */}
+          {canEnterResults && (
+            <button 
+              className="inline-flex items-center justify-center px-3 py-1.5 text-sm results-button rounded-md hover:opacity-90 transition-colors w-20"
+              onClick={handleEnterResultsClick}
+              type="button"
+            >
+              Results
+            </button>
+          )}
+          {hasResults && (
+            <button 
+              className="inline-flex items-center justify-center px-3 py-1.5 text-sm border border-green-300 text-green-700 rounded-md hover:bg-green-50 transition-colors w-20"
+              onClick={handleViewResultsClick}
+              type="button"
+            >
+              View
+            </button>
+          )}
         </div>
       </td>
     </tr>
   );
 });
 
-// Member Card Component (for mobile)
+// Member Card Component (unchanged - no results needed for members)
 const MemberCard = React.memo(({ member, onEdit }) => {
   return (
     <div className="mobile-card bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden">
@@ -844,16 +1059,163 @@ const MemberCard = React.memo(({ member, onEdit }) => {
   );
 });
 
+// ADDED: Results Dashboard Component  
+const ResultsDashboard = ({ results, tournaments, leagues, members, onViewTournamentResults, onViewLeagueResults }) => {
+  // Combine tournament and league results for unified display
+  const allResults = useMemo(() => {
+    const tournamentResults = results.tournament?.map(result => ({
+      ...result,
+      type: 'tournament',
+      eventName: tournaments.find(t => t.id === result.eventId)?.name || 'Unknown Tournament',
+      eventDate: tournaments.find(t => t.id === result.eventId)?.eventDate,
+      location: tournaments.find(t => t.id === result.eventId)?.location
+    })) || [];
+
+    const leagueResults = results.league?.map(result => ({
+      ...result,
+      type: 'league', 
+      eventName: leagues.find(l => l.id === result.eventId)?.name || 'Unknown League',
+      eventDate: leagues.find(l => l.id === result.eventId)?.endDate, // Use end date for leagues
+      location: leagues.find(l => l.id === result.eventId)?.location
+    })) || [];
+
+    return [...tournamentResults, ...leagueResults]
+      .sort((a, b) => {
+        const dateA = a.eventDate?.seconds ? new Date(a.eventDate.seconds * 1000) : new Date(0);
+        const dateB = b.eventDate?.seconds ? new Date(b.eventDate.seconds * 1000) : new Date(0);
+        return dateB - dateA; // Most recent first
+      });
+  }, [results, tournaments, leagues]);
+
+  if (allResults.length === 0) {
+    return (
+      <div className="results-dashboard">
+        <Card title="Event Results History" className="mb-8">
+          <div className="text-center py-12 text-gray-500">
+            <BarChart3 className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+            <p className="text-lg font-medium">No results yet</p>
+            <p className="text-sm mt-1">Tournament and league results will appear here when entered</p>
+          </div>
+        </Card>
+      </div>
+    );
+  }
+
+  const formatDate = (date) => {
+    if (!date) return 'N/A';
+    const dateObj = date.seconds ? new Date(date.seconds * 1000) : new Date(date);
+    return dateObj.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric'
+    });
+  };
+
+  const getResultSummary = (result) => {
+    if (result.type === 'tournament') {
+      const divisionResults = result.divisionResults || [];
+      const totalParticipants = divisionResults.reduce((sum, div) => sum + (div.standings?.length || 0), 0);
+      return `${divisionResults.length} division${divisionResults.length !== 1 ? 's' : ''}, ${totalParticipants} participants`;
+    } else {
+      const standings = result.standings || [];
+      return `${standings.length} participants`;
+    }
+  };
+
+  return (
+    <div className="results-dashboard">
+      <Card 
+        title="Event Results History"
+        subtitle={`${allResults.length} completed event${allResults.length !== 1 ? 's' : ''} with results`}
+        className="mb-8"
+      >
+        <div className="space-y-4">
+          {allResults.map((result) => (
+            <div 
+              key={`${result.type}-${result.id}`}
+              className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow cursor-pointer"
+              onClick={() => {
+                if (result.type === 'tournament') {
+                  onViewTournamentResults(tournaments.find(t => t.id === result.eventId));
+                } else {
+                  onViewLeagueResults(leagues.find(l => l.id === result.eventId));
+                }
+              }}
+            >
+              <div className="flex items-start justify-between">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center space-x-3 mb-2">
+                    <div className={`p-2 rounded-lg ${
+                      result.type === 'tournament' 
+                        ? 'bg-yellow-100 text-yellow-700' 
+                        : 'bg-blue-100 text-blue-700'
+                    }`}>
+                      {result.type === 'tournament' ? (
+                        <Trophy className="h-4 w-4" />
+                      ) : (
+                        <Activity className="h-4 w-4" />
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h4 className="font-semibold text-gray-900 truncate">
+                        {result.eventName}
+                      </h4>
+                      <p className="text-sm text-gray-600 capitalize">
+                        {result.type} • {formatDate(result.eventDate)}
+                      </p>
+                    </div>
+                    <span className="results-indicator">
+                      <Award className="h-3 w-3 mr-1" />
+                      Complete
+                    </span>
+                  </div>
+                  
+                  <div className="flex items-center justify-between text-sm text-gray-600">
+                    <span>{getResultSummary(result)}</span>
+                    {result.location && (
+                      <span className="flex items-center">
+                        <MapPin className="h-3 w-3 mr-1" />
+                        {result.location}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </Card>
+    </div>
+  );
+};
+
 const Dashboard = () => {
   const { user, signIn, signUpWithProfile, logout, isAuthenticated, loading: authLoading } = useAuth();
   const { members, loading: membersLoading, addMember, updateMember, deleteMember } = useMembers({ realTime: false });
   const { leagues, loading: leaguesLoading, addLeague, updateLeague, deleteLeague } = useLeagues({ realTime: false });
   const { tournaments, loading: tournamentsLoading, addTournament, updateTournament, deleteTournament } = useTournaments({ realTime: false });
+  
+  // ADDED: Results and performance hooks
+  const { 
+    results, 
+    loading: resultsLoading, 
+    addTournamentResults, 
+    addLeagueResults, 
+    updateTournamentResults,
+    updateLeagueResults 
+  } = useResults();
+  
+  const { 
+    playerPerformance, 
+    loading: performanceLoading,
+    addPlayerPerformance,
+    updatePlayerPerformance 
+  } = usePlayerPerformance();
 
   // Smooth navigation hook
   const { activeSection, scrollToSection, navItems, refs } = useSmoothNavigation();
 
-  // Modal states
+  // UPDATED: Modal states - added results modals
   const [showTournamentModal, setShowTournamentModal] = useState(false);
   const [showLeagueModal, setShowLeagueModal] = useState(false);
   const [showMemberModal, setShowMemberModal] = useState(false);
@@ -863,12 +1225,24 @@ const Dashboard = () => {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showLeagueDeleteConfirm, setShowLeagueDeleteConfirm] = useState(false);
   
+  // ADDED: Results modal states
+  const [showTournamentResultsModal, setShowTournamentResultsModal] = useState(false);
+  const [showLeagueResultsModal, setShowLeagueResultsModal] = useState(false);
+  const [showPlayerPerformanceModal, setShowPlayerPerformanceModal] = useState(false);
+  const [showResultsViewModal, setShowResultsViewModal] = useState(false);
+  
   // Enhanced tournament state management
   const [editingTournament, setEditingTournament] = useState(null);
   const [editingLeague, setEditingLeague] = useState(null);
   const [editingMember, setEditingMember] = useState(null);
   const [viewingTournament, setViewingTournament] = useState(null);
   const [viewingLeague, setViewingLeague] = useState(null);
+  
+  // ADDED: Results state management
+  const [resultsForTournament, setResultsForTournament] = useState(null);
+  const [resultsForLeague, setResultsForLeague] = useState(null);
+  const [performanceForEvent, setPerformanceForEvent] = useState(null);
+  const [viewingResults, setViewingResults] = useState(null);
   
   const currentUserMember = useMemo(() => 
     members.find(m => m.authUid === user?.uid), 
@@ -902,6 +1276,15 @@ const Dashboard = () => {
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
+  // ADDED: Helper functions to check if events have results
+  const hasResultsForTournament = useCallback((tournamentId) => {
+    return results.tournament?.some(result => result.eventId === tournamentId) || false;
+  }, [results.tournament]);
+
+  const hasResultsForLeague = useCallback((leagueId) => {
+    return results.league?.some(result => result.eventId === leagueId) || false;
+  }, [results.league]);
+
   // Event handlers
   const handleViewTournament = useCallback((tournament) => {
     console.log('Viewing tournament:', tournament);
@@ -934,6 +1317,33 @@ const Dashboard = () => {
     setEditingMember(member);
     setShowMemberModal(true);
   }, []);
+
+  // ADDED: Results entry handlers
+  const handleEnterTournamentResults = useCallback((tournament) => {
+    console.log('Entering results for tournament:', tournament);
+    setResultsForTournament(tournament);
+    setShowTournamentResultsModal(true);
+  }, []);
+
+  const handleEnterLeagueResults = useCallback((league) => {
+    console.log('Entering results for league:', league);
+    setResultsForLeague(league);
+    setShowLeagueResultsModal(true);
+  }, []);
+
+  const handleViewTournamentResults = useCallback((tournament) => {
+    console.log('Viewing results for tournament:', tournament);
+    const tournamentResults = results.tournament?.find(result => result.eventId === tournament.id);
+    setViewingResults({ type: 'tournament', event: tournament, results: tournamentResults });
+    setShowResultsViewModal(true);
+  }, [results.tournament]);
+
+  const handleViewLeagueResults = useCallback((league) => {
+    console.log('Viewing results for league:', league);
+    const leagueResults = results.league?.find(result => result.eventId === league.id);
+    setViewingResults({ type: 'league', event: league, results: leagueResults });
+    setShowResultsViewModal(true);
+  }, [results.league]);
 
   // Sorting functions
   const getSortedTournaments = useCallback(() => {
@@ -978,7 +1388,7 @@ const Dashboard = () => {
     setTimeout(() => setAlert(null), 5000);
   }, []);
 
-  // RESPONSIVE COMPONENTS: Show cards on mobile, tables on desktop
+  // UPDATED: RESPONSIVE COMPONENTS - Show cards on mobile, tables on desktop with results support
   const ResponsiveTournamentList = ({ data, visibleCount, onLoadMore, hasMore }) => {
     const displayData = data.slice(0, visibleCount);
     
@@ -1003,6 +1413,9 @@ const Dashboard = () => {
                 tournament={tournament}
                 onView={handleViewTournament}
                 onEdit={handleEditTournament}
+                onEnterResults={handleEnterTournamentResults}
+                onViewResults={handleViewTournamentResults}
+                hasResults={hasResultsForTournament(tournament.id)}
               />
             ))}
           </div>
@@ -1036,19 +1449,19 @@ const Dashboard = () => {
               <table className="w-full enhanced-table">
                 <thead>
                   <tr className="bg-gray-50 border-b border-gray-200">
-                    <th className="text-left py-3 px-4 font-medium text-gray-700 text-sm uppercase tracking-wider w-[30%]">
+                    <th className="text-left py-3 px-4 font-medium text-gray-700 text-sm uppercase tracking-wider w-[25%]">
                       Tournament
                     </th>
                     <th className="text-left py-3 px-4 font-medium text-gray-700 text-sm uppercase tracking-wider w-[20%]">
                       Date & Divisions
                     </th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-700 text-sm uppercase tracking-wider w-[25%]">
+                    <th className="text-left py-3 px-4 font-medium text-gray-700 text-sm uppercase tracking-wider w-[20%]">
                       Location
                     </th>
                     <th className="text-left py-3 px-4 font-medium text-gray-700 text-sm uppercase tracking-wider w-[15%]">
                       Status
                     </th>
-                    <th className="text-right py-3 px-4 font-medium text-gray-700 text-sm uppercase tracking-wider w-[10%]">
+                    <th className="text-right py-3 px-4 font-medium text-gray-700 text-sm uppercase tracking-wider w-[20%]">
                       Actions
                     </th>
                   </tr>
@@ -1060,6 +1473,9 @@ const Dashboard = () => {
                       tournament={tournament}
                       onView={handleViewTournament}
                       onEdit={handleEditTournament}
+                      onEnterResults={handleEnterTournamentResults}
+                      onViewResults={handleViewTournamentResults}
+                      hasResults={hasResultsForTournament(tournament.id)}
                     />
                   ))}
                 </tbody>
@@ -1113,6 +1529,9 @@ const Dashboard = () => {
                 league={league}
                 onView={handleViewLeague}
                 onEdit={handleEditLeague}
+                onEnterResults={handleEnterLeagueResults}
+                onViewResults={handleViewLeagueResults}
+                hasResults={hasResultsForLeague(league.id)}
               />
             ))}
           </div>
@@ -1146,19 +1565,19 @@ const Dashboard = () => {
               <table className="w-full enhanced-table">
                 <thead>
                   <tr className="bg-gray-50 border-b border-gray-200">
-                    <th className="text-left py-3 px-4 font-medium text-gray-700 text-sm uppercase tracking-wider w-[30%]">
+                    <th className="text-left py-3 px-4 font-medium text-gray-700 text-sm uppercase tracking-wider w-[25%]">
                       League
                     </th>
                     <th className="text-left py-3 px-4 font-medium text-gray-700 text-sm uppercase tracking-wider w-[20%]">
                       Duration & Details
                     </th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-700 text-sm uppercase tracking-wider w-[25%]">
+                    <th className="text-left py-3 px-4 font-medium text-gray-700 text-sm uppercase tracking-wider w-[20%]">
                       Location
                     </th>
                     <th className="text-left py-3 px-4 font-medium text-gray-700 text-sm uppercase tracking-wider w-[15%]">
                       Status
                     </th>
-                    <th className="text-right py-3 px-4 font-medium text-gray-700 text-sm uppercase tracking-wider w-[10%]">
+                    <th className="text-right py-3 px-4 font-medium text-gray-700 text-sm uppercase tracking-wider w-[20%]">
                       Actions
                     </th>
                   </tr>
@@ -1170,6 +1589,9 @@ const Dashboard = () => {
                       league={league}
                       onView={handleViewLeague}
                       onEdit={handleEditLeague}
+                      onEnterResults={handleEnterLeagueResults}
+                      onViewResults={handleViewLeagueResults}
+                      hasResults={hasResultsForLeague(league.id)}
                     />
                   ))}
                 </tbody>
@@ -1506,6 +1928,61 @@ const Dashboard = () => {
     }
   };
 
+  // ADDED: Results submission handlers
+  const handleTournamentResultsSubmit = async (resultsData) => {
+    setFormLoading(true);
+    try {
+      await addTournamentResults(resultsForTournament.id, resultsData);
+      
+      // Update tournament status to completed
+      await updateTournament(resultsForTournament.id, { 
+        status: TOURNAMENT_STATUS.COMPLETED 
+      });
+      
+      setShowTournamentResultsModal(false);
+      setResultsForTournament(null);
+      showAlert('success', 'Results saved!', `Tournament results for ${resultsForTournament.name} have been saved`);
+    } catch (err) {
+      showAlert('error', 'Failed to save results', err.message);
+    } finally {
+      setFormLoading(false);
+    }
+  };
+
+  const handleLeagueResultsSubmit = async (resultsData) => {
+    setFormLoading(true);
+    try {
+      await addLeagueResults(resultsForLeague.id, resultsData);
+      
+      // Update league status to completed
+      await updateLeague(resultsForLeague.id, { 
+        status: LEAGUE_STATUS.COMPLETED 
+      });
+      
+      setShowLeagueResultsModal(false);
+      setResultsForLeague(null);
+      showAlert('success', 'Results saved!', `League results for ${resultsForLeague.name} have been saved`);
+    } catch (err) {
+      showAlert('error', 'Failed to save results', err.message);
+    } finally {
+      setFormLoading(false);
+    }
+  };
+
+  const handlePlayerPerformanceSubmit = async (performanceData) => {
+    setFormLoading(true);
+    try {
+      await addPlayerPerformance(performanceForEvent.eventId, performanceData);
+      setShowPlayerPerformanceModal(false);
+      setPerformanceForEvent(null);
+      showAlert('success', 'Performance saved!', 'Your performance assessment has been saved');
+    } catch (err) {
+      showAlert('error', 'Failed to save performance', err.message);
+    } finally {
+      setFormLoading(false);
+    }
+  };
+
   // Payment tracking calculations - memoized
   const getPaymentSummary = useCallback(() => {
     return calculateOverallPaymentSummary(tournaments, leagues);
@@ -1556,6 +2033,20 @@ const Dashboard = () => {
       setEditingMember(null);
     }
   }, [formLoading, deleteLoading]);
+
+  // ADDED: Results modal close handlers
+  const handleResultsModalClose = useCallback(() => {
+    if (!formLoading) {
+      setShowTournamentResultsModal(false);
+      setShowLeagueResultsModal(false);
+      setShowPlayerPerformanceModal(false);
+      setShowResultsViewModal(false);
+      setResultsForTournament(null);
+      setResultsForLeague(null);
+      setPerformanceForEvent(null);
+      setViewingResults(null);
+    }
+  }, [formLoading]);
 
   // Show loading state while auth is initializing
   if (authLoading) {
@@ -1790,6 +2281,16 @@ const Dashboard = () => {
             hasMore={members.length > visibleMembers}
           />
         </Card>
+
+        {/* ADDED: Results Dashboard */}
+        <ResultsDashboard 
+          results={results}
+          tournaments={tournaments}
+          leagues={leagues}
+          members={members}
+          onViewTournamentResults={handleViewTournamentResults}
+          onViewLeagueResults={handleViewLeagueResults}
+        />
         
         {/* Tournament Modal with proper header buttons */}
         <Modal
@@ -1888,7 +2389,7 @@ const Dashboard = () => {
           )}
         </Modal>
 
-        {/* FIXED: League Modal - Single Modal wrapper with proper header buttons */}
+        {/* League Modal with proper header buttons */}
         <Modal
           isOpen={showLeagueModal}
           onClose={handleLeagueModalClose}
@@ -1918,7 +2419,6 @@ const Dashboard = () => {
           ) : null}
         >
           <div className="space-y-0">
-            {/* FIXED: LeagueForm is now a plain form component */}
             <LeagueForm
               league={editingLeague}
               onSubmit={editingLeague ? handleUpdateLeague : handleCreateLeague}
@@ -1987,6 +2487,89 @@ const Dashboard = () => {
             loading={formLoading}
             deleteLoading={deleteLoading}
           />
+        </Modal>
+
+        {/* ADDED: Tournament Results Entry Modal */}
+        <Modal
+          isOpen={showTournamentResultsModal}
+          onClose={handleResultsModalClose}
+          title={`Enter Results: ${resultsForTournament?.name || 'Tournament'}`}
+          size="xl"
+        >
+          {resultsForTournament && (
+            <TournamentResultsForm
+              tournament={resultsForTournament}
+              members={members}
+              onSubmit={handleTournamentResultsSubmit}
+              onCancel={handleResultsModalClose}
+              loading={formLoading}
+            />
+          )}
+        </Modal>
+
+        {/* ADDED: League Results Entry Modal */}
+        <Modal
+          isOpen={showLeagueResultsModal}
+          onClose={handleResultsModalClose}
+          title={`Enter Results: ${resultsForLeague?.name || 'League'}`}
+          size="xl"
+        >
+          {resultsForLeague && (
+            <LeagueResultsForm
+              league={resultsForLeague}
+              members={members}
+              onSubmit={handleLeagueResultsSubmit}
+              onCancel={handleResultsModalClose}
+              loading={formLoading}
+            />
+          )}
+        </Modal>
+
+        {/* ADDED: Player Performance Entry Modal */}
+        <Modal
+          isOpen={showPlayerPerformanceModal}
+          onClose={handleResultsModalClose}
+          title={`Performance Assessment: ${performanceForEvent?.eventName || 'Event'}`}
+          size="lg"
+        >
+          {performanceForEvent && (
+            <PlayerPerformanceForm
+              event={performanceForEvent}
+              onSubmit={handlePlayerPerformanceSubmit}
+              onCancel={handleResultsModalClose}
+              loading={formLoading}
+            />
+          )}
+        </Modal>
+
+        {/* ADDED: Results View Modal */}
+        <Modal
+          isOpen={showResultsViewModal}
+          onClose={handleResultsModalClose}
+          title={`Results: ${viewingResults?.event?.name || 'Event'}`}
+          size="xl"
+        >
+          {viewingResults && (
+            <div className="space-y-6">
+              {viewingResults.type === 'tournament' ? (
+                <div>
+                  <h3 className="text-lg font-semibold mb-4">Tournament Results</h3>
+                  {/* Display tournament results */}
+                  <div className="bg-gray-50 p-4 rounded-lg">
+                    <p className="text-gray-600">Tournament results display would go here</p>
+                  </div>
+                </div>
+              ) : (
+                <div>
+                  <h3 className="text-lg font-semibold mb-4">League Results</h3>
+                  {/* Display league results */}
+                  <div className="bg-gray-50 p-4 rounded-lg">
+                    <p className="text-gray-600">League results display would go here</p>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </Modal>
 
         {/* Payment Modal */}

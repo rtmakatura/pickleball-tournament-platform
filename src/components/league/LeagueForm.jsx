@@ -1,4 +1,4 @@
-// src/components/league/LeagueForm.jsx (FIXED - Async form submission and proper event handling)
+// src/components/league/LeagueForm.jsx (UPDATED - Added Results Integration)
 import React, { useState, useEffect, useCallback } from 'react';
 import { 
   ExternalLink, 
@@ -12,21 +12,29 @@ import {
   Clock,
   CheckCircle,
   Activity,
+  BarChart3,
+  Award,
+  Edit3,
+  Target
 } from 'lucide-react';
-import { Input, Select, Button, Alert } from '../ui';
+import { Input, Select, Button, Alert, Modal } from '../ui';
 import { SKILL_LEVELS, LEAGUE_STATUS, PAYMENT_MODES, EVENT_TYPES } from '../../services/models';
 import { formatWebsiteUrl, isValidUrl, generateGoogleMapsLink, openLinkSafely } from '../../utils/linkUtils';
 
-// FIXED: Consistent Mobile-First League Form Styles with proper spacing
+// ADDED: Import results components
+import { LeagueResultsForm } from '../results';
+import { useResults } from '../../hooks';
+
+// UPDATED: League form styles with results section styling
 const mobileLeagueFormStyles = `
-  /* STANDARDIZED: Mobile-first form optimizations */
+  /* Mobile-first form optimizations */
   .mobile-league-form {
     -webkit-overflow-scrolling: touch;
     scroll-behavior: smooth;
     padding: 0;
   }
   
-  /* FIXED: Consistent section spacing and styling - EXACTLY 24px everywhere */
+  /* Consistent section spacing and styling - EXACTLY 24px everywhere */
   .mobile-league-section {
     background: white;
     border-radius: 16px;
@@ -36,12 +44,10 @@ const mobileLeagueFormStyles = `
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
   }
   
-  /* FIXED: Remove margin from first section to prevent extra spacing */
   .mobile-league-section:first-child {
     margin-top: 0;
   }
   
-  /* FIXED: Ensure last section has no bottom margin */
   .mobile-league-section:last-child {
     margin-bottom: 0;
   }
@@ -58,7 +64,7 @@ const mobileLeagueFormStyles = `
     background: linear-gradient(135deg, #e2e8f0 0%, #cbd5e1 100%);
   }
   
-  /* FIXED: Consistent content padding - EXACTLY 24px */
+  /* Consistent content padding - EXACTLY 24px */
   .mobile-league-content {
     padding: 24px;
   }
@@ -75,12 +81,11 @@ const mobileLeagueFormStyles = `
     transform: scale(0.96);
   }
   
-  /* FIXED: Standardized input group spacing - EXACTLY 24px */
+  /* Standardized input group spacing - EXACTLY 24px */
   .mobile-league-input-group {
     margin-bottom: 24px;
   }
   
-  /* FIXED: Remove margin from last input group to prevent extra spacing */
   .mobile-league-input-group:last-child {
     margin-bottom: 0;
   }
@@ -103,7 +108,7 @@ const mobileLeagueFormStyles = `
     }
   }
   
-  /* FIXED: Progressive disclosure animations with proper state handling */
+  /* Progressive disclosure animations with proper state handling */
   .mobile-league-expandable {
     transition: max-height 0.3s ease-out, opacity 0.2s ease-out;
     overflow: hidden;
@@ -144,7 +149,7 @@ const mobileLeagueFormStyles = `
     margin-top: 16px;
   }
   
-  /* FIXED: Mobile-optimized alerts with consistent spacing */
+  /* Mobile-optimized alerts with consistent spacing */
   .mobile-league-alert {
     border-radius: 12px;
     padding: 16px;
@@ -180,12 +185,12 @@ const mobileLeagueFormStyles = `
     border: 2px dashed #cbd5e1;
   }
   
-  /* FIXED: Form container with consistent padding */
+  /* Form container with consistent padding */
   .league-form-container {
     padding: 24px;
   }
   
-  /* ADDED: League features info card styling */
+  /* League features info card styling */
   .league-features-card {
     background: linear-gradient(135deg, #059669 0%, #047857 100%);
     color: white;
@@ -221,6 +226,98 @@ const mobileLeagueFormStyles = `
     color: rgba(255, 255, 255, 0.9);
     flex-shrink: 0;
   }
+
+  /* ADDED: Results section styling */
+  .league-results-section {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    color: white;
+    border-radius: 16px;
+    padding: 24px;
+    margin-bottom: 24px;
+  }
+  
+  .league-results-section h4 {
+    display: flex;
+    align-items: center;
+    font-size: 1.125rem;
+    font-weight: 600;
+    margin-bottom: 16px;
+  }
+  
+  .results-icon {
+    height: 1.25rem;
+    width: 1.25rem;
+    margin-right: 0.5rem;
+  }
+  
+  .results-actions {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 12px;
+    margin-top: 16px;
+  }
+  
+  .results-button {
+    background: rgba(255, 255, 255, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    color: white;
+    padding: 12px 16px;
+    border-radius: 12px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    backdrop-filter: blur(10px);
+  }
+  
+  .results-button:hover {
+    background: rgba(255, 255, 255, 0.3);
+    transform: translateY(-1px);
+  }
+  
+  .results-button:active {
+    transform: translateY(0);
+  }
+  
+  .results-status {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    padding: 16px;
+    margin-top: 16px;
+    backdrop-filter: blur(10px);
+  }
+  
+  .results-summary {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    padding: 16px;
+    margin-top: 16px;
+  }
+  
+  .results-summary-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 12px;
+    text-align: center;
+  }
+  
+  .results-summary-item {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    padding: 12px 8px;
+  }
+  
+  .results-summary-number {
+    font-size: 1.5rem;
+    font-weight: bold;
+    line-height: 1;
+    margin-bottom: 4px;
+  }
+  
+  .results-summary-label {
+    font-size: 0.75rem;
+    opacity: 0.9;
+    line-height: 1;
+  }
 `;
 
 const StyleSheet = () => (
@@ -228,7 +325,7 @@ const StyleSheet = () => (
 );
 
 /**
- * FIXED: Mobile-Optimized League Form Component - Plain form component with proper async handling
+ * UPDATED: Mobile-Optimized League Form Component with Results Integration
  */
 const LeagueForm = ({ 
   league = null, 
@@ -237,16 +334,35 @@ const LeagueForm = ({
   loading = false,
   deleteLoading = false
 }) => {
-  // FIXED: Proper mobile detection with initial state
+  // ADDED: Results hook integration
+  const { 
+    results, 
+    loading: resultsLoading, 
+    addLeagueResults, 
+    updateLeagueResults 
+  } = useResults();
+
+  // Helper function to check if league has results
+  const hasResults = useCallback(() => {
+    if (!league?.id) return false;
+    return results.league?.some(result => result.eventId === league.id) || false;
+  }, [league?.id, results.league]);
+
+  // Get existing results for this league
+  const existingResults = useCallback(() => {
+    if (!league?.id) return null;
+    return results.league?.find(result => result.eventId === league.id) || null;
+  }, [league?.id, results.league]);
+
+  // Mobile detection with initial state
   const [isMobile, setIsMobile] = useState(() => {
-    // Initialize correctly on first render
     if (typeof window !== 'undefined') {
       return window.innerWidth < 768;
     }
     return false;
   });
   
-  // FIXED: Section expansion logic - clear and deterministic
+  // Section expansion logic
   const getInitialSectionState = useCallback(() => {
     const isNewEntry = !league;
     
@@ -256,7 +372,8 @@ const LeagueForm = ({
         basic: true,
         schedule: true,
         details: true,
-        settings: true
+        settings: true,
+        results: league && league.status === LEAGUE_STATUS.COMPLETED
       };
     }
     
@@ -265,7 +382,8 @@ const LeagueForm = ({
       basic: isNewEntry,
       schedule: isNewEntry,
       details: isNewEntry,
-      settings: isNewEntry
+      settings: isNewEntry,
+      results: false
     };
   }, [isMobile, league]);
 
@@ -322,10 +440,14 @@ const LeagueForm = ({
 
   const [errors, setErrors] = useState({});
   
-  // FIXED: Add internal loading state to prevent race conditions
+  // Add internal loading state to prevent race conditions
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // FIXED: Mobile detection with proper cleanup
+  // ADDED: Results modal state
+  const [showResultsModal, setShowResultsModal] = useState(false);
+  const [resultsSubmitLoading, setResultsSubmitLoading] = useState(false);
+
+  // Mobile detection with proper cleanup
   useEffect(() => {
     const checkMobile = () => {
       const mobile = window.innerWidth < 768;
@@ -337,7 +459,7 @@ const LeagueForm = ({
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  // FIXED: Update section states when context changes
+  // Update section states when context changes
   useEffect(() => {
     const newSectionState = getInitialSectionState();
     setExpandedSections(newSectionState);
@@ -418,19 +540,17 @@ const LeagueForm = ({
     return Object.keys(newErrors).length === 0;
   }, [formData]);
 
-  // FIXED: Handle form submission - NOW ASYNC with proper error handling
+  // Handle form submission - ASYNC with proper error handling
   const handleSubmit = useCallback(async (e) => {
     e.preventDefault();
-    e.stopPropagation(); // FIXED: Prevent event bubbling that causes page freeze
+    e.stopPropagation();
     
-    // FIXED: Prevent double submissions
     if (isSubmitting) return;
     
     if (!validateForm()) {
       return;
     }
 
-    // FIXED: Set internal loading state
     setIsSubmitting(true);
     
     try {
@@ -444,17 +564,68 @@ const LeagueForm = ({
         maxParticipants: parseInt(formData.maxParticipants)
       };
 
-      // FIXED: Properly await the submission
       await onSubmit(submissionData);
       
     } catch (error) {
       console.error('League submission error:', error);
       setErrors({ submit: error.message });
     } finally {
-      // FIXED: Always cleanup loading state
       setIsSubmitting(false);
     }
   }, [formData, isSubmitting, validateForm, onSubmit]);
+
+  // ADDED: Results handling functions
+  const handleMarkCompleteAndEnterResults = useCallback(async () => {
+    if (!league) return;
+    
+    try {
+      // First update league status to completed
+      const submissionData = {
+        ...formData,
+        status: LEAGUE_STATUS.COMPLETED,
+        startDate: new Date(formData.startDate),
+        endDate: new Date(formData.endDate),
+        website: formData.website ? formatWebsiteUrl(formData.website) : '',
+        registrationFee: parseFloat(formData.registrationFee),
+        maxParticipants: parseInt(formData.maxParticipants)
+      };
+      
+      await onSubmit(submissionData);
+      
+      // Then open results modal
+      setShowResultsModal(true);
+    } catch (error) {
+      setErrors({ statusUpdate: `Failed to update league status: ${error.message}` });
+    }
+  }, [league, formData, onSubmit]);
+
+  const handleEnterResults = useCallback(() => {
+    setShowResultsModal(true);
+  }, []);
+
+  const handleResultsSubmit = useCallback(async (resultsData) => {
+    if (!league) return;
+    
+    setResultsSubmitLoading(true);
+    try {
+      if (hasResults()) {
+        await updateLeagueResults(league.id, resultsData);
+      } else {
+        await addLeagueResults(league.id, resultsData);
+      }
+      
+      setShowResultsModal(false);
+      setErrors({});
+    } catch (error) {
+      setErrors({ resultsSubmit: `Failed to save results: ${error.message}` });
+    } finally {
+      setResultsSubmitLoading(false);
+    }
+  }, [league, hasResults, addLeagueResults, updateLeagueResults]);
+
+  const handleResultsCancel = useCallback(() => {
+    setShowResultsModal(false);
+  }, []);
 
   // Handle link testing
   const handleTestWebsite = useCallback(() => {
@@ -518,6 +689,22 @@ const LeagueForm = ({
 
   const leagueStatus = getLeagueStatusInfo();
 
+  // ADDED: Results summary calculation
+  const getResultsSummary = useCallback(() => {
+    const results = existingResults();
+    if (!results) return null;
+
+    const standings = results.standings || [];
+    const totalParticipants = standings.length;
+
+    return {
+      totalParticipants,
+      seasonInfo: results.seasonInfo,
+      endDate: league?.endDate,
+      location: league?.location
+    };
+  }, [existingResults, league]);
+
   // Dropdown options
   const skillLevelOptions = Object.entries(SKILL_LEVELS).map(([key, value]) => ({
     value,
@@ -536,15 +723,21 @@ const LeagueForm = ({
     label: key.charAt(0) + key.slice(1).toLowerCase()
   }));
 
+  // ADDED: Check if league can have results entered
+  const canEnterResults = league && league.status === LEAGUE_STATUS.COMPLETED;
+  const canMarkComplete = league && 
+    league.status === LEAGUE_STATUS.ACTIVE && 
+    !hasResults();
+
   return (
     <>
       <StyleSheet />
       
-      {/* FIXED: Plain form component without Modal wrapper */}
+      {/* Plain form component without Modal wrapper */}
       <div className="mobile-league-form">
-        {/* FIXED: Consistent container with proper padding */}
+        {/* Consistent container with proper padding */}
         <div className="league-form-container">
-          {/* FIXED: Error alerts for submission issues */}
+          {/* Error alerts for submission issues */}
           {errors.submit && (
             <div className="mobile-league-alert">
               <Alert 
@@ -552,6 +745,28 @@ const LeagueForm = ({
                 title="Submission Error" 
                 message={errors.submit}
                 onClose={() => setErrors(prev => ({ ...prev, submit: null }))}
+              />
+            </div>
+          )}
+
+          {errors.statusUpdate && (
+            <div className="mobile-league-alert">
+              <Alert 
+                type="error" 
+                title="Status Update Error" 
+                message={errors.statusUpdate}
+                onClose={() => setErrors(prev => ({ ...prev, statusUpdate: null }))}
+              />
+            </div>
+          )}
+
+          {errors.resultsSubmit && (
+            <div className="mobile-league-alert">
+              <Alert 
+                type="error" 
+                title="Results Save Error" 
+                message={errors.resultsSubmit}
+                onClose={() => setErrors(prev => ({ ...prev, resultsSubmit: null }))}
               />
             </div>
           )}
@@ -585,7 +800,7 @@ const LeagueForm = ({
                       required
                       placeholder="Enter league name"
                       className="text-lg"
-                      disabled={isSubmitting} // FIXED: Disable during submission
+                      disabled={isSubmitting}
                     />
                   </div>
 
@@ -957,12 +1172,136 @@ const LeagueForm = ({
               </div>
             </div>
 
+            {/* ADDED: Results Management Section */}
+            {canEnterResults && (
+              <div className="mobile-league-section">
+                <div 
+                  className="mobile-league-header"
+                  onClick={() => toggleSection('results')}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center">
+                      <BarChart3 className="h-5 w-5 text-green-600 mr-3" />
+                      <h3 className="text-lg font-semibold text-gray-900">League Results</h3>
+                    </div>
+                    <ChevronDown className={`h-5 w-5 text-gray-400 transition-transform ${expandedSections.results ? 'rotate-180' : ''}`} />
+                  </div>
+                  <p className="text-sm text-gray-600 mt-1">Enter final standings and season results</p>
+                </div>
+                
+                <div className={`mobile-league-expandable ${expandedSections.results ? 'expanded' : 'collapsed'}`}>
+                  <div className="mobile-league-content">
+                    <div className="league-results-section">
+                      {hasResults() ? (
+                        <>
+                          <h4>
+                            <Award className="results-icon" />
+                            Results Entered
+                          </h4>
+                          
+                          <div className="results-status">
+                            <p className="text-sm opacity-90 mb-4">
+                              League results have been recorded and saved.
+                            </p>
+                            
+                            {(() => {
+                              const summary = getResultsSummary();
+                              return summary && (
+                                <div className="results-summary">
+                                  <div className="results-summary-grid">
+                                    <div className="results-summary-item">
+                                      <div className="results-summary-number">{summary.totalParticipants}</div>
+                                      <div className="results-summary-label">Participants</div>
+                                    </div>
+                                    <div className="results-summary-item">
+                                      <div className="results-summary-number">
+                                        {summary.seasonInfo?.totalWeeks || 'N/A'}
+                                      </div>
+                                      <div className="results-summary-label">Weeks</div>
+                                    </div>
+                                    <div className="results-summary-item">
+                                      <div className="results-summary-number">
+                                        {summary.endDate ? 
+                                          new Date(summary.endDate.seconds * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) 
+                                          : 'TBD'
+                                        }
+                                      </div>
+                                      <div className="results-summary-label">End Date</div>
+                                    </div>
+                                  </div>
+                                </div>
+                              );
+                            })()}
+                          </div>
+                          
+                          <div className="results-actions">
+                            <button
+                              type="button"
+                              onClick={handleEnterResults}
+                              className="results-button"
+                              disabled={resultsSubmitLoading}
+                            >
+                              <Edit3 className="h-4 w-4 mr-2" />
+                              Edit Results
+                            </button>
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <h4>
+                            <BarChart3 className="results-icon" />
+                            Enter League Results
+                          </h4>
+                          
+                          <div className="results-status">
+                            <p className="text-sm opacity-90 mb-4">
+                              Record final standings, season statistics, and participant performance.
+                            </p>
+                            
+                            <div className="text-xs opacity-75">
+                              <p>• League standings and final positions</p>
+                              <p>• Season wins, losses, and statistics</p>
+                              <p>• Individual player performance tracking</p>
+                            </div>
+                          </div>
+                          
+                          <div className="results-actions">
+                            {canMarkComplete && (
+                              <button
+                                type="button"
+                                onClick={handleMarkCompleteAndEnterResults}
+                                className="results-button"
+                                disabled={resultsSubmitLoading}
+                              >
+                                <CheckCircle className="h-4 w-4 mr-2" />
+                                Mark Complete & Enter Results
+                              </button>
+                            )}
+                            
+                            <button
+                              type="button"
+                              onClick={handleEnterResults}
+                              className="results-button"
+                              disabled={resultsSubmitLoading}
+                            >
+                              <BarChart3 className="h-4 w-4 mr-2" />
+                              Enter Results
+                            </button>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* League Features Section */}
             <div className="mobile-league-section">
               <div className="mobile-league-content">
                 <div className="league-features-card">
                   <h4 className="text-lg font-semibold mb-3 flex items-center">
-                    <Activity className="h-5 w-5 mr-2" />
+                    <Target className="h-5 w-5 mr-2" />
                     League Features
                   </h4>
                   <div className="league-features-grid">
@@ -999,14 +1338,14 @@ const LeagueForm = ({
               </div>
             </div>
 
-            {/* FIXED: Footer Actions for new leagues only - Dashboard handles edit mode */}
+            {/* Footer Actions for new leagues only - Dashboard handles edit mode */}
             {!league && (
               <div className="flex flex-col sm:flex-row gap-3 w-full pt-6 border-t">
                 <Button
                   type="button"
                   variant="outline"
                   onClick={onCancel}
-                  disabled={loading || deleteLoading || isSubmitting} // FIXED: Include isSubmitting
+                  disabled={loading || deleteLoading || isSubmitting}
                   className="mobile-league-touch-button flex-1"
                 >
                   Cancel
@@ -1014,7 +1353,7 @@ const LeagueForm = ({
                 
                 <Button
                   type="submit"
-                  loading={loading || isSubmitting} // FIXED: Show loading during internal submission
+                  loading={loading || isSubmitting}
                   disabled={loading || deleteLoading || isSubmitting}
                   className="mobile-league-touch-button flex-1"
                 >
@@ -1025,6 +1364,25 @@ const LeagueForm = ({
           </form>
         </div>
       </div>
+
+      {/* ADDED: Results Entry Modal */}
+      {league && (
+        <Modal
+          isOpen={showResultsModal}
+          onClose={handleResultsCancel}
+          title={`Enter Results: ${league.name}`}
+          size="xl"
+        >
+          <LeagueResultsForm
+            league={league}
+            members={[]} // Will be passed from parent component
+            onSubmit={handleResultsSubmit}
+            onCancel={handleResultsCancel}
+            loading={resultsSubmitLoading}
+            existingResults={existingResults()}
+          />
+        </Modal>
+      )}
     </>
   );
 };

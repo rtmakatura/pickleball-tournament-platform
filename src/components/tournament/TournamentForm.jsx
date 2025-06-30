@@ -1,4 +1,4 @@
-// src/components/tournament/TournamentForm.jsx (UPDATED - Added spacing, tournament features, removed debug info handling)
+// src/components/tournament/TournamentForm.jsx (UPDATED - Added Results Integration)
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { 
   Trash2, 
@@ -19,6 +19,8 @@ import {
   Target,
   BarChart3,
   Clock,
+  Award,
+  Activity
 } from 'lucide-react';
 import { Input, Select, Button, Alert, ConfirmDialog, Card, Modal } from '../ui';
 import DivisionMemberSelector from './DivisionMemberSelector';
@@ -33,7 +35,11 @@ import {
 } from '../../services/models';
 import { formatWebsiteUrl, isValidUrl, generateGoogleMapsLink, openLinkSafely } from '../../utils/linkUtils';
 
-// UPDATED: Added spacing improvements and tournament features styling
+// ADDED: Import results components
+import { TournamentResultsForm } from '../results';
+import { useResults } from '../../hooks';
+
+// Updated tournament form styles with results section styling
 const tournamentFormStyles = `
   /* Base form container */
   .tournament-form {
@@ -41,7 +47,7 @@ const tournamentFormStyles = `
     scroll-behavior: smooth;
   }
   
-  /* SIMPLIFIED: Consistent section spacing system - exactly 24px everywhere */
+  /* Consistent section spacing system - exactly 24px everywhere */
   .form-section {
     background: white;
     border-radius: 16px;
@@ -67,12 +73,12 @@ const tournamentFormStyles = `
     background: linear-gradient(135deg, #e2e8f0 0%, #cbd5e1 100%);
   }
   
-  /* FIXED: Consistent content padding - exactly 24px always */
+  /* Consistent content padding - exactly 24px always */
   .form-section-content {
     padding: 24px;
   }
   
-  /* FIXED: Standardized input group spacing - exactly 24px always */
+  /* Standardized input group spacing - exactly 24px always */
   .form-input-group {
     margin-bottom: 24px;
   }
@@ -156,7 +162,7 @@ const tournamentFormStyles = `
     color: white;
     border-radius: 16px;
     padding: 20px;
-    margin-bottom: 32px; /* UPDATED: Increased from 24px to 32px for better visual separation */
+    margin-bottom: 32px;
   }
   
   .quick-stats {
@@ -187,7 +193,7 @@ const tournamentFormStyles = `
     line-height: 1;
   }
   
-  /* ADDED: Tournament features info card styling */
+  /* Tournament features info card styling */
   .tournament-features-card {
     background: linear-gradient(135deg, #059669 0%, #047857 100%);
     color: white;
@@ -224,9 +230,101 @@ const tournamentFormStyles = `
     flex-shrink: 0;
   }
   
-  /* ADDED: Division list spacing improvement */
+  /* Division list spacing improvement */
   .division-add-button {
-    margin-bottom: 32px; /* UPDATED: Increased from 24px to 32px for better spacing before division cards */
+    margin-bottom: 32px;
+  }
+
+  /* ADDED: Results section styling */
+  .results-section {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    color: white;
+    border-radius: 16px;
+    padding: 24px;
+    margin-bottom: 24px;
+  }
+  
+  .results-section h4 {
+    display: flex;
+    align-items: center;
+    font-size: 1.125rem;
+    font-weight: 600;
+    margin-bottom: 16px;
+  }
+  
+  .results-icon {
+    height: 1.25rem;
+    width: 1.25rem;
+    margin-right: 0.5rem;
+  }
+  
+  .results-actions {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 12px;
+    margin-top: 16px;
+  }
+  
+  .results-button {
+    background: rgba(255, 255, 255, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    color: white;
+    padding: 12px 16px;
+    border-radius: 12px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    backdrop-filter: blur(10px);
+  }
+  
+  .results-button:hover {
+    background: rgba(255, 255, 255, 0.3);
+    transform: translateY(-1px);
+  }
+  
+  .results-button:active {
+    transform: translateY(0);
+  }
+  
+  .results-status {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    padding: 16px;
+    margin-top: 16px;
+    backdrop-filter: blur(10px);
+  }
+  
+  .results-summary {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    padding: 16px;
+    margin-top: 16px;
+  }
+  
+  .results-summary-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 12px;
+    text-align: center;
+  }
+  
+  .results-summary-item {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    padding: 12px 8px;
+  }
+  
+  .results-summary-number {
+    font-size: 1.5rem;
+    font-weight: bold;
+    line-height: 1;
+    margin-bottom: 4px;
+  }
+  
+  .results-summary-label {
+    font-size: 0.75rem;
+    opacity: 0.9;
+    line-height: 1;
   }
 `;
 
@@ -235,7 +333,7 @@ const StyleSheet = () => (
 );
 
 /**
- * UPDATED: Tournament Form Component with improved spacing and tournament features
+ * UPDATED: Tournament Form Component with Results Integration
  */
 const TournamentForm = ({ 
   tournament = null, 
@@ -244,12 +342,32 @@ const TournamentForm = ({
   onUpdateTournament,
   loading = false,
   deleteLoading = false,
-  members = [] // FIXED: Now properly receives members prop from Dashboard
+  members = []
 }) => {
   const isInitialMount = useRef(true);
   const tournamentIdRef = useRef(null);
 
-  // CORRECTED: Improved date formatting
+  // ADDED: Results hook integration
+  const { 
+    results, 
+    loading: resultsLoading, 
+    addTournamentResults, 
+    updateTournamentResults 
+  } = useResults();
+
+  // Helper function to check if tournament has results
+  const hasResults = useCallback(() => {
+    if (!tournament?.id) return false;
+    return results.tournament?.some(result => result.eventId === tournament.id) || false;
+  }, [tournament?.id, results.tournament]);
+
+  // Get existing results for this tournament
+  const existingResults = useCallback(() => {
+    if (!tournament?.id) return null;
+    return results.tournament?.find(result => result.eventId === tournament.id) || null;
+  }, [tournament?.id, results.tournament]);
+
+  // Improved date formatting
   const formatDateForInput = useCallback((date) => {
     if (!date) return '';
     
@@ -284,7 +402,7 @@ const TournamentForm = ({
     }
   }, []);
 
-  // CORRECTED: Better division initialization
+  // Better division initialization
   const initializeDivisions = useCallback((tournamentData = null) => {
     const sourceData = tournamentData || tournament;
     
@@ -333,7 +451,8 @@ const TournamentForm = ({
         basic: true,
         details: true,
         divisions: true,
-        participants: true
+        participants: true,
+        results: tournament && (tournament.status === TOURNAMENT_STATUS.COMPLETED || tournament.status === TOURNAMENT_STATUS.IN_PROGRESS)
       };
     }
     
@@ -341,7 +460,8 @@ const TournamentForm = ({
       basic: isNewEntry,
       details: isNewEntry,
       divisions: isNewEntry,
-      participants: !isNewEntry
+      participants: !isNewEntry,
+      results: false
     };
   }, [isMobile, tournament]);
 
@@ -364,6 +484,10 @@ const TournamentForm = ({
   const [editingDivisionIndex, setEditingDivisionIndex] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [divisionSaving, setDivisionSaving] = useState(false);
+  
+  // ADDED: Results modal state
+  const [showResultsModal, setShowResultsModal] = useState(false);
+  const [resultsLoading, setResultsLoading] = useState(false);
 
   // Mobile detection effect
   useEffect(() => {
@@ -509,7 +633,7 @@ const TournamentForm = ({
     }
   }, [editingDivisionIndex, divisions, tournament, onUpdateTournament]);
 
-  // CORRECTED: Division participants change handler
+  // Division participants change handler
   const handleDivisionParticipantsChange = useCallback((divisionId, participants) => {
     if (!tournament) return;
     
@@ -526,6 +650,51 @@ const TournamentForm = ({
       onUpdateTournament(tournament.id, { divisions: updatedDivisions });
     }
   }, [tournament, divisions, onUpdateTournament]);
+
+  // ADDED: Results handling functions
+  const handleMarkCompleteAndEnterResults = useCallback(async () => {
+    if (!tournament) return;
+    
+    try {
+      // First update tournament status to completed
+      await onUpdateTournament(tournament.id, { 
+        status: TOURNAMENT_STATUS.COMPLETED 
+      });
+      
+      // Then open results modal
+      setShowResultsModal(true);
+    } catch (error) {
+      setErrors({ statusUpdate: `Failed to update tournament status: ${error.message}` });
+    }
+  }, [tournament, onUpdateTournament]);
+
+  const handleEnterResults = useCallback(() => {
+    setShowResultsModal(true);
+  }, []);
+
+  const handleResultsSubmit = useCallback(async (resultsData) => {
+    if (!tournament) return;
+    
+    setResultsLoading(true);
+    try {
+      if (hasResults()) {
+        await updateTournamentResults(tournament.id, resultsData);
+      } else {
+        await addTournamentResults(tournament.id, resultsData);
+      }
+      
+      setShowResultsModal(false);
+      setErrors({});
+    } catch (error) {
+      setErrors({ resultsSubmit: `Failed to save results: ${error.message}` });
+    } finally {
+      setResultsLoading(false);
+    }
+  }, [tournament, hasResults, addTournamentResults, updateTournamentResults]);
+
+  const handleResultsCancel = useCallback(() => {
+    setShowResultsModal(false);
+  }, []);
 
   // Form validation
   const validateForm = useCallback(() => {
@@ -630,6 +799,23 @@ const TournamentForm = ({
     }, 0);
   }, [divisions]);
 
+  // ADDED: Results summary calculation
+  const getResultsSummary = useCallback(() => {
+    const results = existingResults();
+    if (!results) return null;
+
+    const divisionResults = results.divisionResults || [];
+    const totalParticipants = divisionResults.reduce((sum, div) => sum + (div.standings?.length || 0), 0);
+    const totalDivisions = divisionResults.length;
+
+    return {
+      totalDivisions,
+      totalParticipants,
+      eventDate: tournament?.eventDate,
+      location: tournament?.location
+    };
+  }, [existingResults, tournament]);
+
   // Dropdown options
   const statusOptions = Object.entries(TOURNAMENT_STATUS).map(([key, value]) => ({
     value,
@@ -637,6 +823,16 @@ const TournamentForm = ({
       word.charAt(0) + word.slice(1).toLowerCase()
     ).join(' ')
   }));
+
+  // ADDED: Check if tournament can have results entered
+  const canEnterResults = tournament && (
+    tournament.status === TOURNAMENT_STATUS.IN_PROGRESS || 
+    tournament.status === TOURNAMENT_STATUS.COMPLETED
+  );
+
+  const canMarkComplete = tournament && 
+    tournament.status === TOURNAMENT_STATUS.IN_PROGRESS && 
+    !hasResults();
 
   return (
     <div className="tournament-form">
@@ -660,6 +856,32 @@ const TournamentForm = ({
                 title="Division Save Error" 
                 message={errors.divisionSave} 
                 onClose={() => setErrors(prev => ({ ...prev, divisionSave: null }))}
+              />
+            </div>
+          </div>
+        )}
+
+        {errors.statusUpdate && (
+          <div className="form-section">
+            <div className="form-section-content">
+              <Alert 
+                type="error" 
+                title="Status Update Error" 
+                message={errors.statusUpdate} 
+                onClose={() => setErrors(prev => ({ ...prev, statusUpdate: null }))}
+              />
+            </div>
+          </div>
+        )}
+
+        {errors.resultsSubmit && (
+          <div className="form-section">
+            <div className="form-section-content">
+              <Alert 
+                type="error" 
+                title="Results Save Error" 
+                message={errors.resultsSubmit} 
+                onClose={() => setErrors(prev => ({ ...prev, resultsSubmit: null }))}
               />
             </div>
           </div>
@@ -866,7 +1088,7 @@ const TournamentForm = ({
                   </div>
                 </div>
 
-                {/* UPDATED: Add Division Button with improved spacing */}
+                {/* Add Division Button */}
                 <div className="form-input-group division-add-button">
                   <Button 
                     type="button"
@@ -934,7 +1156,7 @@ const TournamentForm = ({
           )}
         </form>
 
-        {/* UPDATED: Division Participants Section with proper spacing and members integration */}
+        {/* Division Participants Section */}
         {tournament && tournament.divisions && tournament.divisions.length > 0 && (
           <div className="form-section" style={{ marginTop: '24px' }}>
             <div 
@@ -968,7 +1190,131 @@ const TournamentForm = ({
           </div>
         )}
 
-        {/* UPDATED: Tournament Features Section with accurate platform features */}
+        {/* ADDED: Results Management Section */}
+        {canEnterResults && (
+          <div className="form-section" style={{ marginTop: '24px' }}>
+            <div 
+              className="form-section-header"
+              onClick={() => toggleSection('results')}
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center">
+                  <BarChart3 className="h-5 w-5 text-green-600 mr-3" />
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900">Tournament Results</h3>
+                    <p className="text-sm text-gray-600 mt-1">Enter final standings and results</p>
+                  </div>
+                </div>
+                <ChevronDown className={`h-5 w-5 text-gray-400 transition-transform ${expandedSections.results ? 'rotate-180' : ''}`} />
+              </div>
+            </div>
+            
+            <div className={`form-expandable ${expandedSections.results ? 'expanded' : 'collapsed'}`}>
+              <div className="form-section-content">
+                <div className="results-section">
+                  {hasResults() ? (
+                    <>
+                      <h4>
+                        <Award className="results-icon" />
+                        Results Entered
+                      </h4>
+                      
+                      <div className="results-status">
+                        <p className="text-sm opacity-90 mb-4">
+                          Tournament results have been recorded and saved.
+                        </p>
+                        
+                        {(() => {
+                          const summary = getResultsSummary();
+                          return summary && (
+                            <div className="results-summary">
+                              <div className="results-summary-grid">
+                                <div className="results-summary-item">
+                                  <div className="results-summary-number">{summary.totalDivisions}</div>
+                                  <div className="results-summary-label">Divisions</div>
+                                </div>
+                                <div className="results-summary-item">
+                                  <div className="results-summary-number">{summary.totalParticipants}</div>
+                                  <div className="results-summary-label">Participants</div>
+                                </div>
+                                <div className="results-summary-item">
+                                  <div className="results-summary-number">
+                                    {summary.eventDate ? 
+                                      new Date(summary.eventDate.seconds * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) 
+                                      : 'TBD'
+                                    }
+                                  </div>
+                                  <div className="results-summary-label">Event Date</div>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })()}
+                      </div>
+                      
+                      <div className="results-actions">
+                        <button
+                          type="button"
+                          onClick={handleEnterResults}
+                          className="results-button"
+                          disabled={resultsLoading}
+                        >
+                          <Edit3 className="h-4 w-4 mr-2" />
+                          Edit Results
+                        </button>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <h4>
+                        <BarChart3 className="results-icon" />
+                        Enter Tournament Results
+                      </h4>
+                      
+                      <div className="results-status">
+                        <p className="text-sm opacity-90 mb-4">
+                          Record final standings, winners, and participant performance for each division.
+                        </p>
+                        
+                        <div className="text-xs opacity-75">
+                          <p>• Division standings and final positions</p>
+                          <p>• Tournament winners and awards</p>
+                          <p>• Individual player performance tracking</p>
+                        </div>
+                      </div>
+                      
+                      <div className="results-actions">
+                        {canMarkComplete && (
+                          <button
+                            type="button"
+                            onClick={handleMarkCompleteAndEnterResults}
+                            className="results-button"
+                            disabled={resultsLoading}
+                          >
+                            <CheckCircle className="h-4 w-4 mr-2" />
+                            Mark Complete & Enter Results
+                          </button>
+                        )}
+                        
+                        <button
+                          type="button"
+                          onClick={handleEnterResults}
+                          className="results-button"
+                          disabled={resultsLoading}
+                        >
+                          <BarChart3 className="h-4 w-4 mr-2" />
+                          Enter Results
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Tournament Features Section */}
         <div className="form-section">
           <div className="form-section-content">
             <div className="tournament-features-card">
@@ -1024,12 +1370,31 @@ const TournamentForm = ({
         isSaving={divisionSaving}
         isEditing={tournament && tournament.id}
       />
+
+      {/* ADDED: Results Entry Modal */}
+      {tournament && (
+        <Modal
+          isOpen={showResultsModal}
+          onClose={handleResultsCancel}
+          title={`Enter Results: ${tournament.name}`}
+          size="xl"
+        >
+          <TournamentResultsForm
+            tournament={tournament}
+            members={members}
+            onSubmit={handleResultsSubmit}
+            onCancel={handleResultsCancel}
+            loading={resultsLoading}
+            existingResults={existingResults()}
+          />
+        </Modal>
+      )}
     </div>
   );
 };
 
 /**
- * Division Card Component
+ * Division Card Component (unchanged)
  */
 const DivisionCard = ({ division, index, onEdit, onDelete, canDelete, disabled, loading }) => {
   const formatEventType = (eventType) => {
@@ -1111,7 +1476,7 @@ const DivisionCard = ({ division, index, onEdit, onDelete, canDelete, disabled, 
 };
 
 /**
- * Division Form Modal Component
+ * Division Form Modal Component (unchanged)
  */
 const DivisionFormModal = ({ 
   isOpen, 
