@@ -46,19 +46,6 @@ export const EVENT_TYPES = {
   MIXED_DOUBLES: 'mixed_doubles'
 };
 
-// Result statuses
-export const RESULT_STATUS = {
-  DRAFT: 'draft',
-  CONFIRMED: 'confirmed'
-};
-
-// Result types (for different scoring systems)
-export const RESULT_TYPES = {
-  PLACEMENT: 'placement',
-  WIN_LOSS: 'win_loss',
-  POINTS: 'points'
-};
-
 // Payment statuses (for tracking payments)
 export const PAYMENT_STATUS = {
   PENDING: 'pending',
@@ -73,26 +60,6 @@ export const PARTICIPANT_STATUS = {
   CONFIRMED: 'confirmed',
   CANCELLED: 'cancelled',
   NO_SHOW: 'no_show'
-};
-
-// Award types
-export const AWARD_TYPES = {
-  PLACEMENT: 'placement',
-  SPECIAL: 'special',
-  PARTICIPATION: 'participation',
-  ACHIEVEMENT: 'achievement'
-};
-
-// Award categories
-export const AWARD_CATEGORIES = {
-  FIRST_PLACE: 'first_place',
-  SECOND_PLACE: 'second_place',
-  THIRD_PLACE: 'third_place',
-  MVP: 'mvp',
-  MOST_IMPROVED: 'most_improved',
-  SPORTSMANSHIP: 'sportsmanship',
-  ROOKIE: 'rookie',
-  VETERAN: 'veteran'
 };
 
 // Comment types
@@ -241,69 +208,6 @@ export const createComment = (commentData) => {
   };
 };
 
-// UPDATED: Create results entry with division support
-export const createResults = (resultsData) => {
-  const now = new Date();
-  
-  return {
-    eventId: resultsData.eventId || '',
-    eventType: resultsData.eventType || 'tournament',
-    divisionId: resultsData.divisionId || null, // NEW: Division-specific results
-    divisionName: resultsData.divisionName || '', // NEW: For display purposes
-    status: resultsData.status || RESULT_STATUS.DRAFT,
-    participantResults: resultsData.participantResults || [],
-    notes: resultsData.notes || '',
-    recordedBy: resultsData.recordedBy || null,
-    confirmedBy: resultsData.confirmedBy || null,
-    createdAt: now,
-    updatedAt: now
-  };
-};
-
-// Alias for createResults (for compatibility)
-export const createEventResults = createResults;
-
-// Create a new award
-export const createAward = (awardData) => {
-  const now = new Date();
-  
-  return {
-    eventId: awardData.eventId || '',
-    eventType: awardData.eventType || 'tournament',
-    divisionId: awardData.divisionId || null, // NEW: Division-specific awards
-    recipientId: awardData.recipientId || '',
-    recipientName: awardData.recipientName || '',
-    awardType: awardData.awardType || AWARD_TYPES.PLACEMENT,
-    category: awardData.category || '',
-    title: awardData.title || '',
-    description: awardData.description || '',
-    placement: awardData.placement || null,
-    points: awardData.points || null,
-    isVisible: awardData.isVisible !== false,
-    awardedBy: awardData.awardedBy || null,
-    awardedAt: awardData.awardedAt || now,
-    createdAt: now,
-    updatedAt: now
-  };
-};
-
-// Create participant result
-export const createParticipantResult = (resultData) => {
-  return {
-    participantId: resultData.participantId || '',
-    participantName: resultData.participantName || '',
-    placement: resultData.placement || null,
-    gamesWon: resultData.gamesWon || 0,
-    gamesLost: resultData.gamesLost || 0,
-    pointsFor: resultData.pointsFor || 0,
-    pointsAgainst: resultData.pointsAgainst || 0,
-    prizeAmount: resultData.prizeAmount || 0,
-    awards: resultData.awards || [],
-    notes: resultData.notes || '',
-    confirmed: false
-  };
-};
-
 // NEW: Tournament helper functions
 export const getTournamentTotalParticipants = (tournament) => {
   if (!tournament.divisions) return 0;
@@ -431,28 +335,12 @@ export const validateEventType = (type) => {
   return Object.values(EVENT_TYPES).includes(type);
 };
 
-export const validateResultStatus = (status) => {
-  return Object.values(RESULT_STATUS).includes(status);
-};
-
-export const validateResultType = (type) => {
-  return Object.values(RESULT_TYPES).includes(type);
-};
-
 export const validatePaymentStatus = (status) => {
   return Object.values(PAYMENT_STATUS).includes(status);
 };
 
 export const validateParticipantStatus = (status) => {
   return Object.values(PARTICIPANT_STATUS).includes(status);
-};
-
-export const validateAwardType = (type) => {
-  return Object.values(AWARD_TYPES).includes(type);
-};
-
-export const validateAwardCategory = (category) => {
-  return Object.values(AWARD_CATEGORIES).includes(category);
 };
 
 export const validateCommentStatus = (status) => {
@@ -625,66 +513,6 @@ export const validateComment = (commentData) => {
   };
 };
 
-// Results validation
-export const validateResults = (resultsData) => {
-  const errors = [];
-  
-  if (!resultsData.eventId?.trim()) {
-    errors.push('Event ID is required');
-  }
-  
-  if (!resultsData.eventType?.trim()) {
-    errors.push('Event type is required');
-  }
-  
-  if (resultsData.status && !validateResultStatus(resultsData.status)) {
-    errors.push('Invalid result status');
-  }
-  
-  if (!Array.isArray(resultsData.participantResults)) {
-    errors.push('Participant results must be an array');
-  }
-  
-  return {
-    isValid: errors.length === 0,
-    errors
-  };
-};
-
-// Award validation
-export const validateAward = (awardData) => {
-  const errors = [];
-  
-  if (!awardData.eventId?.trim()) {
-    errors.push('Event ID is required');
-  }
-  
-  if (!awardData.recipientId?.trim()) {
-    errors.push('Recipient ID is required');
-  }
-  
-  if (!awardData.recipientName?.trim()) {
-    errors.push('Recipient name is required');
-  }
-  
-  if (!awardData.title?.trim()) {
-    errors.push('Award title is required');
-  }
-  
-  if (awardData.awardType && !validateAwardType(awardData.awardType)) {
-    errors.push('Invalid award type');
-  }
-  
-  if (awardData.category && !validateAwardCategory(awardData.category)) {
-    errors.push('Invalid award category');
-  }
-  
-  return {
-    isValid: errors.length === 0,
-    errors
-  };
-};
-
 // Default export object
 export default {
   // Constants
@@ -694,12 +522,8 @@ export default {
   LEAGUE_STATUS,
   PAYMENT_MODES,
   EVENT_TYPES,
-  RESULT_STATUS,
-  RESULT_TYPES,
   PAYMENT_STATUS,
   PARTICIPANT_STATUS,
-  AWARD_TYPES,
-  AWARD_CATEGORIES,
   COMMENT_TYPES,
   COMMENT_STATUS,
   DIVISION_STATUS,
@@ -710,11 +534,7 @@ export default {
   createTournamentDivision,
   createLeague,
   createComment,
-  createResults,
-  createEventResults,
-  createParticipantResult,
-  createAward,
-  
+
   // Tournament helpers
   getTournamentTotalParticipants,
   getTournamentTotalExpected,
@@ -732,12 +552,8 @@ export default {
   validateLeagueStatus,
   validatePaymentMode,
   validateEventType,
-  validateResultStatus,
-  validateResultType,
   validatePaymentStatus,
   validateParticipantStatus,
-  validateAwardType,
-  validateAwardCategory,
   validateCommentStatus,
   validateCommentType,
   validateCommentContent,
@@ -747,6 +563,4 @@ export default {
   validateDivision,
   validateLeague,
   validateComment,
-  validateResults,
-  validateAward
 };

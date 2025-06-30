@@ -12,12 +12,10 @@ import {
   Clock,
   CheckCircle,
   Activity,
-  Award
 } from 'lucide-react';
 import { Input, Select, Button, Alert } from '../ui';
 import { SKILL_LEVELS, LEAGUE_STATUS, PAYMENT_MODES, EVENT_TYPES } from '../../services/models';
 import { formatWebsiteUrl, isValidUrl, generateGoogleMapsLink, openLinkSafely } from '../../utils/linkUtils';
-import { ResultsButton } from '../results';
 
 // FIXED: Consistent Mobile-First League Form Styles with proper spacing
 const mobileLeagueFormStyles = `
@@ -958,30 +956,6 @@ const LeagueForm = ({
                 </div>
               </div>
             </div>
-
-            {/* Results Management Section - NEW */}
-            {league && league.status === 'completed' && (
-              <div className="mobile-league-section">
-                <div className="mobile-league-content">
-                  <div className="league-features-card">
-                    <h4 className="text-lg font-semibold mb-3 flex items-center">
-                      <Award className="h-5 w-5 mr-2" />
-                      League Results
-                    </h4>
-                    <p className="text-sm opacity-90 mb-4">
-                      This league has been completed. Manage final standings, awards, and participant performance.
-                    </p>
-                    <ResultsButton 
-                      event={league}
-                      eventType="league"
-                      variant="manage"
-                      size="md"
-                      className="mobile-league-touch-button"
-                    />
-                  </div>
-                </div>
-              </div>
-            )}
 
             {/* League Features Section */}
             <div className="mobile-league-section">

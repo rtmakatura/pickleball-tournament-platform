@@ -1,5 +1,5 @@
 import React from 'react';
-import { BarChart3, Zap, Trophy, Activity, Users, Award } from 'lucide-react';
+import { BarChart3, Zap, Trophy, Activity, Users } from 'lucide-react';
 
 // Sticky navigation component for dashboard sections
 const StickyNavigation = ({ activeSection, onNavigate, navItems }) => {
@@ -14,7 +14,6 @@ const StickyNavigation = ({ activeSection, onNavigate, navItems }) => {
       case 'tournaments': return <Trophy {...iconProps} />;
       case 'leagues': return <Activity {...iconProps} />;
       case 'members': return <Users {...iconProps} />;
-      case 'results': return <Award {...iconProps} />;
       default: return null;
     }
   };

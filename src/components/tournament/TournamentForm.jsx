@@ -19,7 +19,6 @@ import {
   Target,
   BarChart3,
   Clock,
-  Award
 } from 'lucide-react';
 import { Input, Select, Button, Alert, ConfirmDialog, Card, Modal } from '../ui';
 import DivisionMemberSelector from './DivisionMemberSelector';
@@ -33,7 +32,6 @@ import {
   validateDivision
 } from '../../services/models';
 import { formatWebsiteUrl, isValidUrl, generateGoogleMapsLink, openLinkSafely } from '../../utils/linkUtils';
-import { ResultsButton } from '../results';
 
 // UPDATED: Added spacing improvements and tournament features styling
 const tournamentFormStyles = `
