@@ -50,13 +50,56 @@ export const useLeagues = (options = {}) => {
     await firebaseOps.remove('leagues', id);
   };
 
+  // ADDED: Archive/unarchive functions
+  const archiveLeague = async (id) => {
+    try {
+      console.log('Archiving league:', id);
+      
+      if (!id) {
+        throw new Error('League ID is required for archiving');
+      }
+      
+      await firebaseOps.update('leagues', id, { 
+        status: 'archived',
+        archivedAt: new Date()
+      });
+      console.log('League archived successfully');
+      
+    } catch (error) {
+      console.error('Error archiving league:', error);
+      throw new Error(`Failed to archive league: ${error.message}`);
+    }
+  };
+
+  const unarchiveLeague = async (id) => {
+    try {
+      console.log('Unarchiving league:', id);
+      
+      if (!id) {
+        throw new Error('League ID is required for unarchiving');
+      }
+      
+      await firebaseOps.update('leagues', id, { 
+        status: 'completed',
+        archivedAt: null
+      });
+      console.log('League unarchived successfully');
+      
+    } catch (error) {
+      console.error('Error unarchiving league:', error);
+      throw new Error(`Failed to unarchive league: ${error.message}`);
+    }
+  };
+
   return {
     leagues,
     loading,
     error,
     addLeague,
     updateLeague,
-    deleteLeague
+    deleteLeague,
+    archiveLeague,
+    unarchiveLeague
   };
 };
 

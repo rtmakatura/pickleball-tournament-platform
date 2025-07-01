@@ -14,6 +14,9 @@ export { useNotifications } from './useNotifications';
 export { useResults } from './useResults';
 export { usePlayerPerformance } from './usePlayerPerformance';
 
+// Navigation and utility hooks
+export { useSmoothNavigation } from './useSmoothNavigation';
+
 // Notification badge hooks (if they exist)
 // Uncomment these lines if you have these hooks implemented
 // export { 

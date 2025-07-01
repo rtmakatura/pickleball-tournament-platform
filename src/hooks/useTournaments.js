@@ -264,6 +264,47 @@ export const useTournaments = (options = {}) => {
     }
   };
 
+  // ADDED: Archive/unarchive functions
+  const archiveTournament = async (id) => {
+    try {
+      console.log('Archiving tournament:', id);
+      
+      if (!id) {
+        throw new Error('Tournament ID is required for archiving');
+      }
+      
+      await firebaseOps.update('tournaments', id, { 
+        status: 'archived',
+        archivedAt: new Date()
+      });
+      console.log('Tournament archived successfully');
+      
+    } catch (error) {
+      console.error('Error archiving tournament:', error);
+      throw new Error(`Failed to archive tournament: ${error.message}`);
+    }
+  };
+
+  const unarchiveTournament = async (id) => {
+    try {
+      console.log('Unarchiving tournament:', id);
+      
+      if (!id) {
+        throw new Error('Tournament ID is required for unarchiving');
+      }
+      
+      await firebaseOps.update('tournaments', id, { 
+        status: 'completed',
+        archivedAt: null
+      });
+      console.log('Tournament unarchived successfully');
+      
+    } catch (error) {
+      console.error('Error unarchiving tournament:', error);
+      throw new Error(`Failed to unarchive tournament: ${error.message}`);
+    }
+  };
+
   return {
     tournaments,
     loading,
@@ -276,7 +317,9 @@ export const useTournaments = (options = {}) => {
     updateDivisionPayment,
     removeDivisionPayment,
     updateDivision,
-    deleteDivision
+    deleteDivision,
+    archiveTournament,
+    unarchiveTournament
   };
 };
 

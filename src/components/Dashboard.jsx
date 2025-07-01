@@ -1257,8 +1257,8 @@ const ResultsDashboard = ({ results, tournaments, leagues, members, onViewTourna
 const Dashboard = () => {
   const { user, signIn, signUpWithProfile, logout, isAuthenticated, loading: authLoading } = useAuth();
   const { members, loading: membersLoading, addMember, updateMember, deleteMember } = useMembers({ realTime: false });
-  const { leagues, loading: leaguesLoading, addLeague, updateLeague, deleteLeague } = useLeagues({ realTime: false });
-  const { tournaments, loading: tournamentsLoading, addTournament, updateTournament, deleteTournament } = useTournaments({ realTime: false });
+  const { leagues, loading: leaguesLoading, addLeague, updateLeague, deleteLeague, archiveLeague, unarchiveLeague } = useLeagues({ realTime: false });
+  const { tournaments, loading: tournamentsLoading, addTournament, updateTournament, deleteTournament, archiveTournament, unarchiveTournament } = useTournaments({ realTime: false });
   
   // ADDED: Results and performance hooks
   const { 
@@ -1270,12 +1270,22 @@ const Dashboard = () => {
   updateLeagueResults 
 } = useResults();
 
-// DEBUG: Log results data
+// DEBUG: Enhanced logging for results troubleshooting
 console.log('=== RESULTS DEBUG ===');
 console.log('results object:', results);
 console.log('results.tournament:', results.tournament);
 console.log('results.league:', results.league);
 console.log('resultsLoading:', resultsLoading);
+console.log('tournaments count:', tournaments.length);
+console.log('leagues count:', leagues.length);
+console.log('results.tournament length:', results.tournament?.length || 0);
+console.log('results.league length:', results.league?.length || 0);
+
+// Check if we have any completed events that should have results
+const completedTournaments = tournaments.filter(t => t.status === 'completed');
+const completedLeagues = leagues.filter(l => l.status === 'completed');
+console.log('completed tournaments:', completedTournaments.length);
+console.log('completed leagues:', completedLeagues.length);
   
   const { 
     playerPerformance, 
@@ -1375,7 +1385,7 @@ console.log('resultsLoading:', resultsLoading);
     const latestTournament = tournaments.find(t => t.id === tournament.id) || tournament;
     setEditingTournament(latestTournament);
     setShowTournamentModal(true);
-  }, [tournaments]);
+  }, [activeTournaments]);
 
   const handleEditLeague = useCallback((league) => {
     console.log('Editing league:', league);
@@ -1431,7 +1441,7 @@ console.log('resultsLoading:', resultsLoading);
 
   // Sorting functions
   const getSortedTournaments = useCallback(() => {
-    return [...tournaments].sort((a, b) => {
+    return [...activeTournaments].sort((a, b) => {
       const dateA = a.eventDate ? (a.eventDate.seconds ? new Date(a.eventDate.seconds * 1000) : new Date(a.eventDate)) : new Date('2099-12-31');
       const dateB = b.eventDate ? (b.eventDate.seconds ? new Date(b.eventDate.seconds * 1000) : new Date(b.eventDate)) : new Date('2099-12-31');
       
@@ -1444,10 +1454,10 @@ console.log('resultsLoading:', resultsLoading);
       
       return createdB - createdA;
     });
-  }, [tournaments]);
+  }, [activeTournaments]);
 
   const getSortedLeagues = useCallback(() => {
-    return [...leagues].sort((a, b) => {
+    return [...activeLeagues].sort((a, b) => {
       const dateA = a.startDate ? (a.startDate.seconds ? new Date(a.startDate.seconds * 1000) : new Date(a.startDate)) : new Date('2099-12-31');
       const dateB = b.startDate ? (b.startDate.seconds ? new Date(b.startDate.seconds * 1000) : new Date(b.startDate)) : new Date('2099-12-31');
       
@@ -1460,7 +1470,16 @@ console.log('resultsLoading:', resultsLoading);
       
       return createdB - createdA;
     });
-  }, [leagues]);
+  }, [activeLeagues]);
+
+  // ADDED: Filter out archived items
+  const activeTournaments = useMemo(() => {
+    return tournaments.filter(tournament => tournament.status !== 'archived');
+  }, [activeTournaments]);
+
+  const activeLeagues = useMemo(() => {
+    return leagues.filter(league => league.status !== 'archived');
+  }, [activeLeagues]);
 
   const sortedTournaments = useMemo(() => getSortedTournaments(), [getSortedTournaments]);
   const sortedLeagues = useMemo(() => getSortedLeagues(), [getSortedLeagues]);
