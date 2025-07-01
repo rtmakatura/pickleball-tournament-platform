@@ -1136,95 +1136,158 @@ const MemberCard = React.memo(({ member, onEdit }) => {
   );
 });
 
-// ADDED: Results Dashboard Component  
+// FIXED: ResultsDashboard Component - Updated section from Dashboard.jsx
+// This replaces the ResultsDashboard component in the existing Dashboard.jsx file
+
+// FIXED: Results Dashboard Component with proper data handling
 const ResultsDashboard = ({ results, tournaments, leagues, members, onViewTournamentResults, onViewLeagueResults }) => {
-  // Combine tournament and league results for unified display
+  // FIXED: Simplified and standardized results processing
   const allResults = useMemo(() => {
-    console.log('=== RESULTS DASHBOARD DEBUG ===');
-    console.log('results.tournament:', results.tournament);
-    console.log('results.league:', results.league);
-    console.log('tournaments:', tournaments);
-    console.log('leagues:', leagues);
-
-    const tournamentResults = results.tournament?.map(result => {
-  console.log('Processing tournament result:', result);
-  const tournament = tournaments.find(t => t.id === result.tournamentId);
-  console.log('Found tournament for result:', tournament);
-  
-  return {
-    ...result,
-    type: 'tournament',
-    eventName: tournament?.name || 'Unknown Tournament',
-    eventDate: tournament?.eventDate,
-    location: tournament?.location
-  };
-}) || [];
-
-    const leagueResults = results.league?.map(result => {
-  console.log('Processing league result:', result);
-  const league = leagues.find(l => l.id === result.leagueId);
-  console.log('Found league for result:', league);
-  
-  return {
-    ...result,
-    type: 'league', 
-    eventName: league?.name || 'Unknown League',
-    eventDate: league?.endDate, // Use end date for leagues
-    location: league?.location
-  };
-}) || [];
-
-    const combined = [...tournamentResults, ...leagueResults];
-    console.log('Combined results before sort:', combined);
-
-    const sorted = combined.sort((a, b) => {
-      const dateA = a.eventDate?.seconds ? new Date(a.eventDate.seconds * 1000) : new Date(0);
-      const dateB = b.eventDate?.seconds ? new Date(b.eventDate.seconds * 1000) : new Date(0);
-      return dateB - dateA; // Most recent first
+    console.log('🔍 Processing results for dashboard');
+    console.log('📊 Available results:', {
+      tournament: results.tournament?.length || 0,
+      league: results.league?.length || 0
     });
 
-    console.log('Final sorted results:', sorted);
+    // Process tournament results with proper error handling
+    const tournamentResults = (results.tournament || []).map(result => {
+      console.log('🏆 Processing tournament result:', result.id);
+      
+      // Find associated tournament
+      const tournament = tournaments.find(t => t.id === result.tournamentId);
+      if (!tournament) {
+        console.warn('⚠️ Tournament not found for result:', result.tournamentId);
+      }
+      
+      return {
+        ...result,
+        type: 'tournament',
+        eventName: result.tournamentName || tournament?.name || 'Unknown Tournament',
+        eventDate: result.eventDate || result.completedDate || tournament?.eventDate,
+        location: tournament?.location || 'Location TBD',
+        participantCount: result.divisionResults?.reduce((total, div) => 
+          total + (div.participantPlacements?.length || 0), 0
+        ) || 0,
+        divisionCount: result.divisionResults?.length || 0
+      };
+    });
+
+    // Process league results with proper error handling
+    const leagueResults = (results.league || []).map(result => {
+      console.log('🏐 Processing league result:', result.id);
+      
+      // Find associated league
+      const league = leagues.find(l => l.id === result.leagueId);
+      if (!league) {
+        console.warn('⚠️ League not found for result:', result.leagueId);
+      }
+      
+      return {
+        ...result,
+        type: 'league',
+        eventName: result.leagueName || league?.name || 'Unknown League',
+        eventDate: result.eventDate || result.completedDate || league?.endDate,
+        location: league?.location || 'Location TBD',
+        participantCount: result.participantPlacements?.length || 0,
+        season: result.season || 'Unknown Season'
+      };
+    });
+
+    // Combine and sort by date
+    const combined = [...tournamentResults, ...leagueResults];
+    
+    const sorted = combined.sort((a, b) => {
+      const getDate = (item) => {
+        if (item.eventDate?.seconds) return new Date(item.eventDate.seconds * 1000);
+        if (item.eventDate) return new Date(item.eventDate);
+        return new Date(0);
+      };
+      
+      return getDate(b) - getDate(a); // Most recent first
+    });
+
+    console.log('✅ Final processed results:', sorted.length);
     return sorted;
   }, [results, tournaments, leagues]);
 
-  console.log('=== RESULTS DASHBOARD RENDER ===');
-  console.log('allResults.length:', allResults.length);
-  console.log('allResults:', allResults);
-  console.log('=== RENDERING RESULTS CARDS ===');
-  console.log('About to render', allResults.length, 'results');
-
+  // FIXED: Simplified empty state handling
   if (allResults.length === 0) {
-    console.log('No results to display - showing empty state');
+    console.log('📭 No results to display');
     return (
       <div className="text-center py-12 text-gray-500">
         <BarChart3 className="h-12 w-12 mx-auto mb-4 text-gray-300" />
         <p className="text-lg font-medium">No results yet</p>
         <p className="text-sm mt-1">Tournament and league results will appear here when entered</p>
-        <div className="mt-4 text-xs text-gray-400">
-          Debug: {results.tournament?.length || 0} tournament results, {results.league?.length || 0} league results
-        </div>
+        
+        {/* Debug info for development */}
+        {process.env.NODE_ENV === 'development' && (
+          <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg text-left max-w-md mx-auto">
+            <h4 className="text-sm font-medium text-yellow-800 mb-2">Debug Info:</h4>
+            <p className="text-xs text-yellow-700">Raw tournament results: {results.tournament?.length || 0}</p>
+            <p className="text-xs text-yellow-700">Raw league results: {results.league?.length || 0}</p>
+            <p className="text-xs text-yellow-700">Available tournaments: {tournaments?.length || 0}</p>
+            <p className="text-xs text-yellow-700">Available leagues: {leagues?.length || 0}</p>
+            <p className="text-xs text-yellow-700">Check browser console for detailed logs</p>
+          </div>
+        )}
       </div>
     );
   }
 
+  // FIXED: Helper functions with better error handling
   const formatDate = (date) => {
-    if (!date) return 'N/A';
-    const dateObj = date.seconds ? new Date(date.seconds * 1000) : new Date(date);
-    return dateObj.toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric'
-    });
+    try {
+      if (!date) return 'N/A';
+      const dateObj = date.seconds ? new Date(date.seconds * 1000) : new Date(date);
+      return dateObj.toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric'
+      });
+    } catch (error) {
+      console.warn('Date formatting error:', error);
+      return 'Invalid Date';
+    }
   };
 
   const getResultSummary = (result) => {
-    if (result.type === 'tournament') {
-      const divisionResults = result.divisionResults || [];
-      const totalParticipants = divisionResults.reduce((sum, div) => sum + (div.standings?.length || 0), 0);
-      return `${divisionResults.length} division${divisionResults.length !== 1 ? 's' : ''}, ${totalParticipants} participants`;
-    } else {
-      const standings = result.standings || [];
-      return `${standings.length} participants`;
+    try {
+      if (result.type === 'tournament') {
+        const divisionCount = result.divisionCount || 0;
+        const participantCount = result.participantCount || 0;
+        return `${divisionCount} division${divisionCount !== 1 ? 's' : ''}, ${participantCount} participants`;
+      } else {
+        const participantCount = result.participantCount || 0;
+        const season = result.season ? ` • ${result.season}` : '';
+        return `${participantCount} participants${season}`;
+      }
+    } catch (error) {
+      console.warn('Summary generation error:', error);
+      return 'Details unavailable';
+    }
+  };
+
+  const handleResultClick = (result) => {
+    try {
+      console.log('🖱️ Clicked on result:', result.type, result.id);
+      
+      if (result.type === 'tournament') {
+        const tournament = tournaments.find(t => t.id === result.tournamentId);
+        if (tournament) {
+          onViewTournamentResults(tournament);
+        } else {
+          console.error('Tournament not found for result:', result.tournamentId);
+        }
+      } else if (result.type === 'league') {
+        const league = leagues.find(l => l.id === result.leagueId);
+        if (league) {
+          onViewLeagueResults(league);
+        } else {
+          console.error('League not found for result:', result.leagueId);
+        }
+      }
+    } catch (error) {
+      console.error('Error handling result click:', error);
     }
   };
 
@@ -1233,15 +1296,8 @@ const ResultsDashboard = ({ results, tournaments, leagues, members, onViewTourna
       {allResults.map((result) => (
         <div 
           key={`${result.type}-${result.id}`}
-          className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow cursor-pointer"
-          onClick={() => {
-            console.log('Clicked on result:', result);
-            if (result.type === 'tournament') {
-              onViewTournamentResults(tournaments.find(t => t.id === result.tournamentId));
-            } else {
-              onViewLeagueResults(leagues.find(l => l.id === result.leagueId));
-            }
-          }}
+          className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow cursor-pointer hover:border-gray-300"
+          onClick={() => handleResultClick(result)}
         >
           <div className="flex items-start justify-between">
             <div className="flex-1 min-w-0">
@@ -1265,7 +1321,7 @@ const ResultsDashboard = ({ results, tournaments, leagues, members, onViewTourna
                     {result.type} • {formatDate(result.eventDate)}
                   </p>
                 </div>
-                <span className="results-indicator">
+                <span className="results-indicator flex-shrink-0">
                   <Award className="h-3 w-3 mr-1" />
                   Complete
                 </span>
@@ -1273,13 +1329,20 @@ const ResultsDashboard = ({ results, tournaments, leagues, members, onViewTourna
               
               <div className="flex items-center justify-between text-sm text-gray-600">
                 <span>{getResultSummary(result)}</span>
-                {result.location && (
+                {result.location && result.location !== 'Location TBD' && (
                   <span className="flex items-center">
                     <MapPin className="h-3 w-3 mr-1" />
-                    {result.location}
+                    <span className="truncate max-w-xs">{result.location}</span>
                   </span>
                 )}
               </div>
+              
+              {/* Additional info for development */}
+              {process.env.NODE_ENV === 'development' && (
+                <div className="mt-2 text-xs text-gray-400">
+                  ID: {result.id} | Event ID: {result.tournamentId || result.leagueId}
+                </div>
+              )}
             </div>
           </div>
         </div>

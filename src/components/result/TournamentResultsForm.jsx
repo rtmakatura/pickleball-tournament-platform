@@ -1,4 +1,4 @@
-// src/components/result/TournamentResultsForm.jsx (IMPROVED - Better Member Name Handling)
+// src/components/result/TournamentResultsForm.jsx - FIXED: Better Member Name Handling
 import React, { useState, useEffect } from 'react';
 import { Trophy, Users, Calendar, X, Save, AlertCircle, ChevronDown, ChevronUp } from 'lucide-react';
 
@@ -10,9 +10,27 @@ const TournamentResultsForm = ({
   isLoading = false,
   existingResults = null 
 }) => {
-  // IMPROVED: Better member name extraction function
-  const getMemberName = (member) => {
-    if (!member) return 'Unknown Member';
+  // FIXED: Improved member name extraction with better fallbacks
+  const getMemberName = (memberId) => {
+    if (!memberId) return 'Unknown Member';
+    
+    console.log('🔍 Looking up member:', memberId);
+    
+    // Try to find member by various ID fields
+    const member = members.find(m => 
+      m.id === memberId || 
+      m._id === memberId || 
+      m.memberId === memberId ||
+      m.userId === memberId ||
+      m.authUid === memberId
+    );
+    
+    if (!member) {
+      console.warn('⚠️ Member not found for ID:', memberId);
+      return `Member ${memberId}`;
+    }
+    
+    console.log('✅ Found member:', member);
     
     // Try different name properties in order of preference
     if (member.name) return member.name;
@@ -22,8 +40,30 @@ const TournamentResultsForm = ({
     if (member.displayName) return member.displayName;
     if (member.email) return member.email; // fallback to email if no name
     
-    return 'Unknown Member';
+    return `Member ${memberId}`;
   };
+
+  // FIXED: Create member lookup map for faster access
+  const memberLookup = React.useMemo(() => {
+    const lookup = new Map();
+    members.forEach(member => {
+      // Add all possible ID variations to the lookup
+      const ids = [
+        member.id,
+        member._id,
+        member.memberId,
+        member.userId,
+        member.authUid
+      ].filter(Boolean);
+      
+      ids.forEach(id => {
+        lookup.set(id, member);
+      });
+    });
+    
+    console.log('📋 Created member lookup with', lookup.size, 'entries');
+    return lookup;
+  }, [members]);
 
   const [formData, setFormData] = useState({
     divisionResults: [],
@@ -33,31 +73,38 @@ const TournamentResultsForm = ({
   const [errors, setErrors] = useState({});
   const [expandedDivisions, setExpandedDivisions] = useState({});
 
-  // IMPROVED: Helper function to create placement results with better member lookup
+  // FIXED: Better placement results generation
   const generatePlacementResults = (division) => {
     if (!division.participants || division.participants.length === 0) {
+      console.log('⚠️ No participants in division:', division.name);
       return {
         totalTeams: 0,
         participantPlacements: []
       };
     }
 
-    console.log('Division participants:', division.participants);
-    console.log('Available members:', members);
+    console.log('🏗️ Generating placements for division:', division.name);
+    console.log('📋 Division participants:', division.participants);
 
     // Create placement entries for each participant
-    const participantPlacements = division.participants.map((participantId, index) => {
-      // Try to find member by different ID fields
-      const member = members.find(m => 
-        m.id === participantId || 
-        m._id === participantId || 
-        m.memberId === participantId ||
-        m.userId === participantId
-      );
+    const participantPlacements = division.participants.map((participantId) => {
+      const member = memberLookup.get(participantId);
+      let memberName = 'Unknown Member';
       
-      const memberName = getMemberName(member);
+      if (member) {
+        if (member.firstName && member.lastName) {
+          memberName = `${member.firstName} ${member.lastName}`;
+        } else if (member.name) {
+          memberName = member.name;
+        } else if (member.email) {
+          memberName = member.email;
+        }
+      } else {
+        console.warn('⚠️ Member not found in lookup:', participantId);
+        memberName = `Member ${participantId}`;
+      }
       
-      console.log(`Division ${division.name} - Participant ${participantId} -> Member:`, member, `-> Name: ${memberName}`);
+      console.log(`👤 Participant ${participantId} -> ${memberName}`);
       
       return {
         participantId,
@@ -75,7 +122,10 @@ const TournamentResultsForm = ({
 
   // Initialize form data
   useEffect(() => {
+    console.log('🚀 Initializing form with:', { existingResults, tournament, membersCount: members.length });
+    
     if (existingResults) {
+      console.log('📝 Loading existing results');
       setFormData({
         divisionResults: existingResults.divisionResults || [],
         notes: existingResults.notes || '',
@@ -83,9 +133,11 @@ const TournamentResultsForm = ({
           new Date(existingResults.completedDate.seconds * 1000).toISOString().split('T')[0] :
           new Date().toISOString().split('T')[0]
       });
-    } else {
+    } else if (tournament?.divisions && members.length > 0) {
+      console.log('🆕 Creating new form from tournament divisions');
+      
       // Generate initial placement structure from tournament divisions
-      const initialDivisionResults = (tournament?.divisions || []).map(division => {
+      const initialDivisionResults = tournament.divisions.map(division => {
         const placementData = generatePlacementResults(division);
         return {
           divisionId: division.id,
@@ -96,6 +148,8 @@ const TournamentResultsForm = ({
           participantPlacements: placementData.participantPlacements
         };
       });
+      
+      console.log('📊 Generated initial division results:', initialDivisionResults);
       
       setFormData(prev => ({
         ...prev,
@@ -109,7 +163,7 @@ const TournamentResultsForm = ({
       });
       setExpandedDivisions(initialExpanded);
     }
-  }, [existingResults, tournament, members]);
+  }, [existingResults, tournament, members, memberLookup]);
 
   const updateTotalTeams = (divisionId, totalTeams) => {
     setFormData(prev => ({
@@ -194,6 +248,9 @@ const TournamentResultsForm = ({
       return;
     }
 
+    console.log('📤 Submitting tournament results');
+
+    // FIXED: Create clean, standardized result data
     const resultData = {
       tournamentId: tournament?.id || 'unknown',
       tournamentName: tournament?.name || 'Unknown Tournament',
@@ -203,13 +260,22 @@ const TournamentResultsForm = ({
         eventType: division.eventType,
         skillLevel: division.skillLevel,
         totalTeams: division.totalTeams,
-        participantPlacements: division.participantPlacements.filter(p => p.placement !== null)
-      })),
+        // Only include participants with valid placements
+        participantPlacements: division.participantPlacements
+          .filter(p => p.placement !== null && p.placement !== undefined)
+          .map(participant => ({
+            participantId: participant.participantId,
+            participantName: participant.participantName,
+            placement: parseInt(participant.placement),
+            notes: participant.notes || ''
+          }))
+      })).filter(division => division.participantPlacements.length > 0), // Only include divisions with results
       notes: formData.notes.trim(),
       completedDate: new Date(formData.completedDate),
       type: 'tournament'
     };
 
+    console.log('📊 Final result data:', resultData);
     onSubmit(resultData);
   };
 
@@ -251,18 +317,21 @@ const TournamentResultsForm = ({
       {/* Form Content */}
       <div className="flex-1 overflow-y-auto">
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
-          {/* IMPROVED: Debug info for development */}
+          {/* Debug info for development */}
           {process.env.NODE_ENV === 'development' && (
-            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-              <h4 className="text-sm font-medium text-yellow-800 mb-2">Debug Info:</h4>
-              <p className="text-xs text-yellow-700">Tournament divisions: {tournament?.divisions?.length || 0}</p>
-              <p className="text-xs text-yellow-700">Available members: {members?.length || 0}</p>
-              <p className="text-xs text-yellow-700">Generated division results: {formData.divisionResults.length}</p>
-              {formData.divisionResults.map((div, idx) => (
-                <p key={idx} className="text-xs text-yellow-700">
-                  Division {idx + 1}: {div.participantPlacements.length} participants
-                </p>
-              ))}
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <h4 className="text-sm font-medium text-blue-800 mb-2">Debug Info:</h4>
+              <div className="grid grid-cols-2 gap-4 text-xs text-blue-700">
+                <div>
+                  <p>Tournament divisions: {tournament?.divisions?.length || 0}</p>
+                  <p>Available members: {members?.length || 0}</p>
+                  <p>Member lookup size: {memberLookup.size}</p>
+                </div>
+                <div>
+                  <p>Generated division results: {formData.divisionResults.length}</p>
+                  <p>Total participants: {formData.divisionResults.reduce((sum, div) => sum + div.participantPlacements.length, 0)}</p>
+                </div>
+              </div>
             </div>
           )}
 
@@ -322,155 +391,165 @@ const TournamentResultsForm = ({
           <div className="space-y-4">
             <h3 className="text-lg font-medium text-gray-900">Division Results</h3>
             
-            {formData.divisionResults.map((division, divIndex) => (
-              <div key={division.divisionId} className="border border-gray-200 rounded-lg">
-                {/* Division Header */}
-                <button
-                  type="button"
-                  onClick={() => toggleDivisionExpansion(division.divisionId)}
-                  className="w-full p-4 text-left flex items-center justify-between hover:bg-gray-50 transition-colors rounded-t-lg"
-                >
-                  <div className="flex items-center space-x-3">
-                    <Trophy className="w-5 h-5 text-yellow-500" />
-                    <div>
-                      <h4 className="font-medium text-gray-900">{division.divisionName}</h4>
-                      <p className="text-sm text-gray-500">
-                        {division.eventType} • {division.skillLevel} • {division.participantPlacements.length} participants
-                      </p>
-                    </div>
-                  </div>
-                  {expandedDivisions[division.divisionId] ? (
-                    <ChevronUp className="w-5 h-5 text-gray-400" />
-                  ) : (
-                    <ChevronDown className="w-5 h-5 text-gray-400" />
-                  )}
-                </button>
-
-                {/* Division Content */}
-                {expandedDivisions[division.divisionId] && (
-                  <div className="p-4 border-t border-gray-200 bg-gray-50">
-                    {/* Total Teams Input */}
-                    <div className="mb-4 max-w-xs">
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Total Teams in Division
-                      </label>
-                      <input
-                        type="number"
-                        min="1"
-                        value={division.totalTeams}
-                        onChange={(e) => updateTotalTeams(division.divisionId, e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        placeholder="e.g., 8"
-                      />
-                      {errors[`div_${divIndex}_totalTeams`] && (
-                        <p className="mt-1 text-sm text-red-600">{errors[`div_${divIndex}_totalTeams`]}</p>
-                      )}
-                      <p className="mt-1 text-xs text-gray-500">
-                        Total number of teams that competed in this division
-                      </p>
-                    </div>
-
-                    {/* Participant Placements */}
-                    {division.participantPlacements.length === 0 ? (
-                      <div className="text-center py-8 bg-white rounded-lg border-2 border-dashed border-gray-300">
-                        <Users className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                        <p className="text-gray-500">No participants registered for this division</p>
-                        <p className="text-sm text-gray-400">Add participants to this division in tournament setup</p>
+            {formData.divisionResults.length === 0 ? (
+              <div className="text-center py-8 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+                <Trophy className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                <p className="text-gray-500">No divisions found</p>
+                <p className="text-sm text-gray-400">Make sure the tournament has divisions with participants</p>
+              </div>
+            ) : (
+              formData.divisionResults.map((division, divIndex) => (
+                <div key={division.divisionId} className="border border-gray-200 rounded-lg">
+                  {/* Division Header */}
+                  <button
+                    type="button"
+                    onClick={() => toggleDivisionExpansion(division.divisionId)}
+                    className="w-full p-4 text-left flex items-center justify-between hover:bg-gray-50 transition-colors rounded-t-lg"
+                  >
+                    <div className="flex items-center space-x-3">
+                      <Trophy className="w-5 h-5 text-yellow-500" />
+                      <div>
+                        <h4 className="font-medium text-gray-900">{division.divisionName}</h4>
+                        <p className="text-sm text-gray-500">
+                          {division.eventType} • {division.skillLevel} • {division.participantPlacements.length} participants
+                        </p>
                       </div>
+                    </div>
+                    {expandedDivisions[division.divisionId] ? (
+                      <ChevronUp className="w-5 h-5 text-gray-400" />
                     ) : (
-                      <div className="space-y-3">
-                        <h5 className="text-sm font-medium text-gray-900">Participant Placements</h5>
-                        {division.participantPlacements.map((participant, participantIndex) => (
-                          <div key={participant.participantId} className="bg-white rounded-lg p-4 border border-gray-200">
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
-                              {/* Participant Name - IMPROVED display */}
-                              <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-2">
-                                  Participant
-                                </label>
-                                <div className="flex items-center space-x-2">
-                                  <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                                    <span className="text-sm font-medium text-blue-600">
-                                      {participant.participantName?.charAt(0)?.toUpperCase() || '?'}
+                      <ChevronDown className="w-5 h-5 text-gray-400" />
+                    )}
+                  </button>
+
+                  {/* Division Content */}
+                  {expandedDivisions[division.divisionId] && (
+                    <div className="p-4 border-t border-gray-200 bg-gray-50">
+                      {/* Total Teams Input */}
+                      <div className="mb-4 max-w-xs">
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Total Teams in Division
+                        </label>
+                        <input
+                          type="number"
+                          min="1"
+                          value={division.totalTeams}
+                          onChange={(e) => updateTotalTeams(division.divisionId, e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          placeholder="e.g., 8"
+                        />
+                        {errors[`div_${divIndex}_totalTeams`] && (
+                          <p className="mt-1 text-sm text-red-600">{errors[`div_${divIndex}_totalTeams`]}</p>
+                        )}
+                        <p className="mt-1 text-xs text-gray-500">
+                          Total number of teams that competed in this division
+                        </p>
+                      </div>
+
+                      {/* Participant Placements */}
+                      {division.participantPlacements.length === 0 ? (
+                        <div className="text-center py-8 bg-white rounded-lg border-2 border-dashed border-gray-300">
+                          <Users className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                          <p className="text-gray-500">No participants registered for this division</p>
+                          <p className="text-sm text-gray-400">Add participants to this division in tournament setup</p>
+                        </div>
+                      ) : (
+                        <div className="space-y-3">
+                          <h5 className="text-sm font-medium text-gray-900">Participant Placements</h5>
+                          {division.participantPlacements.map((participant, participantIndex) => (
+                            <div key={participant.participantId} className="bg-white rounded-lg p-4 border border-gray-200">
+                              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+                                {/* Participant Name - FIXED display */}
+                                <div>
+                                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    Participant
+                                  </label>
+                                  <div className="flex items-center space-x-2">
+                                    <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                                      <span className="text-sm font-medium text-blue-600">
+                                        {participant.participantName?.charAt(0)?.toUpperCase() || '?'}
+                                      </span>
+                                    </div>
+                                    <div>
+                                      <span className="font-medium text-gray-900">
+                                        {participant.participantName}
+                                      </span>
+                                      {participant.participantName.startsWith('Member ') && (
+                                        <p className="text-xs text-amber-600">Member lookup may need updating</p>
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+
+                                {/* Placement */}
+                                <div>
+                                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    Final Placement
+                                  </label>
+                                  <select
+                                    value={participant.placement || ''}
+                                    onChange={(e) => updateParticipantPlacement(
+                                      division.divisionId, 
+                                      participant.participantId, 
+                                      'placement', 
+                                      e.target.value
+                                    )}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                  >
+                                    <option value="">Select placement...</option>
+                                    {Array.from({ length: division.totalTeams }, (_, i) => i + 1).map(place => (
+                                      <option key={place} value={place}>
+                                        {place}{getPlacementSuffix(place)} place
+                                      </option>
+                                    ))}
+                                  </select>
+                                  {errors[`div_${divIndex}_participant_${participantIndex}_placement`] && (
+                                    <p className="mt-1 text-sm text-red-600">
+                                      {errors[`div_${divIndex}_participant_${participantIndex}_placement`]}
+                                    </p>
+                                  )}
+                                </div>
+
+                                {/* Notes */}
+                                <div>
+                                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    Notes (Optional)
+                                  </label>
+                                  <input
+                                    type="text"
+                                    value={participant.notes}
+                                    onChange={(e) => updateParticipantPlacement(
+                                      division.divisionId, 
+                                      participant.participantId, 
+                                      'notes', 
+                                      e.target.value
+                                    )}
+                                    placeholder="e.g., played well, great partner"
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                  />
+                                </div>
+                              </div>
+                              
+                              {/* Placement Preview */}
+                              {participant.placement && (
+                                <div className="mt-3 pt-3 border-t border-gray-200">
+                                  <div className="flex items-center space-x-2">
+                                    <Trophy className="w-4 h-4 text-yellow-500" />
+                                    <span className="text-sm font-medium text-gray-900">
+                                      {participant.participantName} finished {participant.placement}{getPlacementSuffix(participant.placement)} out of {division.totalTeams} teams
                                     </span>
                                   </div>
-                                  <span className="font-medium text-gray-900">
-                                    {participant.participantName}
-                                  </span>
-                                  {participant.participantName === 'Unknown Member' && (
-                                    <span className="text-xs text-red-500">(Member not found)</span>
-                                  )}
                                 </div>
-                              </div>
-
-                              {/* Placement */}
-                              <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-2">
-                                  Final Placement
-                                </label>
-                                <select
-                                  value={participant.placement || ''}
-                                  onChange={(e) => updateParticipantPlacement(
-                                    division.divisionId, 
-                                    participant.participantId, 
-                                    'placement', 
-                                    e.target.value
-                                  )}
-                                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                >
-                                  <option value="">Select placement...</option>
-                                  {Array.from({ length: division.totalTeams }, (_, i) => i + 1).map(place => (
-                                    <option key={place} value={place}>
-                                      {place}{getPlacementSuffix(place)} place
-                                    </option>
-                                  ))}
-                                </select>
-                                {errors[`div_${divIndex}_participant_${participantIndex}_placement`] && (
-                                  <p className="mt-1 text-sm text-red-600">
-                                    {errors[`div_${divIndex}_participant_${participantIndex}_placement`]}
-                                  </p>
-                                )}
-                              </div>
-
-                              {/* Notes */}
-                              <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-2">
-                                  Notes (Optional)
-                                </label>
-                                <input
-                                  type="text"
-                                  value={participant.notes}
-                                  onChange={(e) => updateParticipantPlacement(
-                                    division.divisionId, 
-                                    participant.participantId, 
-                                    'notes', 
-                                    e.target.value
-                                  )}
-                                  placeholder="e.g., played well, great partner"
-                                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                />
-                              </div>
+                              )}
                             </div>
-                            
-                            {/* Placement Preview */}
-                            {participant.placement && (
-                              <div className="mt-3 pt-3 border-t border-gray-200">
-                                <div className="flex items-center space-x-2">
-                                  <Trophy className="w-4 h-4 text-yellow-500" />
-                                  <span className="text-sm font-medium text-gray-900">
-                                    {participant.participantName} finished {participant.placement}{getPlacementSuffix(participant.placement)} out of {division.totalTeams} teams
-                                  </span>
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            ))}
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              ))
+            )}
           </div>
 
           {/* Tournament Notes */}

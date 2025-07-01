@@ -1,4 +1,4 @@
-// src/hooks/useResults.js - UPDATED FOR TEAMS
+// src/hooks/useResults.js - FIXED: Consistent data structure and better retrieval
 import { useState, useEffect, useCallback } from 'react';
 import { 
   collection, 
@@ -18,7 +18,7 @@ import { db } from '../services/firebase';
 
 /**
  * Custom hook for managing tournament and league results
- * Now handles team-based results for both tournaments and leagues
+ * FIXED: Standardized data structure and proper member resolution
  */
 export const useResults = () => {
   const [results, setResults] = useState({
@@ -34,8 +34,7 @@ export const useResults = () => {
     setLoading(true);
     const unsubscribers = [];
 
-    // Simplified queries to avoid index requirements
-    // Get all results and filter in memory for now
+    // Get all results with simplified query
     const allResultsQuery = collection(db, 'results');
 
     const unsubscribeResults = onSnapshot(
@@ -46,7 +45,9 @@ export const useResults = () => {
           ...doc.data()
         }));
         
-        // Filter by type in memory
+        console.log('📊 Raw results from Firebase:', allResults);
+        
+        // Filter by type and sort
         const tournamentResults = allResults
           .filter(result => result.type === 'tournament')
           .sort((a, b) => {
@@ -63,6 +64,9 @@ export const useResults = () => {
             return dateB - dateA;
           });
         
+        console.log('🏆 Tournament results:', tournamentResults);
+        console.log('🏐 League results:', leagueResults);
+        
         setResults(prev => ({
           ...prev,
           tournament: tournamentResults,
@@ -70,12 +74,12 @@ export const useResults = () => {
         }));
       },
       (err) => {
-        console.error('Error fetching results:', err);
+        console.error('❌ Error fetching results:', err);
         setError(`Failed to load results: ${err.message}`);
       }
     );
 
-    // Player Performance listener (simplified)
+    // Player Performance listener
     const performanceQuery = collection(db, 'playerPerformances');
 
     const unsubscribePerformance = onSnapshot(
@@ -99,7 +103,7 @@ export const useResults = () => {
         setLoading(false);
       },
       (err) => {
-        console.error('Error fetching performance data:', err);
+        console.error('❌ Error fetching performance data:', err);
         setError(`Failed to load performance data: ${err.message}`);
         setLoading(false);
       }
@@ -107,48 +111,130 @@ export const useResults = () => {
 
     unsubscribers.push(unsubscribeResults, unsubscribePerformance);
 
-    // Cleanup function
     return () => {
       unsubscribers.forEach(unsubscribe => unsubscribe());
     };
   }, []);
 
-  // Add tournament results with placement data
+  // FIXED: Standardized tournament results with proper structure
   const addTournamentResults = useCallback(async (tournamentId, resultsData) => {
     try {
       setError(null);
       
-      // Validate tournament results structure
+      console.log('💾 Saving tournament results:', { tournamentId, resultsData });
+      
+      // Validate and standardize tournament results structure
       if (!resultsData.divisionResults || !Array.isArray(resultsData.divisionResults)) {
         throw new Error('Tournament results must have division results');
       }
 
-      // Validate each division has participant placements
-      resultsData.divisionResults.forEach((division, index) => {
+      // Validate and clean up division results
+      const cleanedDivisionResults = resultsData.divisionResults.map((division, index) => {
         if (!division.participantPlacements || !Array.isArray(division.participantPlacements)) {
           throw new Error(`Division ${index + 1} must have participant placements`);
         }
         
-        division.participantPlacements.forEach((participant, participantIndex) => {
-          if (participant.placement === null || participant.placement === undefined) {
-            throw new Error(`Division ${index + 1}, Participant ${participantIndex + 1} must have a placement`);
-          }
-        });
+        // Ensure all participants have placements
+        const validParticipants = division.participantPlacements.filter(participant => 
+          participant.placement !== null && participant.placement !== undefined
+        );
+        
+        if (validParticipants.length === 0) {
+          throw new Error(`Division ${index + 1} must have at least one participant with a placement`);
+        }
+
+        return {
+          divisionId: division.divisionId,
+          divisionName: division.divisionName,
+          eventType: division.eventType,
+          skillLevel: division.skillLevel,
+          totalTeams: division.totalTeams || 0,
+          participantPlacements: validParticipants.map(participant => ({
+            participantId: participant.participantId,
+            participantName: participant.participantName || 'Unknown Member',
+            placement: parseInt(participant.placement),
+            notes: participant.notes || ''
+          }))
+        };
       });
 
+      // Create standardized result document
       const docData = {
-        ...resultsData,
-        eventId: tournamentId,
         type: 'tournament',
+        tournamentId: tournamentId,
+        tournamentName: resultsData.tournamentName,
+        eventDate: resultsData.completedDate || new Date(),
+        completedDate: resultsData.completedDate || new Date(),
+        divisionResults: cleanedDivisionResults,
+        notes: resultsData.notes || '',
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp()
       };
 
+      console.log('💾 Final tournament result document:', docData);
+      
       const docRef = await addDoc(collection(db, 'results'), docData);
+      console.log('✅ Tournament results saved with ID:', docRef.id);
+      
       return docRef.id;
     } catch (err) {
-      console.error('Error adding tournament results:', err);
+      console.error('❌ Error adding tournament results:', err);
       setError(`Failed to add tournament results: ${err.message}`);
+      throw err;
+    }
+  }, []);
+
+  // FIXED: Standardized league results with proper structure
+  const addLeagueResults = useCallback(async (leagueId, resultsData) => {
+    try {
+      setError(null);
+      
+      console.log('💾 Saving league results:', { leagueId, resultsData });
+      
+      // Validate and standardize league results structure
+      if (!resultsData.participantPlacements || !Array.isArray(resultsData.participantPlacements)) {
+        throw new Error('League results must have participant placements');
+      }
+
+      // Validate and clean up participant placements
+      const validParticipants = resultsData.participantPlacements.filter(participant => 
+        participant.placement !== null && participant.placement !== undefined
+      );
+      
+      if (validParticipants.length === 0) {
+        throw new Error('League must have at least one participant with a placement');
+      }
+
+      // Create standardized result document
+      const docData = {
+        type: 'league',
+        leagueId: leagueId,
+        leagueName: resultsData.leagueName,
+        eventDate: resultsData.completedDate || new Date(),
+        completedDate: resultsData.completedDate || new Date(),
+        season: resultsData.season,
+        totalTeams: resultsData.totalTeams || 0,
+        participantPlacements: validParticipants.map(participant => ({
+          participantId: participant.participantId,
+          participantName: participant.participantName || 'Unknown Member',
+          placement: parseInt(participant.placement),
+          notes: participant.notes || ''
+        })),
+        seasonInfo: resultsData.seasonInfo || {},
+        notes: resultsData.notes || '',
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      };
+
+      console.log('💾 Final league result document:', docData);
+
+      const docRef = await addDoc(collection(db, 'results'), docData);
+      console.log('✅ League results saved with ID:', docRef.id);
+      
+      return docRef.id;
+    } catch (err) {
+      console.error('❌ Error adding league results:', err);
+      setError(`Failed to add league results: ${err.message}`);
       throw err;
     }
   }, []);
@@ -158,15 +244,9 @@ export const useResults = () => {
     try {
       setError(null);
       
-      // Find existing result for this tournament
-      const existingResult = results.tournament.find(result => result.eventId === tournamentId);
+      const existingResult = results.tournament.find(result => result.tournamentId === tournamentId);
       if (!existingResult) {
         throw new Error('Tournament result not found');
-      }
-
-      // Validate updated results structure
-      if (!resultsData.divisionResults || !Array.isArray(resultsData.divisionResults)) {
-        throw new Error('Tournament results must have division results');
       }
 
       const docData = {
@@ -177,60 +257,20 @@ export const useResults = () => {
       await updateDoc(doc(db, 'results', existingResult.id), docData);
       return existingResult.id;
     } catch (err) {
-      console.error('Error updating tournament results:', err);
+      console.error('❌ Error updating tournament results:', err);
       setError(`Failed to update tournament results: ${err.message}`);
       throw err;
     }
   }, [results.tournament]);
-
-  // Add league results with participant placements
-  const addLeagueResults = useCallback(async (leagueId, resultsData) => {
-    try {
-      setError(null);
-      
-      // Validate league results structure
-      if (!resultsData.participantPlacements || !Array.isArray(resultsData.participantPlacements)) {
-        throw new Error('League results must have participant placements');
-      }
-
-      // Validate each participant has a placement
-      resultsData.participantPlacements.forEach((participant, index) => {
-        if (participant.placement === null || participant.placement === undefined) {
-          throw new Error(`Participant ${index + 1} must have a placement`);
-        }
-      });
-
-      const docData = {
-        ...resultsData,
-        eventId: leagueId,
-        type: 'league',
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp()
-      };
-
-      const docRef = await addDoc(collection(db, 'results'), docData);
-      return docRef.id;
-    } catch (err) {
-      console.error('Error adding league results:', err);
-      setError(`Failed to add league results: ${err.message}`);
-      throw err;
-    }
-  }, []);
 
   // Update league results
   const updateLeagueResults = useCallback(async (leagueId, resultsData) => {
     try {
       setError(null);
       
-      // Find existing result for this league
-      const existingResult = results.league.find(result => result.eventId === leagueId);
+      const existingResult = results.league.find(result => result.leagueId === leagueId);
       if (!existingResult) {
         throw new Error('League result not found');
-      }
-
-      // Validate updated results structure
-      if (!resultsData.participantPlacements || !Array.isArray(resultsData.participantPlacements)) {
-        throw new Error('League results must have participant placements');
       }
 
       const docData = {
@@ -241,7 +281,7 @@ export const useResults = () => {
       await updateDoc(doc(db, 'results', existingResult.id), docData);
       return existingResult.id;
     } catch (err) {
-      console.error('Error updating league results:', err);
+      console.error('❌ Error updating league results:', err);
       setError(`Failed to update league results: ${err.message}`);
       throw err;
     }
@@ -261,7 +301,7 @@ export const useResults = () => {
       const docRef = await addDoc(collection(db, 'playerPerformances'), docData);
       return docRef.id;
     } catch (err) {
-      console.error('Error adding player performance:', err);
+      console.error('❌ Error adding player performance:', err);
       setError(`Failed to add player performance: ${err.message}`);
       throw err;
     }
@@ -280,7 +320,7 @@ export const useResults = () => {
       await updateDoc(doc(db, 'playerPerformances', performanceId), docData);
       return performanceId;
     } catch (err) {
-      console.error('Error updating player performance:', err);
+      console.error('❌ Error updating player performance:', err);
       setError(`Failed to update player performance: ${err.message}`);
       throw err;
     }
@@ -293,16 +333,18 @@ export const useResults = () => {
       const collectionName = type === 'performance' ? 'playerPerformances' : 'results';
       await deleteDoc(doc(db, collectionName, resultId));
     } catch (err) {
-      console.error('Error deleting result:', err);
+      console.error('❌ Error deleting result:', err);
       setError(`Failed to delete result: ${err.message}`);
       throw err;
     }
   }, []);
 
-  // Get results for specific event
+  // FIXED: Better event results lookup
   const getEventResults = useCallback((eventId, type) => {
     const resultsList = type === 'tournament' ? results.tournament : results.league;
-    return resultsList.filter(result => result.eventId === eventId);
+    const eventIdField = type === 'tournament' ? 'tournamentId' : 'leagueId';
+    
+    return resultsList.filter(result => result[eventIdField] === eventId);
   }, [results]);
 
   // Get player performance for specific event and member
@@ -312,7 +354,7 @@ export const useResults = () => {
     );
   }, [results.performance]);
 
-  // Get all results for a specific player (now searches participant placements)
+  // FIXED: Better player results lookup with standardized structure
   const getPlayerResults = useCallback((memberId) => {
     const allResults = [...results.tournament, ...results.league];
     return allResults.filter(result => {
@@ -332,29 +374,6 @@ export const useResults = () => {
         );
       }
 
-      // Legacy support - check old team standings format
-      if (result.divisionResults) {
-        return result.divisionResults.some(division =>
-          division.teamStandings?.some(team => 
-            team.player1Id === memberId || team.player2Id === memberId
-          )
-        );
-      }
-
-      // Legacy support - check old league team standings format
-      if (result.teamStandings) {
-        return result.teamStandings.some(team => 
-          team.player1Id === memberId || team.player2Id === memberId
-        );
-      }
-
-      // Legacy support - check old standings format
-      if (result.standings) {
-        return result.standings.some(standing => 
-          standing.memberId === memberId || standing.memberName === memberId
-        );
-      }
-
       return false;
     });
   }, [results]);
@@ -371,7 +390,7 @@ export const useResults = () => {
       .slice(0, limit);
   }, [results]);
 
-  // Get performance statistics for a player (updated for placement results)
+  // FIXED: Simplified player stats calculation
   const getPlayerStats = useCallback((memberId) => {
     const playerResults = getPlayerResults(memberId);
     const playerPerformances = results.performance.filter(perf => perf.memberId === memberId);
@@ -385,11 +404,10 @@ export const useResults = () => {
       totalPerformanceEntries: playerPerformances.length
     };
 
-    // Calculate wins and podiums
+    // Calculate wins and podiums from standardized structure
     playerResults.forEach(result => {
       let placement = null;
 
-      // Handle tournament results
       if (result.type === 'tournament' && result.divisionResults) {
         for (const division of result.divisionResults) {
           const participant = division.participantPlacements?.find(p => 
@@ -400,10 +418,7 @@ export const useResults = () => {
             break;
           }
         }
-      }
-      
-      // Handle league results
-      else if (result.type === 'league' && result.participantPlacements) {
+      } else if (result.type === 'league' && result.participantPlacements) {
         const participant = result.participantPlacements.find(p => 
           p.participantId === memberId
         );
@@ -412,46 +427,8 @@ export const useResults = () => {
         }
       }
 
-      // Handle legacy team format
-      else if (result.divisionResults) {
-        for (const division of result.divisionResults) {
-          const team = division.teamStandings?.find(team => 
-            team.player1Id === memberId || team.player2Id === memberId
-          );
-          if (team) {
-            placement = team.position;
-            break;
-          }
-        }
-      }
-
-      // Handle legacy league team format
-      else if (result.teamStandings) {
-        const team = result.teamStandings.find(team => 
-          team.player1Id === memberId || team.player2Id === memberId
-        );
-        if (team) {
-          placement = team.position;
-        }
-      }
-
-      // Handle legacy individual format
-      else if (result.standings) {
-        const playerStanding = result.standings.find(standing => 
-          standing.memberId === memberId || standing.memberName === memberId
-        );
-        if (playerStanding) {
-          placement = result.standings.indexOf(playerStanding) + 1;
-        }
-      }
-
-      // Count wins and podiums
-      if (placement === 1) {
-        stats.wins++;
-      }
-      if (placement <= 3) {
-        stats.podiums++;
-      }
+      if (placement === 1) stats.wins++;
+      if (placement <= 3) stats.podiums++;
     });
 
     // Calculate average rating from performances
@@ -494,5 +471,4 @@ export const useResults = () => {
   };
 };
 
-// Also export as default for flexibility
 export default useResults;
