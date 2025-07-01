@@ -1,3 +1,4 @@
+// src/components/result/ResultsCard.jsx - UPDATED FOR TEAMS
 import React, { useState } from 'react';
 import { 
   Trophy, 
@@ -14,7 +15,8 @@ import {
   TrendingUp,
   X,
   Share2,
-  Download
+  Download,
+  UserCheck
 } from 'lucide-react';
 
 const ResultsCard = ({ 
@@ -25,7 +27,7 @@ const ResultsCard = ({
   onEdit
 }) => {
   const [activeTab, setActiveTab] = useState('standings');
-  const [expandedPlayer, setExpandedPlayer] = useState(null);
+  const [expandedTeam, setExpandedTeam] = useState(null);
 
   if (!result) return null;
 
@@ -58,9 +60,10 @@ const ResultsCard = ({
   };
 
   const handleShare = async () => {
+    const winner = getWinnerInfo();
     const shareData = {
-      title: `${result.eventTitle} Results`,
-      text: `Check out the results from ${result.eventTitle}! Winner: ${result.standings?.[0]?.playerName || 'TBD'}`,
+      title: `${result.eventTitle || 'Event'} Results`,
+      text: `Check out the results! Winner: ${winner}`,
       url: window.location.href
     };
 
@@ -78,17 +81,24 @@ const ResultsCard = ({
   };
 
   const handleExport = () => {
-    const csvData = result.standings?.map((standing, index) => ({
+    const csvData = getAllTeams().map((team, index) => ({
       'Rank': index + 1,
-      'Player': standing.playerName,
-      'Score': standing.score || 'N/A',
-      'Record': standing.record || 'N/A'
-    })) || [];
+      'Team': team.teamName || `${team.player1Name} / ${team.player2Name}`,
+      'Player 1': team.player1Name || 'N/A',
+      'Player 2': team.player2Name || 'N/A',
+      'Points': team.points || 'N/A',
+      'Wins': team.wins || 'N/A',
+      'Losses': team.losses || 'N/A',
+      'Games': team.gamesPlayed || 'N/A'
+    }));
 
+    const eventTitle = result.tournamentName || result.leagueName || result.eventTitle || 'Event';
+    const eventType = result.type || 'Results';
+    
     const csvContent = [
-      `Event: ${result.eventTitle}`,
-      `Division: ${result.division || 'N/A'}`,
-      `Date: ${new Date(result.date || result.createdAt).toLocaleDateString()}`,
+      `Event: ${eventTitle}`,
+      `Type: ${eventType}`,
+      `Date: ${new Date(result.completedDate || result.date || result.createdAt).toLocaleDateString()}`,
       '',
       Object.keys(csvData[0] || {}).join(','),
       ...csvData.map(row => Object.values(row).join(','))
@@ -98,34 +108,80 @@ const ResultsCard = ({
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `${result.eventTitle.replace(/\s+/g, '-').toLowerCase()}-results.csv`;
+    a.download = `${eventTitle.replace(/\s+/g, '-').toLowerCase()}-results.csv`;
     a.click();
     window.URL.revokeObjectURL(url);
   };
 
+  // Helper function to get all teams from different result structures
+  const getAllTeams = () => {
+    if (result.type === 'tournament' && result.divisionResults) {
+      // Tournament results with divisions
+      return result.divisionResults.flatMap(division => 
+        (division.teamStandings || []).map(team => ({
+          ...team,
+          divisionName: division.divisionName
+        }))
+      );
+    } else if (result.type === 'league' && result.teamStandings) {
+      // League results
+      return result.teamStandings;
+    } else if (result.standings) {
+      // Legacy format - treat as individual players forming teams
+      return result.standings.map((standing, index) => ({
+        teamName: standing.playerName || standing.memberName,
+        player1Name: standing.playerName || standing.memberName,
+        player2Name: '',
+        position: index + 1,
+        points: standing.points || 0,
+        wins: standing.wins || 0,
+        losses: standing.losses || 0,
+        gamesPlayed: standing.gamesPlayed || 0
+      }));
+    }
+    return [];
+  };
+
+  // Helper function to get winner information
+  const getWinnerInfo = () => {
+    const teams = getAllTeams();
+    if (teams.length === 0) return 'TBD';
+    
+    const winner = teams.find(team => team.position === 1) || teams[0];
+    return winner.teamName || `${winner.player1Name}${winner.player2Name ? ` / ${winner.player2Name}` : ''}`;
+  };
+
+  // Helper function to calculate win percentage
+  const calculateWinPercentage = (wins, gamesPlayed) => {
+    if (gamesPlayed === 0) return '0.0';
+    return ((wins / gamesPlayed) * 100).toFixed(1);
+  };
+
+  const allTeams = getAllTeams();
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
+      <div className="bg-white rounded-lg shadow-xl max-w-5xl w-full max-h-[90vh] overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
           <div className="flex items-center space-x-3">
             <div className="flex items-center space-x-2">
-              {result.eventType === 'tournament' ? (
+              {result.type === 'tournament' ? (
                 <Trophy className="h-6 w-6 text-yellow-500" />
               ) : (
                 <Medal className="h-6 w-6 text-blue-500" />
               )}
               <div>
                 <h2 className="text-xl font-semibold text-gray-900">
-                  {result.eventTitle}
+                  {result.tournamentName || result.leagueName || result.eventTitle || 'Event Results'}
                 </h2>
                 <div className="flex items-center space-x-2 mt-1">
-                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${getEventTypeColor(result.eventType)}`}>
-                    {result.eventType}
+                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${getEventTypeColor(result.type)}`}>
+                    {result.type || 'Event'}
                   </span>
-                  {result.division && (
+                  {result.season && (
                     <span className="px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                      {result.division}
+                      {result.season}
                     </span>
                   )}
                 </div>
@@ -170,22 +226,22 @@ const ResultsCard = ({
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
             <div className="flex items-center text-gray-600">
               <Calendar className="h-4 w-4 mr-2" />
-              {new Date(result.date || result.createdAt).toLocaleDateString()}
+              {new Date(result.completedDate || result.date || result.createdAt).toLocaleDateString()}
             </div>
             <div className="flex items-center text-gray-600">
               <Users className="h-4 w-4 mr-2" />
-              {result.standings?.length || 0} participants
+              {allTeams.length} teams
             </div>
-            {result.location && (
+            {result.type === 'tournament' && result.divisionResults && (
               <div className="flex items-center text-gray-600">
-                <MapPin className="h-4 w-4 mr-2" />
-                {result.location}
+                <Trophy className="h-4 w-4 mr-2" />
+                {result.divisionResults.length} divisions
               </div>
             )}
-            {result.duration && (
+            {result.seasonInfo?.totalWeeks && (
               <div className="flex items-center text-gray-600">
                 <Clock className="h-4 w-4 mr-2" />
-                {result.duration}
+                {result.seasonInfo.totalWeeks} weeks
               </div>
             )}
           </div>
@@ -202,7 +258,7 @@ const ResultsCard = ({
                   : 'border-transparent text-gray-500 hover:text-gray-700'
               }`}
             >
-              Standings
+              Team Standings
             </button>
             {showPlayerPerformance && result.playerPerformances?.length > 0 && (
               <button
@@ -223,44 +279,141 @@ const ResultsCard = ({
         <div className="overflow-y-auto max-h-[50vh]">
           {activeTab === 'standings' && (
             <div className="p-6">
-              {result.standings && result.standings.length > 0 ? (
+              {result.type === 'tournament' && result.divisionResults ? (
+                // Tournament with divisions
+                <div className="space-y-6">
+                  {result.divisionResults.map((division, divIndex) => (
+                    <div key={divIndex} className="border border-gray-200 rounded-lg">
+                      <div className="bg-gray-50 px-4 py-3 border-b border-gray-200">
+                        <h3 className="font-medium text-gray-900 flex items-center">
+                          <Trophy className="h-4 w-4 text-yellow-500 mr-2" />
+                          {division.divisionName}
+                          <span className="ml-2 text-sm text-gray-500">
+                            ({division.teamStandings?.length || 0} teams)
+                          </span>
+                        </h3>
+                      </div>
+                      <div className="p-4">
+                        {division.teamStandings && division.teamStandings.length > 0 ? (
+                          <div className="space-y-3">
+                            {division.teamStandings.map((team, teamIndex) => (
+                              <div
+                                key={teamIndex}
+                                className={`flex items-center justify-between p-4 rounded-lg border transition-all ${
+                                  team.position <= 3 
+                                    ? 'bg-gradient-to-r from-yellow-50 to-orange-50 border-yellow-200' 
+                                    : 'bg-gray-50 border-gray-200'
+                                }`}
+                              >
+                                <div className="flex items-center space-x-4">
+                                  <div className="flex items-center justify-center w-10 h-10">
+                                    {getRankIcon(team.position)}
+                                  </div>
+                                  <div>
+                                    <p className="font-medium text-gray-900">
+                                      {team.teamName || `${team.player1Name} / ${team.player2Name}`}
+                                    </p>
+                                    <div className="flex items-center space-x-4 text-sm text-gray-500">
+                                      <span className="flex items-center">
+                                        <UserCheck className="h-3 w-3 mr-1" />
+                                        {team.player1Name}
+                                      </span>
+                                      {team.player2Name && (
+                                        <span className="flex items-center">
+                                          <UserCheck className="h-3 w-3 mr-1" />
+                                          {team.player2Name}
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+                                
+                                <div className="text-right">
+                                  <div className="flex items-center space-x-4 text-sm">
+                                    {team.points > 0 && (
+                                      <div className="text-center">
+                                        <div className="font-semibold text-gray-900">{team.points}</div>
+                                        <div className="text-xs text-gray-500">pts</div>
+                                      </div>
+                                    )}
+                                    <div className="text-center">
+                                      <div className="font-semibold text-gray-900">{team.wins}-{team.losses}</div>
+                                      <div className="text-xs text-gray-500">W-L</div>
+                                    </div>
+                                    <div className="text-center">
+                                      <div className="font-semibold text-gray-900">
+                                        {calculateWinPercentage(team.wins, team.gamesPlayed)}%
+                                      </div>
+                                      <div className="text-xs text-gray-500">Win Rate</div>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="text-center py-4 text-gray-500">
+                            No teams in this division
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : allTeams.length > 0 ? (
+                // League or legacy format
                 <div className="space-y-3">
-                  {result.standings.map((standing, index) => (
+                  {allTeams.map((team, index) => (
                     <div
                       key={index}
                       className={`flex items-center justify-between p-4 rounded-lg border transition-all ${
-                        index < 3 
+                        team.position <= 3 
                           ? 'bg-gradient-to-r from-yellow-50 to-orange-50 border-yellow-200' 
                           : 'bg-gray-50 border-gray-200'
                       }`}
                     >
                       <div className="flex items-center space-x-4">
                         <div className="flex items-center justify-center w-10 h-10">
-                          {getRankIcon(index + 1)}
+                          {getRankIcon(team.position)}
                         </div>
                         <div>
                           <p className="font-medium text-gray-900">
-                            {standing.playerName}
+                            {team.teamName || `${team.player1Name}${team.player2Name ? ` / ${team.player2Name}` : ''}`}
                           </p>
-                          {standing.record && (
-                            <p className="text-sm text-gray-500">
-                              Record: {standing.record}
-                            </p>
+                          {team.player2Name && (
+                            <div className="flex items-center space-x-4 text-sm text-gray-500">
+                              <span className="flex items-center">
+                                <UserCheck className="h-3 w-3 mr-1" />
+                                {team.player1Name}
+                              </span>
+                              <span className="flex items-center">
+                                <UserCheck className="h-3 w-3 mr-1" />
+                                {team.player2Name}
+                              </span>
+                            </div>
                           )}
                         </div>
                       </div>
                       
                       <div className="text-right">
-                        {standing.score && (
-                          <p className="font-semibold text-gray-900">
-                            {standing.score}
-                          </p>
-                        )}
-                        {standing.points && (
-                          <p className="text-sm text-gray-500">
-                            {standing.points} pts
-                          </p>
-                        )}
+                        <div className="flex items-center space-x-4 text-sm">
+                          {team.points > 0 && (
+                            <div className="text-center">
+                              <div className="font-semibold text-gray-900">{team.points}</div>
+                              <div className="text-xs text-gray-500">pts</div>
+                            </div>
+                          )}
+                          <div className="text-center">
+                            <div className="font-semibold text-gray-900">{team.wins}-{team.losses}</div>
+                            <div className="text-xs text-gray-500">W-L</div>
+                          </div>
+                          <div className="text-center">
+                            <div className="font-semibold text-gray-900">
+                              {calculateWinPercentage(team.wins, team.gamesPlayed)}%
+                            </div>
+                            <div className="text-xs text-gray-500">Win Rate</div>
+                          </div>
+                        </div>
                       </div>
                     </div>
                   ))}
@@ -268,7 +421,7 @@ const ResultsCard = ({
               ) : (
                 <div className="text-center py-8 text-gray-500">
                   <Trophy className="h-12 w-12 text-gray-300 mx-auto mb-4" />
-                  <p>No standings available</p>
+                  <p>No team standings available</p>
                 </div>
               )}
             </div>
@@ -281,7 +434,7 @@ const ResultsCard = ({
                   {result.playerPerformances.map((performance, index) => (
                     <div key={index} className="border border-gray-200 rounded-lg">
                       <button
-                        onClick={() => setExpandedPlayer(expandedPlayer === index ? null : index)}
+                        onClick={() => setExpandedTeam(expandedTeam === index ? null : index)}
                         className="w-full p-4 text-left flex items-center justify-between hover:bg-gray-50 transition-colors"
                       >
                         <div className="flex items-center space-x-3">
@@ -294,14 +447,14 @@ const ResultsCard = ({
                             {performance.playerName}
                           </span>
                         </div>
-                        {expandedPlayer === index ? (
+                        {expandedTeam === index ? (
                           <ChevronUp className="h-5 w-5 text-gray-400" />
                         ) : (
                           <ChevronDown className="h-5 w-5 text-gray-400" />
                         )}
                       </button>
 
-                      {expandedPlayer === index && (
+                      {expandedTeam === index && (
                         <div className="p-4 border-t border-gray-200 bg-gray-50">
                           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                             {/* Strengths */}

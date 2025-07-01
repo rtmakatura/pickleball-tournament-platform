@@ -1,3 +1,4 @@
+// src/components/result/ResultsTable.jsx - UPDATED FOR TEAMS
 import React, { useState, useMemo } from 'react';
 import { 
   Search, 
@@ -10,7 +11,8 @@ import {
   Users,
   ChevronDown,
   ChevronUp,
-  ExternalLink
+  ExternalLink,
+  UserCheck
 } from 'lucide-react';
 
 const ResultsTable = ({ 
@@ -28,11 +30,12 @@ const ResultsTable = ({
   // Filter and sort results
   const filteredAndSortedResults = useMemo(() => {
     let filtered = results.filter(result => {
-      const matchesSearch = result.eventTitle?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           result.eventType?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           result.division?.toLowerCase().includes(searchTerm.toLowerCase());
+      const eventTitle = result.tournamentName || result.leagueName || result.eventTitle || '';
+      const matchesSearch = eventTitle.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                           result.type?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                           result.season?.toLowerCase().includes(searchTerm.toLowerCase());
       
-      const matchesType = filterType === 'all' || result.eventType === filterType;
+      const matchesType = filterType === 'all' || result.type === filterType;
       
       return matchesSearch && matchesType;
     });
@@ -43,11 +46,14 @@ const ResultsTable = ({
       let bVal = b[sortField];
 
       if (sortField === 'date') {
-        aVal = new Date(a.date || a.createdAt);
-        bVal = new Date(b.date || b.createdAt);
+        aVal = new Date(a.completedDate || a.date || a.createdAt);
+        bVal = new Date(b.completedDate || b.date || b.createdAt);
       } else if (sortField === 'participants') {
-        aVal = a.standings?.length || 0;
-        bVal = b.standings?.length || 0;
+        aVal = getParticipantCount(a);
+        bVal = getParticipantCount(b);
+      } else if (sortField === 'eventTitle') {
+        aVal = a.tournamentName || a.leagueName || a.eventTitle || '';
+        bVal = b.tournamentName || b.leagueName || b.eventTitle || '';
       }
 
       if (aVal < bVal) return sortDirection === 'asc' ? -1 : 1;
@@ -57,6 +63,52 @@ const ResultsTable = ({
 
     return filtered;
   }, [results, searchTerm, filterType, sortField, sortDirection]);
+
+  // Helper function to get participant count from different result structures
+  const getParticipantCount = (result) => {
+    if (result.type === 'tournament' && result.divisionResults) {
+      return result.divisionResults.reduce((total, division) => 
+        total + (division.participantPlacements?.length || 0), 0
+      );
+    } else if (result.type === 'league' && result.participantPlacements) {
+      return result.participantPlacements.length;
+    } else if (result.teamStandings) {
+      // Legacy team format
+      return result.teamStandings.length;
+    } else if (result.standings) {
+      // Legacy individual format
+      return result.standings.length;
+    }
+    return 0;
+  };
+
+  // Helper function to get winner information
+  const getWinnerInfo = (result) => {
+    if (result.type === 'tournament' && result.divisionResults) {
+      // Get winner from first division or overall winner
+      const firstDivision = result.divisionResults[0];
+      if (firstDivision?.participantPlacements?.length > 0) {
+        const winner = firstDivision.participantPlacements.find(p => p.placement === 1);
+        return winner ? winner.participantName : 'TBD';
+      }
+    } else if (result.type === 'league' && result.participantPlacements) {
+      const winner = result.participantPlacements.find(p => p.placement === 1);
+      return winner ? winner.participantName : 'TBD';
+    } else if (result.teamStandings) {
+      // Legacy team format
+      const winner = result.teamStandings.find(team => team.position === 1) || result.teamStandings[0];
+      if (winner) {
+        return winner.teamName || `${winner.player1Name} / ${winner.player2Name}`;
+      }
+    } else if (result.standings) {
+      // Legacy individual format
+      const winner = result.standings[0];
+      if (winner) {
+        return winner.playerName || winner.memberName || 'Unknown';
+      }
+    }
+    return 'TBD';
+  };
 
   const handleSort = (field) => {
     if (sortField === field) {
@@ -69,12 +121,12 @@ const ResultsTable = ({
 
   const handleExport = () => {
     const csvData = filteredAndSortedResults.map(result => ({
-      'Event': result.eventTitle,
-      'Type': result.eventType,
-      'Division': result.division || 'N/A',
-      'Date': new Date(result.date || result.createdAt).toLocaleDateString(),
-      'Participants': result.standings?.length || 0,
-      'Winner': result.standings?.[0]?.playerName || 'N/A'
+      'Event': result.tournamentName || result.leagueName || result.eventTitle || 'Unknown',
+      'Type': result.type || 'Unknown',
+      'Season': result.season || 'N/A',
+      'Date': new Date(result.completedDate || result.date || result.createdAt).toLocaleDateString(),
+      'Participants': getParticipantCount(result),
+      'Winner': getWinnerInfo(result)
     }));
 
     const csvContent = [
@@ -221,7 +273,7 @@ const ResultsTable = ({
                 <SortButton field="eventTitle">Event</SortButton>
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Division
+                Season
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 <SortButton field="date">Date</SortButton>
@@ -242,41 +294,46 @@ const ResultsTable = ({
               <tr key={result.id || index} className="hover:bg-gray-50">
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="flex items-center">
-                    {getEventIcon(result.eventType)}
+                    {getEventIcon(result.type)}
                     <div className="ml-3">
                       <div className="text-sm font-medium text-gray-900">
-                        {result.eventTitle}
+                        {result.tournamentName || result.leagueName || result.eventTitle || 'Unknown Event'}
                       </div>
                       <div className="text-sm text-gray-500 capitalize">
-                        {result.eventType}
+                        {result.type || 'Event'}
                       </div>
                     </div>
                   </div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                  {result.division || 'N/A'}
+                  {result.season || 'N/A'}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                   <div className="flex items-center">
                     <Calendar className="h-4 w-4 text-gray-400 mr-1" />
-                    {new Date(result.date || result.createdAt).toLocaleDateString()}
+                    {new Date(result.completedDate || result.date || result.createdAt).toLocaleDateString()}
                   </div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                   <div className="flex items-center">
                     <Users className="h-4 w-4 text-gray-400 mr-1" />
-                    {result.standings?.length || 0}
+                    {getParticipantCount(result)}
+                    {result.type === 'tournament' && result.divisionResults && (
+                      <span className="ml-1 text-xs text-gray-500">
+                        ({result.divisionResults.length} div)
+                      </span>
+                    )}
                   </div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
-                  {result.standings?.[0] && (
-                    <div className="flex items-center">
-                      <Trophy className="h-4 w-4 text-yellow-500 mr-2" />
+                  <div className="flex items-center">
+                    <Trophy className="h-4 w-4 text-yellow-500 mr-2" />
+                    <div>
                       <span className="text-sm font-medium text-gray-900">
-                        {result.standings[0].playerName}
+                        {getWinnerInfo(result)}
                       </span>
                     </div>
-                  )}
+                  </div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                   <button
@@ -302,45 +359,48 @@ const ResultsTable = ({
           >
             <div className="flex items-start justify-between mb-3">
               <div className="flex items-center space-x-2">
-                {getEventIcon(result.eventType)}
-                <div>
-                  <h4 className="text-sm font-medium text-gray-900">
-                    {result.eventTitle}
+                {getEventIcon(result.type)}
+                <div className="min-w-0 flex-1">
+                  <h4 className="text-sm font-medium text-gray-900 truncate">
+                    {result.tournamentName || result.leagueName || result.eventTitle || 'Unknown Event'}
                   </h4>
                   <p className="text-xs text-gray-500 capitalize">
-                    {result.eventType} • {result.division || 'No Division'}
+                    {result.type || 'Event'} • {result.season || 'No Season'}
                   </p>
                 </div>
               </div>
               <button
                 onClick={() => onResultClick?.(result)}
-                className="text-blue-600 hover:text-blue-900"
+                className="text-blue-600 hover:text-blue-900 flex-shrink-0"
               >
                 <ExternalLink className="h-4 w-4" />
               </button>
             </div>
             
-            <div className="grid grid-cols-2 gap-4 text-sm">
+            <div className="grid grid-cols-2 gap-4 text-sm mb-3">
               <div className="flex items-center text-gray-600">
                 <Calendar className="h-4 w-4 mr-1" />
-                {new Date(result.date || result.createdAt).toLocaleDateString()}
+                {new Date(result.completedDate || result.date || result.createdAt).toLocaleDateString()}
               </div>
               <div className="flex items-center text-gray-600">
                 <Users className="h-4 w-4 mr-1" />
-                {result.standings?.length || 0} participants
+                {getParticipantCount(result)} participants
+                {result.type === 'tournament' && result.divisionResults && (
+                  <span className="ml-1 text-xs">({result.divisionResults.length} div)</span>
+                )}
               </div>
             </div>
             
-            {result.standings?.[0] && (
-              <div className="mt-3 pt-3 border-t border-gray-100">
+            <div className="pt-3 border-t border-gray-100">
+              <div className="flex items-center justify-between">
                 <div className="flex items-center">
                   <Trophy className="h-4 w-4 text-yellow-500 mr-2" />
                   <span className="text-sm font-medium text-gray-900">
-                    Winner: {result.standings[0].playerName}
+                    {getWinnerInfo(result)}
                   </span>
                 </div>
               </div>
-            )}
+            </div>
           </div>
         ))}
       </div>

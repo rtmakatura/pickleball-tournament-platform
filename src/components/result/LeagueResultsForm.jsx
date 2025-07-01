@@ -1,6 +1,6 @@
-// src/components/results/LeagueResultsForm.jsx
+// src/components/result/LeagueResultsForm.jsx - SIMPLIFIED FOR PLACEMENT ONLY
 import React, { useState, useEffect } from 'react';
-import { Users, Calendar, Plus, X, Save, AlertCircle, Target } from 'lucide-react';
+import { Users, Calendar, X, Save, AlertCircle, Target } from 'lucide-react';
 
 const LeagueResultsForm = ({ 
   league, 
@@ -11,19 +11,73 @@ const LeagueResultsForm = ({
   existingResults = null 
 }) => {
   const [formData, setFormData] = useState({
-    standings: [],
+    participantPlacements: [],
+    totalTeams: 0,
+    seasonInfo: {
+      totalWeeks: 0,
+      regularSeasonWeeks: 0,
+      playoffWeeks: 0,
+      startDate: '',
+      endDate: ''
+    },
     notes: '',
     completedDate: new Date().toISOString().split('T')[0],
     season: ''
   });
   const [errors, setErrors] = useState({});
-  const [availableMembers, setAvailableMembers] = useState([]);
 
-  // Initialize form with existing results or empty state
+  const calculateLeagueWeeks = (startDate, endDate) => {
+    if (!startDate || !endDate) return 0;
+    
+    const start = new Date(startDate.seconds * 1000);
+    const end = new Date(endDate.seconds * 1000);
+    const diffTime = Math.abs(end - start);
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return Math.ceil(diffDays / 7);
+  };
+
+  const getCurrentSeason = () => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = now.getMonth() + 1;
+    
+    if (month >= 3 && month <= 5) return `Spring ${year}`;
+    if (month >= 6 && month <= 8) return `Summer ${year}`;
+    if (month >= 9 && month <= 11) return `Fall ${year}`;
+    return `Winter ${year}`;
+  };
+
+  // Helper function to create placement results from league participants
+  const generatePlacementResults = (league) => {
+    if (!league.participants || league.participants.length === 0) {
+      return [];
+    }
+
+    // Create placement entries for each participant
+    return league.participants.map((participantId) => {
+      const member = members.find(m => m.id === participantId);
+      return {
+        participantId,
+        participantName: member ? member.name : 'Unknown Member',
+        placement: null, // To be filled in by user
+        notes: ''
+      };
+    });
+  };
+
+  // Initialize form data
   useEffect(() => {
     if (existingResults) {
       setFormData({
-        standings: existingResults.standings || [],
+        participantPlacements: existingResults.participantPlacements || [],
+        totalTeams: existingResults.totalTeams || 0,
+        seasonInfo: existingResults.seasonInfo || {
+          totalWeeks: 0,
+          regularSeasonWeeks: 0,
+          playoffWeeks: 0,
+          startDate: '',
+          endDate: ''
+        },
         notes: existingResults.notes || '',
         completedDate: existingResults.completedDate ? 
           new Date(existingResults.completedDate.seconds * 1000).toISOString().split('T')[0] :
@@ -31,128 +85,53 @@ const LeagueResultsForm = ({
         season: existingResults.season || ''
       });
     } else {
-      // Initialize with empty standings
+      // Auto-generate placements from league participants
+      const participantPlacements = generatePlacementResults(league);
+      
+      // Initialize season info from league data
+      const seasonInfo = {
+        totalWeeks: calculateLeagueWeeks(league?.startDate, league?.endDate),
+        regularSeasonWeeks: 0,
+        playoffWeeks: 0,
+        startDate: league?.startDate ? 
+          new Date(league.startDate.seconds * 1000).toISOString().split('T')[0] : '',
+        endDate: league?.endDate ? 
+          new Date(league.endDate.seconds * 1000).toISOString().split('T')[0] : ''
+      };
+      
       setFormData(prev => ({
         ...prev,
-        standings: [],
-        season: getCurrentSeason()
+        participantPlacements,
+        totalTeams: Math.ceil(participantPlacements.length / 2), // Estimate teams
+        season: getCurrentSeason(),
+        seasonInfo
       }));
     }
-  }, [existingResults]);
+  }, [existingResults, league, members]);
 
-  // Filter available members (those not already in standings)
-  useEffect(() => {
-    const usedMemberIds = formData.standings.map(standing => standing.memberId);
-    const available = members.filter(member => !usedMemberIds.includes(member.id));
-    setAvailableMembers(available);
-  }, [members, formData.standings]);
-
-  const getCurrentSeason = () => {
-    const now = new Date();
-    const year = now.getFullYear();
-    const month = now.getMonth() + 1; // 0-based month
-    
-    // Determine season based on month
-    if (month >= 3 && month <= 5) return `Spring ${year}`;
-    if (month >= 6 && month <= 8) return `Summer ${year}`;
-    if (month >= 9 && month <= 11) return `Fall ${year}`;
-    return `Winter ${year}`;
-  };
-
-  const addStanding = () => {
-    if (availableMembers.length === 0) return;
-    
-    const nextPosition = formData.standings.length + 1;
-    const newStanding = {
-      id: Date.now().toString(),
-      memberId: '',
-      memberName: '',
-      position: nextPosition,
-      points: 0,
-      wins: 0,
-      losses: 0,
-      gamesPlayed: 0
-    };
-
+  const updateParticipantPlacement = (participantId, field, value) => {
     setFormData(prev => ({
       ...prev,
-      standings: [...prev.standings, newStanding]
-    }));
-  };
-
-  const removeStanding = (standingId) => {
-    const updatedStandings = formData.standings
-      .filter(standing => standing.id !== standingId)
-      .map((standing, index) => ({
-        ...standing,
-        position: index + 1
-      }));
-
-    setFormData(prev => ({
-      ...prev,
-      standings: updatedStandings
-    }));
-  };
-
-  const updateStanding = (standingId, field, value) => {
-    const updatedStandings = formData.standings.map(standing => {
-      if (standing.id === standingId) {
-        const updated = { ...standing, [field]: value };
-        
-        // If updating member, also update member name
-        if (field === 'memberId') {
-          const selectedMember = members.find(m => m.id === value);
-          updated.memberName = selectedMember ? selectedMember.name : '';
-        }
-        
-        return updated;
-      }
-      return standing;
-    });
-
-    setFormData(prev => ({
-      ...prev,
-      standings: updatedStandings
-    }));
-    
-    // Clear member-specific errors
-    if (field === 'memberId') {
-      setErrors(prev => {
-        const newErrors = { ...prev };
-        delete newErrors[`member_${standingId}`];
-        return newErrors;
-      });
-    }
-  };
-
-  const moveStanding = (standingId, direction) => {
-    const currentIndex = formData.standings.findIndex(s => s.id === standingId);
-    if (currentIndex === -1) return;
-
-    const newIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
-    if (newIndex < 0 || newIndex >= formData.standings.length) return;
-
-    const updatedStandings = [...formData.standings];
-    [updatedStandings[currentIndex], updatedStandings[newIndex]] = 
-    [updatedStandings[newIndex], updatedStandings[currentIndex]];
-
-    // Update positions
-    updatedStandings.forEach((standing, index) => {
-      standing.position = index + 1;
-    });
-
-    setFormData(prev => ({
-      ...prev,
-      standings: updatedStandings
+      participantPlacements: prev.participantPlacements.map(participant => 
+        participant.participantId === participantId
+          ? { ...participant, [field]: field === 'placement' ? parseInt(value) || null : value }
+          : participant
+      )
     }));
   };
 
   const validateForm = () => {
     const newErrors = {};
 
-    // Check if standings exist
-    if (formData.standings.length === 0) {
-      newErrors.standings = 'At least one player standing is required';
+    // Check if participants exist
+    if (formData.participantPlacements.length === 0) {
+      newErrors.participants = 'No participants found for this league';
+    }
+
+    // Check if at least one placement is entered
+    const hasAnyPlacements = formData.participantPlacements.some(p => p.placement !== null);
+    if (!hasAnyPlacements) {
+      newErrors.general = 'At least one participant must have a placement entered';
     }
 
     // Check season
@@ -160,38 +139,32 @@ const LeagueResultsForm = ({
       newErrors.season = 'Season is required';
     }
 
-    // Validate each standing
-    formData.standings.forEach(standing => {
-      if (!standing.memberId) {
-        newErrors[`member_${standing.id}`] = 'Player selection is required';
-      }
-      if (standing.points < 0) {
-        newErrors[`points_${standing.id}`] = 'Points cannot be negative';
-      }
-      if (standing.wins < 0) {
-        newErrors[`wins_${standing.id}`] = 'Wins cannot be negative';
-      }
-      if (standing.losses < 0) {
-        newErrors[`losses_${standing.id}`] = 'Losses cannot be negative';
-      }
-      if (standing.gamesPlayed < 0) {
-        newErrors[`games_${standing.id}`] = 'Games played cannot be negative';
-      }
-      if (standing.wins + standing.losses > standing.gamesPlayed) {
-        newErrors[`games_${standing.id}`] = 'Wins + losses cannot exceed games played';
+    // Validate total teams
+    if (formData.totalTeams < 1) {
+      newErrors.totalTeams = 'Total teams must be at least 1';
+    }
+
+    // Validate each participant placement
+    formData.participantPlacements.forEach((participant, index) => {
+      if (participant.placement !== null) {
+        if (participant.placement < 1) {
+          newErrors[`participant_${index}_placement`] = 'Placement must be at least 1';
+        }
+        if (participant.placement > formData.totalTeams) {
+          newErrors[`participant_${index}_placement`] = 
+            `Placement cannot be higher than total teams (${formData.totalTeams})`;
+        }
       }
     });
-
-    // Check for duplicate members
-    const memberIds = formData.standings.map(s => s.memberId).filter(id => id);
-    const duplicates = memberIds.filter((id, index) => memberIds.indexOf(id) !== index);
-    if (duplicates.length > 0) {
-      newErrors.duplicates = 'Each player can only appear once in the standings';
-    }
 
     // Validate completed date
     if (!formData.completedDate) {
       newErrors.completedDate = 'Completion date is required';
+    }
+
+    // Validate season info
+    if (formData.seasonInfo.totalWeeks < 0) {
+      newErrors.totalWeeks = 'Total weeks cannot be negative';
     }
 
     setErrors(newErrors);
@@ -208,15 +181,14 @@ const LeagueResultsForm = ({
     const resultData = {
       leagueId: league.id,
       leagueName: league.name,
-      standings: formData.standings.map(standing => ({
-        memberId: standing.memberId,
-        memberName: standing.memberName,
-        position: standing.position,
-        points: Number(standing.points) || 0,
-        wins: Number(standing.wins) || 0,
-        losses: Number(standing.losses) || 0,
-        gamesPlayed: Number(standing.gamesPlayed) || 0
-      })),
+      participantPlacements: formData.participantPlacements.filter(p => p.placement !== null),
+      totalTeams: formData.totalTeams,
+      seasonInfo: {
+        ...formData.seasonInfo,
+        totalWeeks: Number(formData.seasonInfo.totalWeeks) || 0,
+        regularSeasonWeeks: Number(formData.seasonInfo.regularSeasonWeeks) || 0,
+        playoffWeeks: Number(formData.seasonInfo.playoffWeeks) || 0
+      },
       notes: formData.notes.trim(),
       completedDate: new Date(formData.completedDate),
       season: formData.season.trim(),
@@ -226,9 +198,14 @@ const LeagueResultsForm = ({
     onSubmit(resultData);
   };
 
-  const calculateWinPercentage = (wins, gamesPlayed) => {
-    if (gamesPlayed === 0) return 0;
-    return ((wins / gamesPlayed) * 100).toFixed(1);
+  const getPlacementSuffix = (number) => {
+    if (number % 100 >= 11 && number % 100 <= 13) return 'th';
+    switch (number % 10) {
+      case 1: return 'st';
+      case 2: return 'nd';
+      case 3: return 'rd';
+      default: return 'th';
+    }
   };
 
   return (
@@ -243,7 +220,7 @@ const LeagueResultsForm = ({
                 {existingResults ? 'Edit' : 'Enter'} League Results
               </h2>
               <p className="text-sm text-gray-600">
-                {league.name}
+                {league.name} - Final Standings
               </p>
             </div>
           </div>
@@ -266,18 +243,21 @@ const LeagueResultsForm = ({
                 <Calendar className="w-4 h-4 text-gray-500" />
                 <span className="text-gray-600">Start Date:</span>
                 <span className="font-medium">
-                  {new Date(league.startDate.seconds * 1000).toLocaleDateString()}
+                  {league?.startDate ? 
+                    new Date(league.startDate.seconds * 1000).toLocaleDateString() :
+                    'TBD'
+                  }
                 </span>
               </div>
               <div className="flex items-center space-x-2">
                 <Users className="w-4 h-4 text-gray-500" />
-                <span className="text-gray-600">Max Players:</span>
-                <span className="font-medium">{league.maxPlayers}</span>
+                <span className="text-gray-600">Participants:</span>
+                <span className="font-medium">{formData.participantPlacements.length}</span>
               </div>
               <div className="flex items-center space-x-2">
                 <Target className="w-4 h-4 text-gray-500" />
                 <span className="text-gray-600">Type:</span>
-                <span className="font-medium capitalize">{league.type}</span>
+                <span className="font-medium capitalize">{league?.eventType?.replace('_', ' ') || 'Mixed Doubles'}</span>
               </div>
             </div>
             {league.description && (
@@ -287,7 +267,7 @@ const LeagueResultsForm = ({
             )}
           </div>
 
-          {/* Season and Completion Date */}
+          {/* Season and Completion Info */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -321,217 +301,194 @@ const LeagueResultsForm = ({
             </div>
           </div>
 
-          {/* Standings Section */}
-          <div>
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-medium text-gray-900">Player Standings</h3>
-              <button
-                type="button"
-                onClick={addStanding}
-                disabled={availableMembers.length === 0}
-                className="flex items-center space-x-2 px-3 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
-              >
-                <Plus className="w-4 h-4" />
-                <span>Add Player</span>
-              </button>
+          {/* Total Teams */}
+          <div className="max-w-xs">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Total Teams in League
+            </label>
+            <input
+              type="number"
+              min="1"
+              value={formData.totalTeams}
+              onChange={(e) => setFormData(prev => ({ ...prev, totalTeams: parseInt(e.target.value) || 0 }))}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              placeholder="e.g., 12"
+            />
+            {errors.totalTeams && (
+              <p className="mt-1 text-sm text-red-600">{errors.totalTeams}</p>
+            )}
+            <p className="mt-1 text-xs text-gray-500">
+              Total number of teams that competed in this league
+            </p>
+          </div>
+
+          {/* Season Information */}
+          <div className="bg-blue-50 rounded-lg p-4">
+            <h4 className="text-sm font-medium text-gray-900 mb-3">Season Information (Optional)</h4>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">
+                  Total Weeks
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  value={formData.seasonInfo.totalWeeks}
+                  onChange={(e) => setFormData(prev => ({
+                    ...prev,
+                    seasonInfo: { ...prev.seasonInfo, totalWeeks: e.target.value }
+                  }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">
+                  Regular Season Weeks
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  value={formData.seasonInfo.regularSeasonWeeks}
+                  onChange={(e) => setFormData(prev => ({
+                    ...prev,
+                    seasonInfo: { ...prev.seasonInfo, regularSeasonWeeks: e.target.value }
+                  }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">
+                  Playoff Weeks
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  value={formData.seasonInfo.playoffWeeks}
+                  onChange={(e) => setFormData(prev => ({
+                    ...prev,
+                    seasonInfo: { ...prev.seasonInfo, playoffWeeks: e.target.value }
+                  }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
             </div>
+          </div>
 
-            {errors.standings && (
-              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center space-x-2">
-                <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0" />
-                <p className="text-sm text-red-600">{errors.standings}</p>
-              </div>
-            )}
+          {/* General Errors */}
+          {(errors.general || errors.participants) && (
+            <div className="p-3 bg-red-50 border border-red-200 rounded-lg flex items-center space-x-2">
+              <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0" />
+              <p className="text-sm text-red-600">{errors.general || errors.participants}</p>
+            </div>
+          )}
 
-            {errors.duplicates && (
-              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center space-x-2">
-                <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0" />
-                <p className="text-sm text-red-600">{errors.duplicates}</p>
-              </div>
-            )}
+          {/* Participant Placements */}
+          <div>
+            <h3 className="text-lg font-medium text-gray-900 mb-4">Participant Final Standings</h3>
 
-            {formData.standings.length === 0 ? (
-              <div className="text-center py-8 bg-gray-50 rounded-lg">
-                <Target className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                <p className="text-gray-500">No player standings added yet</p>
-                <p className="text-sm text-gray-400">Click "Add Player" to get started</p>
+            {formData.participantPlacements.length === 0 ? (
+              <div className="text-center py-8 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+                <Users className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                <p className="text-gray-500">No participants registered for this league</p>
+                <p className="text-sm text-gray-400">Add participants to this league in league setup</p>
               </div>
             ) : (
-              <div className="space-y-3">
-                {formData.standings.map((standing, index) => (
+              <div className="space-y-4">
+                {formData.participantPlacements.map((participant, index) => (
                   <div
-                    key={standing.id}
+                    key={participant.participantId}
                     className="bg-gray-50 rounded-lg p-4 border border-gray-200"
                   >
-                    <div className="grid grid-cols-1 lg:grid-cols-7 gap-4 items-end">
-                      {/* Position */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+                      {/* Participant Name */}
                       <div>
-                        <label className="block text-xs font-medium text-gray-700 mb-1">
-                          Position
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Participant
                         </label>
-                        <div className="flex items-center space-x-1">
-                          <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
-                            <span className="font-bold text-green-600">#{standing.position}</span>
+                        <div className="flex items-center space-x-2">
+                          <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
+                            <Users className="w-4 h-4 text-green-600" />
                           </div>
-                          <div className="flex flex-col">
-                            <button
-                              type="button"
-                              onClick={() => moveStanding(standing.id, 'up')}
-                              disabled={index === 0}
-                              className="p-1 hover:bg-gray-200 rounded disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                              <span className="text-xs">▲</span>
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => moveStanding(standing.id, 'down')}
-                              disabled={index === formData.standings.length - 1}
-                              className="p-1 hover:bg-gray-200 rounded disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                              <span className="text-xs">▼</span>
-                            </button>
-                          </div>
+                          <span className="font-medium text-gray-900">
+                            {participant.participantName}
+                          </span>
                         </div>
                       </div>
 
-                      {/* Player Selection */}
-                      <div className="lg:col-span-2">
-                        <label className="block text-xs font-medium text-gray-700 mb-1">
-                          Player
+                      {/* Placement */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Final Placement
                         </label>
                         <select
-                          value={standing.memberId}
-                          onChange={(e) => updateStanding(standing.id, 'memberId', e.target.value)}
+                          value={participant.placement || ''}
+                          onChange={(e) => updateParticipantPlacement(
+                            participant.participantId, 
+                            'placement', 
+                            e.target.value
+                          )}
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                         >
-                          <option value="">Select a player...</option>
-                          {standing.memberId && (
-                            <option value={standing.memberId}>
-                              {standing.memberName}
-                            </option>
-                          )}
-                          {availableMembers.map(member => (
-                            <option key={member.id} value={member.id}>
-                              {member.name}
+                          <option value="">Select placement...</option>
+                          {Array.from({ length: formData.totalTeams }, (_, i) => i + 1).map(place => (
+                            <option key={place} value={place}>
+                              {place}{getPlacementSuffix(place)} place
                             </option>
                           ))}
                         </select>
-                        {errors[`member_${standing.id}`] && (
-                          <p className="mt-1 text-xs text-red-600">
-                            {errors[`member_${standing.id}`]}
+                        {errors[`participant_${index}_placement`] && (
+                          <p className="mt-1 text-sm text-red-600">
+                            {errors[`participant_${index}_placement`]}
                           </p>
                         )}
                       </div>
 
-                      {/* Points */}
+                      {/* Notes */}
                       <div>
-                        <label className="block text-xs font-medium text-gray-700 mb-1">
-                          Points
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Notes (Optional)
                         </label>
                         <input
-                          type="number"
-                          min="0"
-                          value={standing.points}
-                          onChange={(e) => updateStanding(standing.id, 'points', e.target.value)}
+                          type="text"
+                          value={participant.notes}
+                          onChange={(e) => updateParticipantPlacement(
+                            participant.participantId, 
+                            'notes', 
+                            e.target.value
+                          )}
+                          placeholder="e.g., great improvement, consistent play"
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                         />
-                        {errors[`points_${standing.id}`] && (
-                          <p className="mt-1 text-xs text-red-600">
-                            {errors[`points_${standing.id}`]}
-                          </p>
-                        )}
-                      </div>
-
-                      {/* Wins */}
-                      <div>
-                        <label className="block text-xs font-medium text-gray-700 mb-1">
-                          Wins
-                        </label>
-                        <input
-                          type="number"
-                          min="0"
-                          value={standing.wins}
-                          onChange={(e) => updateStanding(standing.id, 'wins', e.target.value)}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        />
-                        {errors[`wins_${standing.id}`] && (
-                          <p className="mt-1 text-xs text-red-600">
-                            {errors[`wins_${standing.id}`]}
-                          </p>
-                        )}
-                      </div>
-
-                      {/* Losses */}
-                      <div>
-                        <label className="block text-xs font-medium text-gray-700 mb-1">
-                          Losses
-                        </label>
-                        <input
-                          type="number"
-                          min="0"
-                          value={standing.losses}
-                          onChange={(e) => updateStanding(standing.id, 'losses', e.target.value)}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        />
-                        {errors[`losses_${standing.id}`] && (
-                          <p className="mt-1 text-xs text-red-600">
-                            {errors[`losses_${standing.id}`]}
-                          </p>
-                        )}
-                      </div>
-
-                      {/* Games Played */}
-                      <div>
-                        <label className="block text-xs font-medium text-gray-700 mb-1">
-                          Games Played
-                        </label>
-                        <input
-                          type="number"
-                          min="0"
-                          value={standing.gamesPlayed}
-                          onChange={(e) => updateStanding(standing.id, 'gamesPlayed', e.target.value)}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        />
-                        {errors[`games_${standing.id}`] && (
-                          <p className="mt-1 text-xs text-red-600">
-                            {errors[`games_${standing.id}`]}
-                          </p>
-                        )}
                       </div>
                     </div>
 
-                    {/* Win Percentage & Actions */}
-                    <div className="mt-3 flex items-center justify-between">
-                      <div className="text-sm text-gray-600">
-                        Win Rate: <span className="font-medium">
-                          {calculateWinPercentage(standing.wins, standing.gamesPlayed)}%
-                        </span>
+                    {/* Placement Preview */}
+                    {participant.placement && (
+                      <div className="mt-3 pt-3 border-t border-gray-200">
+                        <div className="flex items-center space-x-2">
+                          <Target className="w-4 h-4 text-green-500" />
+                          <span className="text-sm font-medium text-gray-900">
+                            {participant.participantName} finished {participant.placement}{getPlacementSuffix(participant.placement)} out of {formData.totalTeams} teams
+                          </span>
+                        </div>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => removeStanding(standing.id)}
-                        className="flex items-center space-x-1 px-2 py-1 text-red-600 hover:bg-red-50 rounded transition-colors"
-                      >
-                        <X className="w-4 h-4" />
-                        <span className="text-sm">Remove</span>
-                      </button>
-                    </div>
+                    )}
                   </div>
                 ))}
               </div>
             )}
           </div>
 
-          {/* Notes */}
+          {/* League Notes */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Notes (Optional)
+              League Notes (Optional)
             </label>
             <textarea
               value={formData.notes}
               onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
               rows={3}
-              placeholder="Add any notes about the league results..."
+              placeholder="Add any notes about the league season..."
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
             />
           </div>

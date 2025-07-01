@@ -1,4 +1,4 @@
-// src/hooks/useResults.js
+// src/hooks/useResults.js - UPDATED FOR TEAMS
 import { useState, useEffect, useCallback } from 'react';
 import { 
   collection, 
@@ -18,7 +18,7 @@ import { db } from '../services/firebase';
 
 /**
  * Custom hook for managing tournament and league results
- * Handles both types of results with unified interface
+ * Now handles team-based results for both tournaments and leagues
  */
 export const useResults = () => {
   const [results, setResults] = useState({
@@ -113,11 +113,29 @@ export const useResults = () => {
     };
   }, []);
 
-  // Add tournament results
+  // Add tournament results with placement data
   const addTournamentResults = useCallback(async (tournamentId, resultsData) => {
     try {
       setError(null);
       
+      // Validate tournament results structure
+      if (!resultsData.divisionResults || !Array.isArray(resultsData.divisionResults)) {
+        throw new Error('Tournament results must have division results');
+      }
+
+      // Validate each division has participant placements
+      resultsData.divisionResults.forEach((division, index) => {
+        if (!division.participantPlacements || !Array.isArray(division.participantPlacements)) {
+          throw new Error(`Division ${index + 1} must have participant placements`);
+        }
+        
+        division.participantPlacements.forEach((participant, participantIndex) => {
+          if (participant.placement === null || participant.placement === undefined) {
+            throw new Error(`Division ${index + 1}, Participant ${participantIndex + 1} must have a placement`);
+          }
+        });
+      });
+
       const docData = {
         ...resultsData,
         eventId: tournamentId,
@@ -146,6 +164,11 @@ export const useResults = () => {
         throw new Error('Tournament result not found');
       }
 
+      // Validate updated results structure
+      if (!resultsData.divisionResults || !Array.isArray(resultsData.divisionResults)) {
+        throw new Error('Tournament results must have division results');
+      }
+
       const docData = {
         ...resultsData,
         updatedAt: serverTimestamp()
@@ -160,11 +183,23 @@ export const useResults = () => {
     }
   }, [results.tournament]);
 
-  // Add league results
+  // Add league results with participant placements
   const addLeagueResults = useCallback(async (leagueId, resultsData) => {
     try {
       setError(null);
       
+      // Validate league results structure
+      if (!resultsData.participantPlacements || !Array.isArray(resultsData.participantPlacements)) {
+        throw new Error('League results must have participant placements');
+      }
+
+      // Validate each participant has a placement
+      resultsData.participantPlacements.forEach((participant, index) => {
+        if (participant.placement === null || participant.placement === undefined) {
+          throw new Error(`Participant ${index + 1} must have a placement`);
+        }
+      });
+
       const docData = {
         ...resultsData,
         eventId: leagueId,
@@ -191,6 +226,11 @@ export const useResults = () => {
       const existingResult = results.league.find(result => result.eventId === leagueId);
       if (!existingResult) {
         throw new Error('League result not found');
+      }
+
+      // Validate updated results structure
+      if (!resultsData.participantPlacements || !Array.isArray(resultsData.participantPlacements)) {
+        throw new Error('League results must have participant placements');
       }
 
       const docData = {
@@ -272,14 +312,51 @@ export const useResults = () => {
     );
   }, [results.performance]);
 
-  // Get all results for a specific player
+  // Get all results for a specific player (now searches participant placements)
   const getPlayerResults = useCallback((memberId) => {
     const allResults = [...results.tournament, ...results.league];
-    return allResults.filter(result => 
-      result.standings?.some(standing => 
-        standing.memberId === memberId || standing.memberName === memberId
-      )
-    );
+    return allResults.filter(result => {
+      // Check tournament division results
+      if (result.type === 'tournament' && result.divisionResults) {
+        return result.divisionResults.some(division =>
+          division.participantPlacements?.some(participant => 
+            participant.participantId === memberId
+          )
+        );
+      }
+      
+      // Check league participant placements
+      if (result.type === 'league' && result.participantPlacements) {
+        return result.participantPlacements.some(participant => 
+          participant.participantId === memberId
+        );
+      }
+
+      // Legacy support - check old team standings format
+      if (result.divisionResults) {
+        return result.divisionResults.some(division =>
+          division.teamStandings?.some(team => 
+            team.player1Id === memberId || team.player2Id === memberId
+          )
+        );
+      }
+
+      // Legacy support - check old league team standings format
+      if (result.teamStandings) {
+        return result.teamStandings.some(team => 
+          team.player1Id === memberId || team.player2Id === memberId
+        );
+      }
+
+      // Legacy support - check old standings format
+      if (result.standings) {
+        return result.standings.some(standing => 
+          standing.memberId === memberId || standing.memberName === memberId
+        );
+      }
+
+      return false;
+    });
   }, [results]);
 
   // Get recent results across all types
@@ -294,7 +371,7 @@ export const useResults = () => {
       .slice(0, limit);
   }, [results]);
 
-  // Get performance statistics for a player
+  // Get performance statistics for a player (updated for placement results)
   const getPlayerStats = useCallback((memberId) => {
     const playerResults = getPlayerResults(memberId);
     const playerPerformances = results.performance.filter(perf => perf.memberId === memberId);
@@ -310,14 +387,70 @@ export const useResults = () => {
 
     // Calculate wins and podiums
     playerResults.forEach(result => {
-      const playerStanding = result.standings?.find(standing => 
-        standing.memberId === memberId || standing.memberName === memberId
-      );
+      let placement = null;
+
+      // Handle tournament results
+      if (result.type === 'tournament' && result.divisionResults) {
+        for (const division of result.divisionResults) {
+          const participant = division.participantPlacements?.find(p => 
+            p.participantId === memberId
+          );
+          if (participant) {
+            placement = participant.placement;
+            break;
+          }
+        }
+      }
       
-      if (playerStanding) {
-        const position = result.standings.indexOf(playerStanding) + 1;
-        if (position === 1) stats.wins++;
-        if (position <= 3) stats.podiums++;
+      // Handle league results
+      else if (result.type === 'league' && result.participantPlacements) {
+        const participant = result.participantPlacements.find(p => 
+          p.participantId === memberId
+        );
+        if (participant) {
+          placement = participant.placement;
+        }
+      }
+
+      // Handle legacy team format
+      else if (result.divisionResults) {
+        for (const division of result.divisionResults) {
+          const team = division.teamStandings?.find(team => 
+            team.player1Id === memberId || team.player2Id === memberId
+          );
+          if (team) {
+            placement = team.position;
+            break;
+          }
+        }
+      }
+
+      // Handle legacy league team format
+      else if (result.teamStandings) {
+        const team = result.teamStandings.find(team => 
+          team.player1Id === memberId || team.player2Id === memberId
+        );
+        if (team) {
+          placement = team.position;
+        }
+      }
+
+      // Handle legacy individual format
+      else if (result.standings) {
+        const playerStanding = result.standings.find(standing => 
+          standing.memberId === memberId || standing.memberName === memberId
+        );
+        if (playerStanding) {
+          placement = result.standings.indexOf(playerStanding) + 1;
+        }
+      }
+
+      // Count wins and podiums
+      if (placement === 1) {
+        stats.wins++;
+      }
+      if (placement <= 3) {
+        stats.podiums++;
       }
     });
 
