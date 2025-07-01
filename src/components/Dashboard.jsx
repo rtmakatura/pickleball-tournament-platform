@@ -59,11 +59,13 @@ import { SignUpForm } from './auth';
 import SignInForm from './auth/SignInForm';
 import { CommentSection } from './comments';
 
-// ADDED: Import results entry forms
+// ADDED: Import results entry forms and display components
 import { 
   TournamentResultsForm, 
   LeagueResultsForm, 
-  PlayerPerformanceForm 
+  PlayerPerformanceForm,
+  ResultsCard,
+  ResultsTable
 } from './result';
 
 // CSS for responsive optimizations (keeping existing styles + new results styles)
@@ -1260,13 +1262,20 @@ const Dashboard = () => {
   
   // ADDED: Results and performance hooks
   const { 
-    results, 
-    loading: resultsLoading, 
-    addTournamentResults, 
-    addLeagueResults, 
-    updateTournamentResults,
-    updateLeagueResults 
-  } = useResults();
+  results, 
+  loading: resultsLoading, 
+  addTournamentResults, 
+  addLeagueResults, 
+  updateTournamentResults,
+  updateLeagueResults 
+} = useResults();
+
+// DEBUG: Log results data
+console.log('=== RESULTS DEBUG ===');
+console.log('results object:', results);
+console.log('results.tournament:', results.tournament);
+console.log('results.league:', results.league);
+console.log('resultsLoading:', resultsLoading);
   
   const { 
     playerPerformance, 
@@ -1395,11 +1404,23 @@ const Dashboard = () => {
   }, []);
 
   const handleViewTournamentResults = useCallback((tournament) => {
-    console.log('Viewing results for tournament:', tournament);
-    const tournamentResults = results.tournament?.find(result => result.eventId === tournament.id);
-    setViewingResults({ type: 'tournament', event: tournament, results: tournamentResults });
-    setShowResultsViewModal(true);
-  }, [results.tournament]);
+  console.log('=== VIEWING TOURNAMENT RESULTS ===');
+  console.log('Tournament:', tournament);
+  console.log('Tournament ID:', tournament.id);
+  console.log('Available results.tournament:', results.tournament);
+  
+  const tournamentResults = results.tournament?.find(result => {
+    console.log('Checking result:', result);
+    console.log('result.eventId:', result.eventId);
+    console.log('tournament.id:', tournament.id);
+    console.log('Match?', result.eventId === tournament.id);
+    return result.eventId === tournament.id;
+  });
+  
+  console.log('Found tournament results:', tournamentResults);
+  setViewingResults({ type: 'tournament', event: tournament, results: tournamentResults });
+  setShowResultsViewModal(true);
+}, [results.tournament]);
 
   const handleViewLeagueResults = useCallback((league) => {
     console.log('Viewing results for league:', league);
@@ -2624,18 +2645,44 @@ const Dashboard = () => {
               {viewingResults.type === 'tournament' ? (
                 <div>
                   <h3 className="text-lg font-semibold mb-4">Tournament Results</h3>
-                  {/* Display tournament results */}
-                  <div className="bg-gray-50 p-4 rounded-lg">
-                    <p className="text-gray-600">Tournament results display would go here</p>
-                  </div>
+                  {viewingResults.results ? (
+                    <div className="space-y-4">
+                      <ResultsCard 
+                        result={viewingResults.results}
+                        onClose={() => {}}
+                        showPlayerPerformance={true}
+                        allowEdit={false}
+                      />
+                    </div>
+                  ) : (
+                    <div className="bg-yellow-50 border border-yellow-200 p-4 rounded-lg">
+                      <p className="text-yellow-800">
+                        <Trophy className="h-5 w-5 inline mr-2" />
+                        No detailed results found for this tournament.
+                      </p>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div>
                   <h3 className="text-lg font-semibold mb-4">League Results</h3>
-                  {/* Display league results */}
-                  <div className="bg-gray-50 p-4 rounded-lg">
-                    <p className="text-gray-600">League results display would go here</p>
-                  </div>
+                  {viewingResults.results ? (
+                    <div className="space-y-4">
+                      <ResultsCard 
+                        result={viewingResults.results}
+                        onClose={() => {}}
+                        showPlayerPerformance={true}
+                        allowEdit={false}
+                      />
+                    </div>
+                  ) : (
+                    <div className="bg-yellow-50 border border-yellow-200 p-4 rounded-lg">
+                      <p className="text-yellow-800">
+                        <Activity className="h-5 w-5 inline mr-2" />
+                        No detailed results found for this league.
+                      </p>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
