@@ -1,4 +1,4 @@
-// src/components/result/LeagueResultsForm.jsx - SIMPLIFIED FOR PLACEMENT ONLY
+// src/components/result/LeagueResultsForm.jsx (IMPROVED - Better Member Name Handling)
 import React, { useState, useEffect } from 'react';
 import { Users, Calendar, X, Save, AlertCircle, Target } from 'lucide-react';
 
@@ -10,6 +10,21 @@ const LeagueResultsForm = ({
   isLoading = false,
   existingResults = null 
 }) => {
+  // IMPROVED: Better member name extraction function
+  const getMemberName = (member) => {
+    if (!member) return 'Unknown Member';
+    
+    // Try different name properties in order of preference
+    if (member.name) return member.name;
+    if (member.firstName && member.lastName) return `${member.firstName} ${member.lastName}`;
+    if (member.firstName) return member.firstName;
+    if (member.fullName) return member.fullName;
+    if (member.displayName) return member.displayName;
+    if (member.email) return member.email; // fallback to email if no name
+    
+    return 'Unknown Member';
+  };
+
   const [formData, setFormData] = useState({
     participantPlacements: [],
     totalTeams: 0,
@@ -47,19 +62,33 @@ const LeagueResultsForm = ({
     return `Winter ${year}`;
   };
 
-  // Helper function to create placement results from league participants
+  // IMPROVED: Helper function to create placement results with better member lookup
   const generatePlacementResults = (league) => {
     if (!league.participants || league.participants.length === 0) {
       return [];
     }
 
+    console.log('League participants:', league.participants);
+    console.log('Available members:', members);
+
     // Create placement entries for each participant
     return league.participants.map((participantId) => {
-      const member = members.find(m => m.id === participantId);
+      // Try to find member by different ID fields
+      const member = members.find(m => 
+        m.id === participantId || 
+        m._id === participantId || 
+        m.memberId === participantId ||
+        m.userId === participantId
+      );
+      
+      const memberName = getMemberName(member);
+      
+      console.log(`Participant ${participantId} -> Member:`, member, `-> Name: ${memberName}`);
+      
       return {
         participantId,
-        participantName: member ? member.name : 'Unknown Member',
-        placement: null, // To be filled in by user
+        participantName: memberName,
+        placement: null,
         notes: ''
       };
     });
@@ -102,7 +131,7 @@ const LeagueResultsForm = ({
       setFormData(prev => ({
         ...prev,
         participantPlacements,
-        totalTeams: Math.ceil(participantPlacements.length / 2), // Estimate teams
+        totalTeams: Math.ceil(participantPlacements.length / 2),
         season: getCurrentSeason(),
         seasonInfo
       }));
@@ -236,6 +265,16 @@ const LeagueResultsForm = ({
       {/* Form Content */}
       <div className="flex-1 overflow-y-auto">
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
+          {/* IMPROVED: Debug info for development */}
+          {process.env.NODE_ENV === 'development' && (
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+              <h4 className="text-sm font-medium text-yellow-800 mb-2">Debug Info:</h4>
+              <p className="text-xs text-yellow-700">League participants: {league?.participants?.length || 0}</p>
+              <p className="text-xs text-yellow-700">Available members: {members?.length || 0}</p>
+              <p className="text-xs text-yellow-700">Generated placements: {formData.participantPlacements.length}</p>
+            </div>
+          )}
+
           {/* League Info */}
           <div className="bg-gray-50 rounded-lg p-4">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
@@ -260,11 +299,6 @@ const LeagueResultsForm = ({
                 <span className="font-medium capitalize">{league?.eventType?.replace('_', ' ') || 'Mixed Doubles'}</span>
               </div>
             </div>
-            {league.description && (
-              <div className="mt-3 pt-3 border-t border-gray-200">
-                <p className="text-sm text-gray-600">{league.description}</p>
-              </div>
-            )}
           </div>
 
           {/* Season and Completion Info */}
@@ -322,58 +356,6 @@ const LeagueResultsForm = ({
             </p>
           </div>
 
-          {/* Season Information */}
-          <div className="bg-blue-50 rounded-lg p-4">
-            <h4 className="text-sm font-medium text-gray-900 mb-3">Season Information (Optional)</h4>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">
-                  Total Weeks
-                </label>
-                <input
-                  type="number"
-                  min="0"
-                  value={formData.seasonInfo.totalWeeks}
-                  onChange={(e) => setFormData(prev => ({
-                    ...prev,
-                    seasonInfo: { ...prev.seasonInfo, totalWeeks: e.target.value }
-                  }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">
-                  Regular Season Weeks
-                </label>
-                <input
-                  type="number"
-                  min="0"
-                  value={formData.seasonInfo.regularSeasonWeeks}
-                  onChange={(e) => setFormData(prev => ({
-                    ...prev,
-                    seasonInfo: { ...prev.seasonInfo, regularSeasonWeeks: e.target.value }
-                  }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">
-                  Playoff Weeks
-                </label>
-                <input
-                  type="number"
-                  min="0"
-                  value={formData.seasonInfo.playoffWeeks}
-                  onChange={(e) => setFormData(prev => ({
-                    ...prev,
-                    seasonInfo: { ...prev.seasonInfo, playoffWeeks: e.target.value }
-                  }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
-            </div>
-          </div>
-
           {/* General Errors */}
           {(errors.general || errors.participants) && (
             <div className="p-3 bg-red-50 border border-red-200 rounded-lg flex items-center space-x-2">
@@ -400,18 +382,23 @@ const LeagueResultsForm = ({
                     className="bg-gray-50 rounded-lg p-4 border border-gray-200"
                   >
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
-                      {/* Participant Name */}
+                      {/* Participant Name - IMPROVED display */}
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
                           Participant
                         </label>
                         <div className="flex items-center space-x-2">
                           <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
-                            <Users className="w-4 h-4 text-green-600" />
+                            <span className="text-sm font-medium text-green-600">
+                              {participant.participantName?.charAt(0)?.toUpperCase() || '?'}
+                            </span>
                           </div>
                           <span className="font-medium text-gray-900">
                             {participant.participantName}
                           </span>
+                          {participant.participantName === 'Unknown Member' && (
+                            <span className="text-xs text-red-500">(Member not found)</span>
+                          )}
                         </div>
                       </div>
 

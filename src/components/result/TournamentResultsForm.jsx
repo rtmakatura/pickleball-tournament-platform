@@ -1,4 +1,4 @@
-// src/components/result/TournamentResultsForm.jsx - SIMPLIFIED FOR PLACEMENT ONLY
+// src/components/result/TournamentResultsForm.jsx (IMPROVED - Better Member Name Handling)
 import React, { useState, useEffect } from 'react';
 import { Trophy, Users, Calendar, X, Save, AlertCircle, ChevronDown, ChevronUp } from 'lucide-react';
 
@@ -10,6 +10,21 @@ const TournamentResultsForm = ({
   isLoading = false,
   existingResults = null 
 }) => {
+  // IMPROVED: Better member name extraction function
+  const getMemberName = (member) => {
+    if (!member) return 'Unknown Member';
+    
+    // Try different name properties in order of preference
+    if (member.name) return member.name;
+    if (member.firstName && member.lastName) return `${member.firstName} ${member.lastName}`;
+    if (member.firstName) return member.firstName;
+    if (member.fullName) return member.fullName;
+    if (member.displayName) return member.displayName;
+    if (member.email) return member.email; // fallback to email if no name
+    
+    return 'Unknown Member';
+  };
+
   const [formData, setFormData] = useState({
     divisionResults: [],
     notes: '',
@@ -18,7 +33,7 @@ const TournamentResultsForm = ({
   const [errors, setErrors] = useState({});
   const [expandedDivisions, setExpandedDivisions] = useState({});
 
-  // Helper function to create placement results from tournament participants
+  // IMPROVED: Helper function to create placement results with better member lookup
   const generatePlacementResults = (division) => {
     if (!division.participants || division.participants.length === 0) {
       return {
@@ -27,12 +42,26 @@ const TournamentResultsForm = ({
       };
     }
 
+    console.log('Division participants:', division.participants);
+    console.log('Available members:', members);
+
     // Create placement entries for each participant
     const participantPlacements = division.participants.map((participantId, index) => {
-      const member = members.find(m => m.id === participantId);
+      // Try to find member by different ID fields
+      const member = members.find(m => 
+        m.id === participantId || 
+        m._id === participantId || 
+        m.memberId === participantId ||
+        m.userId === participantId
+      );
+      
+      const memberName = getMemberName(member);
+      
+      console.log(`Division ${division.name} - Participant ${participantId} -> Member:`, member, `-> Name: ${memberName}`);
+      
       return {
         participantId,
-        participantName: member ? member.name : 'Unknown Member',
+        participantName: memberName,
         placement: null, // To be filled in by user
         notes: ''
       };
@@ -222,6 +251,21 @@ const TournamentResultsForm = ({
       {/* Form Content */}
       <div className="flex-1 overflow-y-auto">
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
+          {/* IMPROVED: Debug info for development */}
+          {process.env.NODE_ENV === 'development' && (
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+              <h4 className="text-sm font-medium text-yellow-800 mb-2">Debug Info:</h4>
+              <p className="text-xs text-yellow-700">Tournament divisions: {tournament?.divisions?.length || 0}</p>
+              <p className="text-xs text-yellow-700">Available members: {members?.length || 0}</p>
+              <p className="text-xs text-yellow-700">Generated division results: {formData.divisionResults.length}</p>
+              {formData.divisionResults.map((div, idx) => (
+                <p key={idx} className="text-xs text-yellow-700">
+                  Division {idx + 1}: {div.participantPlacements.length} participants
+                </p>
+              ))}
+            </div>
+          )}
+
           {/* Tournament Info */}
           <div className="bg-gray-50 rounded-lg p-4">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
@@ -339,18 +383,23 @@ const TournamentResultsForm = ({
                         {division.participantPlacements.map((participant, participantIndex) => (
                           <div key={participant.participantId} className="bg-white rounded-lg p-4 border border-gray-200">
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
-                              {/* Participant Name */}
+                              {/* Participant Name - IMPROVED display */}
                               <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-2">
                                   Participant
                                 </label>
                                 <div className="flex items-center space-x-2">
                                   <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                                    <Users className="w-4 h-4 text-blue-600" />
+                                    <span className="text-sm font-medium text-blue-600">
+                                      {participant.participantName?.charAt(0)?.toUpperCase() || '?'}
+                                    </span>
                                   </div>
                                   <span className="font-medium text-gray-900">
                                     {participant.participantName}
                                   </span>
+                                  {participant.participantName === 'Unknown Member' && (
+                                    <span className="text-xs text-red-500">(Member not found)</span>
+                                  )}
                                 </div>
                               </div>
 

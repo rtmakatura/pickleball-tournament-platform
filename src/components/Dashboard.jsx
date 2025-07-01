@@ -68,13 +68,77 @@ import {
 
 // CSS for responsive optimizations (keeping existing styles + new results styles)
 const dashboardStyles = `
-  /* Mobile-first optimizations */
+  /* Mobile-first optimizations - ENHANCED */
   .mobile-card {
     transition: transform 0.2s ease, box-shadow 0.2s ease;
   }
   
   .mobile-card:active {
     transform: scale(0.98);
+  }
+  
+  /* ENHANCED: Responsive breakpoints for better mobile support */
+  @media (max-width: 375px) {
+    .mobile-card {
+      padding: 12px !important;
+    }
+    
+    .mobile-card .p-4 {
+      padding: 12px !important;
+    }
+    
+    .mobile-card .pb-4 {
+      padding-bottom: 12px !important;
+    }
+    
+    .mobile-card .px-4 {
+      padding-left: 12px !important;
+      padding-right: 12px !important;
+    }
+    
+    .mobile-action-button {
+      min-height: 44px !important;
+      min-width: 100px !important;
+      font-size: 0.75rem !important;
+      padding: 8px 12px !important;
+    }
+    
+    .mobile-action-button svg {
+      height: 14px !important;
+      width: 14px !important;
+    }
+    
+    .touch-target {
+      min-height: 44px !important;
+      min-width: 44px !important;
+    }
+    
+    /* Smaller text on very small screens */
+    .mobile-card h3 {
+      font-size: 1rem !important;
+      line-height: 1.25 !important;
+    }
+    
+    .mobile-card .text-xs {
+      font-size: 0.6875rem !important;
+    }
+    
+    /* Tighter spacing */
+    .mobile-card .space-y-2 > * + * {
+      margin-top: 0.375rem !important;
+    }
+    
+    .mobile-card .space-y-3 > * + * {
+      margin-top: 0.5rem !important;
+    }
+    
+    .mobile-card .mb-3 {
+      margin-bottom: 0.5rem !important;
+    }
+    
+    .mobile-card .mt-3 {
+      margin-top: 0.5rem !important;
+    }
   }
   
   @media (max-width: 768px) {
@@ -87,9 +151,14 @@ const dashboardStyles = `
       min-height: 52px;
       min-width: 120px;
     }
+    
+    /* Better spacing on larger mobile screens */
+    .mobile-card {
+      padding: 16px;
+    }
   }
   
-  /* Desktop table optimizations */
+  /* Desktop table optimizations - FIXED ALIGNMENT */
   @media (min-width: 769px) {
     .tournament-row, .league-row {
       transition: background-color 0.15s ease;
@@ -103,9 +172,19 @@ const dashboardStyles = `
       table-layout: fixed;
     }
     
+    /* FIXED: Proper action column alignment */
     .table-actions {
       opacity: 1 !important;
       transition: none !important;
+      display: flex !important;
+      flex-direction: column !important;
+      align-items: flex-end !important; /* Right-align to match header */
+      gap: 4px !important;
+    }
+    
+    .table-actions button {
+      width: 80px !important; /* Consistent width */
+      justify-content: center !important;
     }
   }
   
@@ -235,31 +314,30 @@ const TournamentCard = React.memo(({ tournament, onView, onEdit, onEnterResults,
     });
   };
 
-  // ADDED: Check if tournament is ready for results entry
+  // Check if tournament is ready for results entry
   const canEnterResults = tournament.status === TOURNAMENT_STATUS.IN_PROGRESS || 
                          (tournament.status === TOURNAMENT_STATUS.COMPLETED && !hasResults);
 
   return (
     <div className="mobile-card bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden">
-      {/* Card Header */}
-      <div className="p-4 pb-3">
-        <div className="flex items-start justify-between mb-3">
+      {/* ENHANCED: Card Header with responsive padding */}
+      <div className="p-3 sm:p-4 pb-2 sm:pb-3">
+        <div className="flex items-start justify-between mb-2 sm:mb-3">
           <div className="flex-1 min-w-0">
-            <h3 className="text-lg font-semibold text-gray-900 truncate">
+            <h3 className="text-base sm:text-lg font-semibold text-gray-900 truncate">
               {tournament.name}
             </h3>
-            <div className="flex items-center space-x-2 mt-2">
-              <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${statusConfig.color}`}>
+            <div className="flex items-center flex-wrap gap-1 sm:gap-2 mt-1 sm:mt-2">
+              <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${statusConfig.color}`}>
                 <StatusIcon className="h-3 w-3 mr-1" />
                 {statusConfig.label}
               </span>
               {divisionCount > 0 && (
-                <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
+                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
                   <Layers className="h-3 w-3 mr-1" />
                   {divisionCount} division{divisionCount !== 1 ? 's' : ''}
                 </span>
               )}
-              {/* ADDED: Results indicator */}
               {hasResults && (
                 <span className="results-indicator">
                   <Award className="h-3 w-3 mr-1" />
@@ -270,19 +348,19 @@ const TournamentCard = React.memo(({ tournament, onView, onEdit, onEnterResults,
           </div>
         </div>
 
-        {/* Quick Info Grid */}
-        <div className="grid grid-cols-2 gap-3 text-sm">
-          <div className="flex items-center text-gray-600">
-            <Calendar className="h-4 w-4 mr-2 text-gray-400" />
-            <span className="text-xs">{formatDate(tournament.eventDate)}</span>
+        {/* ENHANCED: Quick Info Grid with responsive layout */}
+        <div className="grid grid-cols-1 xs:grid-cols-2 gap-2 sm:gap-3 text-sm">
+          <div className="flex items-center text-gray-600 min-w-0">
+            <Calendar className="h-3 w-3 sm:h-4 sm:w-4 mr-2 text-gray-400 flex-shrink-0" />
+            <span className="text-xs truncate">{formatDate(tournament.eventDate)}</span>
           </div>
-          <div className="flex items-center text-gray-600">
-            <Users className="h-4 w-4 mr-2 text-gray-400" />
-            <span className="text-xs">{totalParticipants} people</span>
+          <div className="flex items-center text-gray-600 min-w-0">
+            <Users className="h-3 w-3 sm:h-4 sm:w-4 mr-2 text-gray-400 flex-shrink-0" />
+            <span className="text-xs truncate">{totalParticipants} people</span>
           </div>
           {tournament.location && (
-            <div className="col-span-2 flex items-center text-gray-600">
-              <MapPin className="h-4 w-4 mr-2 text-gray-400" />
+            <div className="col-span-1 xs:col-span-2 flex items-center text-gray-600 min-w-0">
+              <MapPin className="h-3 w-3 sm:h-4 sm:w-4 mr-2 text-gray-400 flex-shrink-0" />
               <span className="truncate text-xs">{tournament.location}</span>
             </div>
           )}
@@ -290,26 +368,27 @@ const TournamentCard = React.memo(({ tournament, onView, onEdit, onEnterResults,
 
         {/* Expected Revenue */}
         {totalExpected > 0 && (
-          <div className="mt-3 flex items-center justify-between p-3 bg-green-50 rounded-lg">
-            <span className="text-sm text-green-700 font-medium">Expected Revenue</span>
-            <span className="text-lg font-bold text-green-800">${totalExpected}</span>
+          <div className="mt-2 sm:mt-3 flex items-center justify-between p-2 sm:p-3 bg-green-50 rounded-lg">
+            <span className="text-xs sm:text-sm text-green-700 font-medium">Expected Revenue</span>
+            <span className="text-base sm:text-lg font-bold text-green-800">${totalExpected}</span>
           </div>
         )}
       </div>
 
-      {/* UPDATED: Action Buttons with Results Entry */}
-      <div className="px-4 pb-4 space-y-2">
+      {/* ENHANCED: Action Buttons with responsive sizing */}
+      <div className="p-3 sm:px-4 sm:pb-4 pt-0 space-y-2">
         <div className="flex space-x-2">
           <Button
             onClick={(e) => {
               e.stopPropagation();
               onView(tournament);
             }}
-            className="mobile-action-button flex-1 bg-blue-600 hover:bg-blue-700 text-white"
-            size="md"
+            className="mobile-action-button flex-1 bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm"
+            size="sm"
           >
-            <MessageSquare className="h-4 w-4 mr-2" />
-            Discuss
+            <MessageSquare className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+            <span className="hidden xs:inline">Discuss</span>
+            <span className="xs:hidden">Talk</span>
           </Button>
           <Button
             onClick={(e) => {
@@ -317,25 +396,25 @@ const TournamentCard = React.memo(({ tournament, onView, onEdit, onEnterResults,
               onEdit(tournament);
             }}
             variant="outline"
-            className="mobile-action-button flex-1"
-            size="md"
+            className="mobile-action-button flex-1 text-xs sm:text-sm"
+            size="sm"
           >
-            <Trophy className="h-4 w-4 mr-2" />
-            Manage
+            <Trophy className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+            <span className="hidden xs:inline">Manage</span>
+            <span className="xs:hidden">Edit</span>
           </Button>
         </div>
         
-        {/* ADDED: Results action button */}
         {canEnterResults && (
           <Button
             onClick={(e) => {
               e.stopPropagation();
               onEnterResults(tournament);
             }}
-            className="mobile-action-button w-full results-button"
-            size="md"
+            className="mobile-action-button w-full results-button text-xs sm:text-sm"
+            size="sm"
           >
-            <BarChart3 className="h-4 w-4 mr-2" />
+            <BarChart3 className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
             Enter Results
           </Button>
         )}
@@ -347,10 +426,10 @@ const TournamentCard = React.memo(({ tournament, onView, onEdit, onEnterResults,
               onViewResults(tournament);
             }}
             variant="outline"
-            className="mobile-action-button w-full border-green-300 text-green-700 hover:bg-green-50"
-            size="md"
+            className="mobile-action-button w-full border-green-300 text-green-700 hover:bg-green-50 text-xs sm:text-sm"
+            size="sm"
           >
-            <Award className="h-4 w-4 mr-2" />
+            <Award className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
             View Results
           </Button>
         )}
@@ -358,29 +437,29 @@ const TournamentCard = React.memo(({ tournament, onView, onEdit, onEnterResults,
 
       {/* Quick Actions Bar */}
       {tournament.location && (
-        <div className="border-t border-gray-100 px-4 py-3 bg-gray-50">
+        <div className="border-t border-gray-100 px-3 sm:px-4 py-2 sm:py-3 bg-gray-50">
           <div className="flex items-center justify-between">
             <span className="text-xs text-gray-600 font-medium">Quick Actions</span>
-            <div className="flex space-x-2">
+            <div className="flex space-x-1 sm:space-x-2">
               <button
                 onClick={(e) => {
                   e.stopPropagation();
                   openLinkSafely(generateGoogleMapsLink(tournament.location));
                 }}
-                className="touch-target p-2 rounded-md hover:bg-gray-200 transition-colors"
+                className="touch-target p-1.5 sm:p-2 rounded-md hover:bg-gray-200 transition-colors"
                 title="View on Maps"
               >
-                <MapPin className="h-4 w-4 text-gray-500" />
+                <MapPin className="h-3 w-3 sm:h-4 sm:w-4 text-gray-500" />
               </button>
               <button
                 onClick={(e) => {
                   e.stopPropagation();
                   openLinkSafely(generateDirectionsLink(tournament.location));
                 }}
-                className="touch-target p-2 rounded-md hover:bg-gray-200 transition-colors"
+                className="touch-target p-1.5 sm:p-2 rounded-md hover:bg-gray-200 transition-colors"
                 title="Directions"
               >
-                <Navigation className="h-4 w-4 text-gray-500" />
+                <Navigation className="h-3 w-3 sm:h-4 sm:w-4 text-gray-500" />
               </button>
               {tournament.website && (
                 <button
@@ -388,10 +467,10 @@ const TournamentCard = React.memo(({ tournament, onView, onEdit, onEnterResults,
                     e.stopPropagation();
                     openLinkSafely(tournament.website);
                   }}
-                  className="touch-target p-2 rounded-md hover:bg-gray-200 transition-colors"
+                  className="touch-target p-1.5 sm:p-2 rounded-md hover:bg-gray-200 transition-colors"
                   title="Website"
                 >
-                  <ExternalLink className="h-4 w-4 text-gray-500" />
+                  <ExternalLink className="h-3 w-3 sm:h-4 sm:w-4 text-gray-500" />
                 </button>
               )}
             </div>
@@ -942,27 +1021,26 @@ const LeagueRow = React.memo(({ league, onView, onEdit, onEnterResults, onViewRe
         </div>
       </td>
 
-      {/* UPDATED: Actions Column with Results */}
+      {/* FIXED: Actions Column with proper alignment */}
       <td className="py-4 px-4 align-top">
-        <div className="flex flex-col space-y-1 table-actions">
+        <div className="table-actions">
           <button 
-            className="inline-flex items-center justify-center px-3 py-1.5 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors w-20"
+            className="inline-flex items-center justify-center px-3 py-1.5 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
             onClick={handleViewClick}
             type="button"
           >
             Discuss
           </button>
           <button 
-            className="inline-flex items-center justify-center px-3 py-1.5 text-sm bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors w-20"
+            className="inline-flex items-center justify-center px-3 py-1.5 text-sm bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors"
             onClick={handleEditClick}
             type="button"
           >
             Edit
           </button>
-          {/* ADDED: Results buttons */}
           {canEnterResults && (
             <button 
-              className="inline-flex items-center justify-center px-3 py-1.5 text-sm results-button rounded-md hover:opacity-90 transition-colors w-20"
+              className="inline-flex items-center justify-center px-3 py-1.5 text-sm results-button rounded-md hover:opacity-90 transition-colors"
               onClick={handleEnterResultsClick}
               type="button"
             >
@@ -971,7 +1049,7 @@ const LeagueRow = React.memo(({ league, onView, onEdit, onEnterResults, onViewRe
           )}
           {hasResults && (
             <button 
-              className="inline-flex items-center justify-center px-3 py-1.5 text-sm border border-green-300 text-green-700 rounded-md hover:bg-green-50 transition-colors w-20"
+              className="inline-flex items-center justify-center px-3 py-1.5 text-sm border border-green-300 text-green-700 rounded-md hover:bg-green-50 transition-colors"
               onClick={handleViewResultsClick}
               type="button"
             >

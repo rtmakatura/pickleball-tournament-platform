@@ -1,7 +1,8 @@
 // src/components/ui/ConfirmDialog.jsx
 import React from 'react';
 import { AlertTriangle, Trash2 } from 'lucide-react';
-import { Button, Modal } from './';
+import Button from './Button.jsx';
+import Modal from './Modal.jsx';
 
 /**
  * ConfirmDialog Component - For confirming destructive actions
