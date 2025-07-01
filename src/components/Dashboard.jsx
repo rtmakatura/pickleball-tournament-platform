@@ -535,12 +535,21 @@ const TournamentRow = React.memo(({ tournament, onView, onEdit, onEnterResults, 
       {/* Name Column */}
       <td className="py-4 px-4 align-top">
         <div className="space-y-2">
-          <div className="font-medium text-gray-900 leading-5 break-words">
-            {tournament.name}
+          <div className="flex items-center gap-3">
+            <div className="font-medium text-gray-900 leading-5 break-words flex-1">
+              {tournament.name}
+            </div>
+            {/* Results indicator positioned next to name */}
+            {hasResults && (
+              <div className="results-indicator flex-shrink-0">
+                <Award className="h-3 w-3 mr-1" />
+                Results
+              </div>
+            )}
           </div>
           
-          {/* Quick indicators */}
-          <div className="flex items-center space-x-4 text-xs">
+          {/* Quick indicators - now with more space */}
+          <div className="flex items-center flex-wrap gap-x-4 gap-y-1 text-xs">
             <div className="flex items-center text-gray-500">
               <Users className="h-3 w-3 mr-1" />
               <span>{totalParticipants} total</span>
@@ -560,13 +569,6 @@ const TournamentRow = React.memo(({ tournament, onView, onEdit, onEnterResults, 
               <div className="flex items-center text-gray-400">
                 <MessageSquare className="h-3 w-3 mr-1" />
                 <span>{tournament.commentCount}</span>
-              </div>
-            )}
-            {/* ADDED: Results indicator */}
-            {hasResults && (
-              <div className="results-indicator">
-                <Award className="h-3 w-3 mr-1" />
-                Results
               </div>
             )}
           </div>
@@ -2226,40 +2228,40 @@ const Dashboard = () => {
             <Button 
               variant="outline" 
               onClick={() => setShowMemberModal(true)}
-              className={`${isMobile ? 'mobile-action-button h-16 flex-col' : 'h-16'}`}
+              className={`h-16 flex-col gap-2 ${isMobile ? 'mobile-action-button' : ''}`}
               size="md"
             >
-              <Users className="h-5 w-5 mb-2" />
+              <Users className="h-5 w-5" />
               <span className="text-xs sm:text-sm">Add Member</span>
             </Button>
             
             <Button 
               variant="outline" 
               onClick={() => setShowTournamentModal(true)}
-              className={`${isMobile ? 'mobile-action-button h-16 flex-col' : 'h-16'}`}
+              className={`h-16 flex-col gap-2 ${isMobile ? 'mobile-action-button' : ''}`}
               size="md"
             >
-              <Trophy className="h-5 w-5 mb-2" />
+              <Trophy className="h-5 w-5" />
               <span className="text-xs sm:text-sm">New Tournament</span>
             </Button>
 
             <Button 
               variant="outline" 
               onClick={() => setShowLeagueModal(true)}
-              className={`${isMobile ? 'mobile-action-button h-16 flex-col' : 'h-16'}`}
+              className={`h-16 flex-col gap-2 ${isMobile ? 'mobile-action-button' : ''}`}
               size="md"
             >
-              <Activity className="h-5 w-5 mb-2" />
+              <Activity className="h-5 w-5" />
               <span className="text-xs sm:text-sm">New League</span>
             </Button>
             
             <Button 
               variant="outline" 
               onClick={() => setShowPaymentModal(true)}
-              className={`${isMobile ? 'mobile-action-button h-16 flex-col' : 'h-16'}`}
+              className={`h-16 flex-col gap-2 ${isMobile ? 'mobile-action-button' : ''}`}
               size="md"
             >
-              <DollarSign className="h-5 w-5 mb-2" />
+              <DollarSign className="h-5 w-5" />
               <span className="text-xs sm:text-sm">Payment Tracker</span>
             </Button>
           </div>

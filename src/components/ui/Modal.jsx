@@ -71,7 +71,7 @@ const Modal = ({
   return (
     <>
       {/* ENHANCED: Modal header button styles with proper mobile touch support */}
-      <style jsx>{`
+      <style dangerouslySetInnerHTML={{__html: `
         .modal-header-action {
           display: flex;
           align-items: center;
@@ -238,7 +238,7 @@ const Modal = ({
             height: 20px;
           }
         }
-      `}</style>
+      `}} />
 
       {/* Full-screen backdrop with dark overlay */}
       <div 

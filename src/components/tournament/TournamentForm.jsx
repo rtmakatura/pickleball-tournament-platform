@@ -350,7 +350,7 @@ const TournamentForm = ({
   // ADDED: Results hook integration
   const { 
     results, 
-    loading: resultsHookLoading, 
+    loading: resultsLoading, 
     addTournamentResults, 
     updateTournamentResults 
   } = useResults();
@@ -460,7 +460,7 @@ const TournamentForm = ({
       basic: isNewEntry,
       details: isNewEntry,
       divisions: isNewEntry,
-      participants: !isNewEntry,
+      participants: isNewEntry,
       results: false
     };
   }, [isMobile, tournament]);
