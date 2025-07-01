@@ -1147,32 +1147,32 @@ const ResultsDashboard = ({ results, tournaments, leagues, members, onViewTourna
     console.log('leagues:', leagues);
 
     const tournamentResults = results.tournament?.map(result => {
-      console.log('Processing tournament result:', result);
-      const tournament = tournaments.find(t => t.id === result.eventId);
-      console.log('Found tournament for result:', tournament);
-      
-      return {
-        ...result,
-        type: 'tournament',
-        eventName: tournament?.name || 'Unknown Tournament',
-        eventDate: tournament?.eventDate,
-        location: tournament?.location
-      };
-    }) || [];
+  console.log('Processing tournament result:', result);
+  const tournament = tournaments.find(t => t.id === result.tournamentId);
+  console.log('Found tournament for result:', tournament);
+  
+  return {
+    ...result,
+    type: 'tournament',
+    eventName: tournament?.name || 'Unknown Tournament',
+    eventDate: tournament?.eventDate,
+    location: tournament?.location
+  };
+}) || [];
 
     const leagueResults = results.league?.map(result => {
-      console.log('Processing league result:', result);
-      const league = leagues.find(l => l.id === result.eventId);
-      console.log('Found league for result:', league);
-      
-      return {
-        ...result,
-        type: 'league', 
-        eventName: league?.name || 'Unknown League',
-        eventDate: league?.endDate, // Use end date for leagues
-        location: league?.location
-      };
-    }) || [];
+  console.log('Processing league result:', result);
+  const league = leagues.find(l => l.id === result.leagueId);
+  console.log('Found league for result:', league);
+  
+  return {
+    ...result,
+    type: 'league', 
+    eventName: league?.name || 'Unknown League',
+    eventDate: league?.endDate, // Use end date for leagues
+    location: league?.location
+  };
+}) || [];
 
     const combined = [...tournamentResults, ...leagueResults];
     console.log('Combined results before sort:', combined);
@@ -1237,9 +1237,9 @@ const ResultsDashboard = ({ results, tournaments, leagues, members, onViewTourna
           onClick={() => {
             console.log('Clicked on result:', result);
             if (result.type === 'tournament') {
-              onViewTournamentResults(tournaments.find(t => t.id === result.eventId));
+              onViewTournamentResults(tournaments.find(t => t.id === result.tournamentId));
             } else {
-              onViewLeagueResults(leagues.find(l => l.id === result.eventId));
+              onViewLeagueResults(leagues.find(l => l.id === result.leagueId));
             }
           }}
         >
@@ -1418,12 +1418,12 @@ console.log('completed leagues:', completedLeagues.length);
 
   // ADDED: Helper functions to check if events have results
   const hasResultsForTournament = useCallback((tournamentId) => {
-    return results.tournament?.some(result => result.eventId === tournamentId) || false;
-  }, [results.tournament]);
+  return results.tournament?.some(result => result.tournamentId === tournamentId) || false;
+}, [results.tournament]);
 
   const hasResultsForLeague = useCallback((leagueId) => {
-    return results.league?.some(result => result.eventId === leagueId) || false;
-  }, [results.league]);
+  return results.league?.some(result => result.leagueId === leagueId) || false;
+}, [results.league]);
 
   // Event handlers
   const handleViewTournament = useCallback((tournament) => {
@@ -1475,18 +1475,18 @@ console.log('completed leagues:', completedLeagues.length);
   }, []);
 
   const handleViewTournamentResults = useCallback((tournament) => {
-    console.log('=== VIEWING TOURNAMENT RESULTS ===');
-    console.log('Tournament:', tournament);
-    
-    if (!tournament) {
-      console.error('No tournament provided to view results');
-      return;
-    }
-    
-    const tournamentResults = results.tournament?.find(result => {
-      console.log('Checking result eventId:', result.eventId, 'against tournament.id:', tournament.id);
-      return result.eventId === tournament.id;
-    });
+  console.log('=== VIEWING TOURNAMENT RESULTS ===');
+  console.log('Tournament:', tournament);
+  
+  if (!tournament) {
+    console.error('No tournament provided to view results');
+    return;
+  }
+  
+  const tournamentResults = results.tournament?.find(result => {
+    console.log('Checking result tournamentId:', result.tournamentId, 'against tournament.id:', tournament.id);
+    return result.tournamentId === tournament.id;
+  });
     
     console.log('Found tournament results:', tournamentResults);
     
@@ -1500,15 +1500,14 @@ console.log('completed leagues:', completedLeagues.length);
   }, [results.tournament]);
 
   const handleViewLeagueResults = useCallback((league) => {
-    console.log('Viewing results for league:', league);
-    
-    if (!league) {
-      console.error('No league provided to view results');
-      return;
-    }
-    
-    const leagueResults = results.league?.find(result => result.eventId === league.id);
-    console.log('Found league results:', leagueResults);
+  console.log('Viewing results for league:', league);
+  
+  if (!league) {
+    console.error('No league provided to view results');
+    return;
+  }
+  
+  const leagueResults = results.league?.find(result => result.leagueId === league.id);
     
     setModalData({ 
       type: 'league', 

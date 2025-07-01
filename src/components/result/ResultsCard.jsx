@@ -83,7 +83,7 @@ const ResultsCard = ({
   const handleExport = () => {
     const csvData = getAllTeams().map((team, index) => ({
       'Rank': index + 1,
-      'Team': team.teamName || `${team.player1Name} / ${team.player2Name}`,
+      'Team': team.teamName || `${participant.participantName} / ${participant.notes}`,
       'Player 1': team.player1Name || 'N/A',
       'Player 2': team.player2Name || 'N/A',
       'Points': team.points || 'N/A',
@@ -116,16 +116,35 @@ const ResultsCard = ({
   // Helper function to get all teams from different result structures
   const getAllTeams = () => {
     if (result.type === 'tournament' && result.divisionResults) {
-      // Tournament results with divisions
+      // Tournament results with divisions - handle participantPlacements (the actual saved field)
       return result.divisionResults.flatMap(division => 
-        (division.teamStandings || []).map(team => ({
-          ...team,
+        (division.participantPlacements || []).map(participant => ({
+          teamName: participant.participantName,
+          player1Name: participant.participantName,
+          player2Name: '',
+          position: participant.placement,
+          points: 0,
+          wins: 0,
+          losses: 0,
+          gamesPlayed: 0,
+          notes: participant.notes || '',
           divisionName: division.divisionName
         }))
       );
-    } else if (result.type === 'league' && result.teamStandings) {
-      // League results
-      return result.teamStandings;
+    } else if (result.type === 'league' && result.participantPlacements) {
+      // League results - handle participantPlacements (the actual saved field)
+      const participants = result.participantPlacements || result.teamStandings || [];
+      return participants.map(participant => ({
+        teamName: participant.participantName,
+        player1Name: participant.participantName,
+        player2Name: '',
+        position: participant.placement,
+        points: 0,
+        wins: 0,
+        losses: 0,
+        gamesPlayed: 0,
+        notes: participant.notes || ''
+      }));
     } else if (result.standings) {
       // Legacy format - treat as individual players forming teams
       return result.standings.map((standing, index) => ({
@@ -289,39 +308,39 @@ const ResultsCard = ({
                           <Trophy className="h-4 w-4 text-yellow-500 mr-2" />
                           {division.divisionName}
                           <span className="ml-2 text-sm text-gray-500">
-                            ({division.teamStandings?.length || 0} teams)
+                            ({division.participantPlacements?.length || 0} teams)
                           </span>
                         </h3>
                       </div>
                       <div className="p-4">
-                        {division.teamStandings && division.teamStandings.length > 0 ? (
+                        {division.participantPlacements && division.participantPlacements.length > 0 ? (
                           <div className="space-y-3">
-                            {division.teamStandings.map((team, teamIndex) => (
+                            {division.participantPlacements.map((participant, teamIndex) => (
                               <div
                                 key={teamIndex}
                                 className={`flex items-center justify-between p-4 rounded-lg border transition-all ${
-                                  team.position <= 3 
+                                  participant.placement <= 3 
                                     ? 'bg-gradient-to-r from-yellow-50 to-orange-50 border-yellow-200' 
                                     : 'bg-gray-50 border-gray-200'
                                 }`}
                               >
                                 <div className="flex items-center space-x-4">
                                   <div className="flex items-center justify-center w-10 h-10">
-                                    {getRankIcon(team.position)}
+                                    {getRankIcon(participant.placement)}
                                   </div>
                                   <div>
                                     <p className="font-medium text-gray-900">
-                                      {team.teamName || `${team.player1Name} / ${team.player2Name}`}
+                                      {participant.participantName}
                                     </p>
                                     <div className="flex items-center space-x-4 text-sm text-gray-500">
                                       <span className="flex items-center">
                                         <UserCheck className="h-3 w-3 mr-1" />
-                                        {team.player1Name}
+                                        {participant.participantName}
                                       </span>
-                                      {team.player2Name && (
+                                      {participant.notes && (
                                         <span className="flex items-center">
                                           <UserCheck className="h-3 w-3 mr-1" />
-                                          {team.player2Name}
+                                          {participant.notes}
                                         </span>
                                       )}
                                     </div>
@@ -330,14 +349,14 @@ const ResultsCard = ({
                                 
                                 <div className="text-right">
                                   <div className="flex items-center space-x-4 text-sm">
-                                    {team.points > 0 && (
+                                    {participant.points > 0 && (
                                       <div className="text-center">
-                                        <div className="font-semibold text-gray-900">{team.points}</div>
+                                        <div className="font-semibold text-gray-900">{participant.points || 0}</div>
                                         <div className="text-xs text-gray-500">pts</div>
                                       </div>
                                     )}
                                     <div className="text-center">
-                                      <div className="font-semibold text-gray-900">{team.wins}-{team.losses}</div>
+                                      <div className="font-semibold text-gray-900">0-0</div>
                                       <div className="text-xs text-gray-500">W-L</div>
                                     </div>
                                     <div className="text-center">
@@ -367,44 +386,37 @@ const ResultsCard = ({
                     <div
                       key={index}
                       className={`flex items-center justify-between p-4 rounded-lg border transition-all ${
-                        team.position <= 3 
+                        participant.placement <= 3 
                           ? 'bg-gradient-to-r from-yellow-50 to-orange-50 border-yellow-200' 
                           : 'bg-gray-50 border-gray-200'
                       }`}
                     >
                       <div className="flex items-center space-x-4">
                         <div className="flex items-center justify-center w-10 h-10">
-                          {getRankIcon(team.position)}
+                          {getRankIcon(participant.placement)}
                         </div>
                         <div>
-                          <p className="font-medium text-gray-900">
-                            {team.teamName || `${team.player1Name}${team.player2Name ? ` / ${team.player2Name}` : ''}`}
-                          </p>
-                          {team.player2Name && (
-                            <div className="flex items-center space-x-4 text-sm text-gray-500">
-                              <span className="flex items-center">
-                                <UserCheck className="h-3 w-3 mr-1" />
-                                {team.player1Name}
-                              </span>
-                              <span className="flex items-center">
-                                <UserCheck className="h-3 w-3 mr-1" />
-                                {team.player2Name}
-                              </span>
-                            </div>
-                          )}
-                        </div>
+                        <p className="font-medium text-gray-900">
+                          {participant.participantName}
+                        </p>
+                        {participant.notes && (
+                          <div className="text-sm text-gray-500">
+                            {participant.notes}
+                          </div>
+                        )}
+                      </div>
                       </div>
                       
                       <div className="text-right">
                         <div className="flex items-center space-x-4 text-sm">
-                          {team.points > 0 && (
+                          {participant.points > 0 && (
                             <div className="text-center">
-                              <div className="font-semibold text-gray-900">{team.points}</div>
+                              <div className="font-semibold text-gray-900">{participant.points || 0}</div>
                               <div className="text-xs text-gray-500">pts</div>
                             </div>
                           )}
                           <div className="text-center">
-                            <div className="font-semibold text-gray-900">{team.wins}-{team.losses}</div>
+                            <div className="font-semibold text-gray-900">0-0</div>
                             <div className="text-xs text-gray-500">W-L</div>
                           </div>
                           <div className="text-center">
