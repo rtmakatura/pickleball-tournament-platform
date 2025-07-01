@@ -1340,22 +1340,31 @@ console.log('completed leagues:', completedLeagues.length);
   // Smooth navigation hook
   const { activeSection, scrollToSection, navItems, refs } = useSmoothNavigation();
 
-  // UPDATED: Modal states - added results modals
-  const [showTournamentModal, setShowTournamentModal] = useState(false);
-  const [showLeagueModal, setShowLeagueModal] = useState(false);
-  const [showMemberModal, setShowMemberModal] = useState(false);
-  const [showPaymentModal, setShowPaymentModal] = useState(false);
-  const [showTournamentDetailModal, setShowTournamentDetailModal] = useState(false);
-  const [showLeagueDetailModal, setShowLeagueDetailModal] = useState(false);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [showLeagueDeleteConfirm, setShowLeagueDeleteConfirm] = useState(false);
+  // FIXED: Consolidated modal state management
+  const [activeModal, setActiveModal] = useState(null);
+  const [modalData, setModalData] = useState(null);
+
+  // Modal types
+  const MODAL_TYPES = {
+    TOURNAMENT_FORM: 'tournament_form',
+    LEAGUE_FORM: 'league_form',
+    MEMBER_FORM: 'member_form',
+    PAYMENT_TRACKER: 'payment_tracker',
+    TOURNAMENT_DETAIL: 'tournament_detail',
+    LEAGUE_DETAIL: 'league_detail',
+    TOURNAMENT_RESULTS_FORM: 'tournament_results_form',
+    LEAGUE_RESULTS_FORM: 'league_results_form',
+    PLAYER_PERFORMANCE_FORM: 'player_performance_form',
+    RESULTS_VIEW: 'results_view',
+    DELETE_CONFIRM: 'delete_confirm',
+    LEAGUE_DELETE_CONFIRM: 'league_delete_confirm'
+  };
   
-  // ADDED: Results modal states
-  const [showTournamentResultsModal, setShowTournamentResultsModal] = useState(false);
-  const [showLeagueResultsModal, setShowLeagueResultsModal] = useState(false);
-  const [showPlayerPerformanceModal, setShowPlayerPerformanceModal] = useState(false);
-  const [showResultsViewModal, setShowResultsViewModal] = useState(false);
-  
+  // Enhanced tournament state management
+  const [formLoading, setFormLoading] = useState(false);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [alert, setAlert] = useState(null);
+
   // Enhanced tournament state management
   const [editingTournament, setEditingTournament] = useState(null);
   const [editingLeague, setEditingLeague] = useState(null);
@@ -1363,11 +1372,19 @@ console.log('completed leagues:', completedLeagues.length);
   const [viewingTournament, setViewingTournament] = useState(null);
   const [viewingLeague, setViewingLeague] = useState(null);
   
-  // ADDED: Results state management
-  const [resultsForTournament, setResultsForTournament] = useState(null);
-  const [resultsForLeague, setResultsForLeague] = useState(null);
-  const [performanceForEvent, setPerformanceForEvent] = useState(null);
-  const [viewingResults, setViewingResults] = useState(null);
+  // FIXED: Single modal close handler
+  const closeModal = useCallback(() => {
+    if (!formLoading && !deleteLoading) {
+      setActiveModal(null);
+      setModalData(null);
+      
+      // Clean up editing states
+      setEditingTournament(null);
+      setEditingLeague(null);
+      setEditingMember(null);
+      setSelectedLeagueMembers([]);
+    }
+  }, [formLoading, deleteLoading]);
   
   const currentUserMember = useMemo(() => 
     members.find(m => m.authUid === user?.uid), 
@@ -1384,9 +1401,7 @@ console.log('completed leagues:', completedLeagues.length);
   
   // Form states
   const [selectedLeagueMembers, setSelectedLeagueMembers] = useState([]);
-  const [formLoading, setFormLoading] = useState(false);
-  const [deleteLoading, setDeleteLoading] = useState(false);
-  const [alert, setAlert] = useState(null);
+  // formLoading, deleteLoading, and alert moved up to avoid hoisting issues
 
   // Detect screen size for responsive behavior
   const [isMobile, setIsMobile] = useState(false);
@@ -1413,73 +1428,94 @@ console.log('completed leagues:', completedLeagues.length);
   // Event handlers
   const handleViewTournament = useCallback((tournament) => {
     console.log('Viewing tournament:', tournament);
-    setViewingTournament(tournament);
-    setShowTournamentDetailModal(true);
+    setModalData({ tournament });
+    setActiveModal(MODAL_TYPES.TOURNAMENT_DETAIL);
   }, []);
 
   const handleViewLeague = useCallback((league) => {
     console.log('Viewing league:', league);
-    setViewingLeague(league);
-    setShowLeagueDetailModal(true);
+    setModalData({ league });
+    setActiveModal(MODAL_TYPES.LEAGUE_DETAIL);
   }, []);
 
   const handleEditTournament = useCallback((tournament) => {
     console.log('Editing tournament:', tournament);
     const latestTournament = tournaments.find(t => t.id === tournament.id) || tournament;
     setEditingTournament(latestTournament);
-    setShowTournamentModal(true);
+    setModalData({ tournament: latestTournament });
+    setActiveModal(MODAL_TYPES.TOURNAMENT_FORM);
   }, [tournaments]);
 
   const handleEditLeague = useCallback((league) => {
     console.log('Editing league:', league);
     setEditingLeague(league);
     setSelectedLeagueMembers(league.participants || []);
-    setShowLeagueModal(true);
+    setModalData({ league });
+    setActiveModal(MODAL_TYPES.LEAGUE_FORM);
   }, []);
 
   const handleEditMember = useCallback((member) => {
     console.log('Editing member:', member);
     setEditingMember(member);
-    setShowMemberModal(true);
+    setModalData({ member });
+    setActiveModal(MODAL_TYPES.MEMBER_FORM);
   }, []);
 
   // ADDED: Results entry handlers
   const handleEnterTournamentResults = useCallback((tournament) => {
     console.log('Entering results for tournament:', tournament);
-    setResultsForTournament(tournament);
-    setShowTournamentResultsModal(true);
+    setModalData({ tournament });
+    setActiveModal(MODAL_TYPES.TOURNAMENT_RESULTS_FORM);
   }, []);
 
   const handleEnterLeagueResults = useCallback((league) => {
     console.log('Entering results for league:', league);
-    setResultsForLeague(league);
-    setShowLeagueResultsModal(true);
+    setModalData({ league });
+    setActiveModal(MODAL_TYPES.LEAGUE_RESULTS_FORM);
   }, []);
 
   const handleViewTournamentResults = useCallback((tournament) => {
-  console.log('=== VIEWING TOURNAMENT RESULTS ===');
-  console.log('Tournament:', tournament);
-  console.log('Tournament ID:', tournament.id);
-  console.log('Available results.tournament:', results.tournament);
-  
-  const tournamentResults = results.tournament?.find(result => {
-    console.log('Checking result:', result);
-    console.log('result.eventId:', result.eventId);
-    console.log('tournament.id:', tournament.id);
-    console.log('Match?', result.eventId === tournament.id);
-    return result.eventId === tournament.id;
-  });
-  
-  console.log('Found tournament results:', tournamentResults);
-  setViewingResults({ type: 'tournament', event: tournament, results: tournamentResults });
-  setShowResultsViewModal(true);
-}, [results.tournament]);
+    console.log('=== VIEWING TOURNAMENT RESULTS ===');
+    console.log('Tournament:', tournament);
+    
+    if (!tournament) {
+      console.error('No tournament provided to view results');
+      return;
+    }
+    
+    const tournamentResults = results.tournament?.find(result => {
+      console.log('Checking result eventId:', result.eventId, 'against tournament.id:', tournament.id);
+      return result.eventId === tournament.id;
+    });
+    
+    console.log('Found tournament results:', tournamentResults);
+    
+    // FIXED: Ensure only one modal opens
+    setModalData({ 
+      type: 'tournament', 
+      event: tournament, 
+      results: tournamentResults 
+    });
+    setActiveModal(MODAL_TYPES.RESULTS_VIEW);
+  }, [results.tournament]);
 
   const handleViewLeagueResults = useCallback((league) => {
     console.log('Viewing results for league:', league);
+    
+    if (!league) {
+      console.error('No league provided to view results');
+      return;
+    }
+    
     const leagueResults = results.league?.find(result => result.eventId === league.id);
-    setViewingResults({ type: 'league', event: league, results: leagueResults });
-    setShowResultsViewModal(true);
+    console.log('Found league results:', leagueResults);
+    
+    setModalData({ 
+      type: 'league', 
+      event: league, 
+      results: leagueResults 
+    });
+    setActiveModal(MODAL_TYPES.RESULTS_VIEW);
   }, [results.league]);
 
   // Sorting functions
@@ -2071,16 +2107,15 @@ console.log('completed leagues:', completedLeagues.length);
   const handleTournamentResultsSubmit = async (resultsData) => {
     setFormLoading(true);
     try {
-      await addTournamentResults(resultsForTournament.id, resultsData);
+      await addTournamentResults(modalData.tournament.id, resultsData);
       
       // Update tournament status to completed
-      await updateTournament(resultsForTournament.id, { 
+      await updateTournament(modalData.tournament.id, { 
         status: TOURNAMENT_STATUS.COMPLETED 
       });
       
-      setShowTournamentResultsModal(false);
-      setResultsForTournament(null);
-      showAlert('success', 'Results saved!', `Tournament results for ${resultsForTournament.name} have been saved`);
+      closeModal();
+      showAlert('success', 'Results saved!', `Tournament results for ${modalData.tournament.name} have been saved`);
     } catch (err) {
       showAlert('error', 'Failed to save results', err.message);
     } finally {
@@ -2091,16 +2126,15 @@ console.log('completed leagues:', completedLeagues.length);
   const handleLeagueResultsSubmit = async (resultsData) => {
     setFormLoading(true);
     try {
-      await addLeagueResults(resultsForLeague.id, resultsData);
+      await addLeagueResults(modalData.league.id, resultsData);
       
       // Update league status to completed
-      await updateLeague(resultsForLeague.id, { 
+      await updateLeague(modalData.league.id, { 
         status: LEAGUE_STATUS.COMPLETED 
       });
       
-      setShowLeagueResultsModal(false);
-      setResultsForLeague(null);
-      showAlert('success', 'Results saved!', `League results for ${resultsForLeague.name} have been saved`);
+      closeModal();
+      showAlert('success', 'Results saved!', `League results for ${modalData.league.name} have been saved`);
     } catch (err) {
       showAlert('error', 'Failed to save results', err.message);
     } finally {
@@ -2150,42 +2184,7 @@ console.log('completed leagues:', completedLeagues.length);
     }
   };
 
-  // Modal close handlers
-  const handleTournamentModalClose = useCallback(() => {
-    if (!formLoading && !deleteLoading) {
-      setShowTournamentModal(false);
-      setEditingTournament(null);
-    }
-  }, [formLoading, deleteLoading]);
-
-  const handleLeagueModalClose = useCallback(() => {
-    if (!formLoading && !deleteLoading) {
-      setShowLeagueModal(false);
-      setEditingLeague(null);
-      setSelectedLeagueMembers([]);
-    }
-  }, [formLoading, deleteLoading]);
-
-  const handleMemberModalClose = useCallback(() => {
-    if (!formLoading && !deleteLoading) {
-      setShowMemberModal(false);
-      setEditingMember(null);
-    }
-  }, [formLoading, deleteLoading]);
-
-  // ADDED: Results modal close handlers
-  const handleResultsModalClose = useCallback(() => {
-    if (!formLoading) {
-      setShowTournamentResultsModal(false);
-      setShowLeagueResultsModal(false);
-      setShowPlayerPerformanceModal(false);
-      setShowResultsViewModal(false);
-      setResultsForTournament(null);
-      setResultsForLeague(null);
-      setPerformanceForEvent(null);
-      setViewingResults(null);
-    }
-  }, [formLoading]);
+  // Modal close handlers already defined above with closeModal function
 
   // Show loading state while auth is initializing
   if (authLoading) {
@@ -2303,7 +2302,7 @@ console.log('completed leagues:', completedLeagues.length);
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-4">
             <Button 
               variant="outline" 
-              onClick={() => setShowMemberModal(true)}
+              onClick={() => setActiveModal(MODAL_TYPES.MEMBER_FORM)}
               className={`h-16 flex-col gap-2 ${isMobile ? 'mobile-action-button' : ''}`}
               size="md"
             >
@@ -2313,7 +2312,7 @@ console.log('completed leagues:', completedLeagues.length);
             
             <Button 
               variant="outline" 
-              onClick={() => setShowTournamentModal(true)}
+              onClick={() => setActiveModal(MODAL_TYPES.TOURNAMENT_FORM)}
               className={`h-16 flex-col gap-2 ${isMobile ? 'mobile-action-button' : ''}`}
               size="md"
             >
@@ -2323,7 +2322,7 @@ console.log('completed leagues:', completedLeagues.length);
 
             <Button 
               variant="outline" 
-              onClick={() => setShowLeagueModal(true)}
+              onClick={() => setActiveModal(MODAL_TYPES.LEAGUE_FORM)}
               className={`h-16 flex-col gap-2 ${isMobile ? 'mobile-action-button' : ''}`}
               size="md"
             >
@@ -2333,7 +2332,7 @@ console.log('completed leagues:', completedLeagues.length);
             
             <Button 
               variant="outline" 
-              onClick={() => setShowPaymentModal(true)}
+              onClick={() => setActiveModal(MODAL_TYPES.PAYMENT_TRACKER)}
               className={`h-16 flex-col gap-2 ${isMobile ? 'mobile-action-button' : ''}`}
               size="md"
             >
@@ -2351,7 +2350,7 @@ console.log('completed leagues:', completedLeagues.length);
           actions={[
             <Button 
               key="add-tournament"
-              onClick={() => setShowTournamentModal(true)}
+              onClick={() => setActiveModal(MODAL_TYPES.TOURNAMENT_FORM)}
               className="touch-target"
               size="md"
             >
@@ -2377,7 +2376,7 @@ console.log('completed leagues:', completedLeagues.length);
           actions={[
             <Button 
               key="add-league"
-              onClick={() => setShowLeagueModal(true)}
+              onClick={() => setActiveModal(MODAL_TYPES.LEAGUE_FORM)}
               className="touch-target"
               size="md"
             >
@@ -2403,7 +2402,7 @@ console.log('completed leagues:', completedLeagues.length);
           actions={[
             <Button 
               key="add-member"
-              onClick={() => setShowMemberModal(true)}
+              onClick={() => setActiveModal(MODAL_TYPES.MEMBER_FORM)}
               className="touch-target"
               size="md"
             >
@@ -2438,288 +2437,226 @@ console.log('completed leagues:', completedLeagues.length);
           />
         </Card>
         
-        {/* Tournament Modal with proper header buttons */}
-        <Modal
-          isOpen={showTournamentModal}
-          onClose={handleTournamentModalClose}
-          title={editingTournament ? 'Edit Tournament' : 'Create New Tournament'}
-          size="xl"
-          headerAction={editingTournament ? (
-            <>
-              <ModalHeaderButton
-                variant="danger"
-                onClick={() => setShowDeleteConfirm(true)}
-                disabled={formLoading || deleteLoading}
-                icon={<Trash2 className="h-4 w-4" />}
-              >
-                Delete
-              </ModalHeaderButton>
-              <ModalHeaderButton
-                variant="primary"
-                type="submit"
-                form="tournament-form"
+        {/* FIXED: Single modal rendering based on activeModal */}
+        
+        {/* Tournament Form Modal */}
+        {activeModal === MODAL_TYPES.TOURNAMENT_FORM && (
+          <Modal
+            isOpen={true}
+            onClose={closeModal}
+            title={editingTournament ? 'Edit Tournament' : 'Create New Tournament'}
+            size="xl"
+            headerAction={editingTournament ? (
+              <>
+                <ModalHeaderButton
+                  variant="danger"
+                  onClick={() => {
+                    setModalData({ tournament: editingTournament });
+                    setActiveModal(MODAL_TYPES.DELETE_CONFIRM);
+                  }}
+                  disabled={formLoading || deleteLoading}
+                  icon={<Trash2 className="h-4 w-4" />}
+                >
+                  Delete
+                </ModalHeaderButton>
+                <ModalHeaderButton
+                  variant="primary"
+                  type="submit"
+                  form="tournament-form"
+                  loading={formLoading}
+                  disabled={formLoading || deleteLoading}
+                  icon={<CheckCircle className="h-4 w-4" />}
+                >
+                  Update Tournament
+                </ModalHeaderButton>
+              </>
+            ) : null}
+          >
+            <div className="space-y-6">
+              <TournamentForm
+                tournament={editingTournament}
+                onSubmit={editingTournament ? handleUpdateTournament : handleCreateTournament}
+                onCancel={closeModal}
+                onUpdateTournament={updateTournament}
                 loading={formLoading}
-                disabled={formLoading || deleteLoading}
-                icon={<CheckCircle className="h-4 w-4" />}
-              >
-                Update Tournament
-              </ModalHeaderButton>
-            </>
-          ) : null}
-        >
-          <div className="space-y-6">
-            <TournamentForm
-              tournament={editingTournament}
-              onSubmit={editingTournament ? handleUpdateTournament : handleCreateTournament}
-              onCancel={handleTournamentModalClose}
-              onUpdateTournament={updateTournament}
-              loading={formLoading}
-              deleteLoading={deleteLoading}
-              members={members}
-            />
-          </div>
-        </Modal>
-
-        {/* Tournament Delete Confirmation Dialog */}
-        <ConfirmDialog
-          isOpen={showDeleteConfirm}
-          onClose={() => setShowDeleteConfirm(false)}
-          onConfirm={() => {
-            if (editingTournament) {
-              handleDeleteTournament(editingTournament.id);
-            }
-            setShowDeleteConfirm(false);
-          }}
-          title="Delete Tournament"
-          message={`Are you sure you want to delete "${editingTournament?.name}"? This action cannot be undone and will remove all associated data including all divisions, participant registrations, and payment information.`}
-          confirmText="Delete Tournament"
-          cancelText="Keep Tournament"
-          type="danger"
-          loading={deleteLoading}
-        />
-
-        {/* League Delete Confirmation Dialog */}
-        <ConfirmDialog
-          isOpen={showLeagueDeleteConfirm}
-          onClose={() => setShowLeagueDeleteConfirm(false)}
-          onConfirm={() => {
-            if (editingLeague) {
-              handleDeleteLeague(editingLeague.id);
-            }
-            setShowLeagueDeleteConfirm(false);
-          }}
-          title="Delete League"
-          message={`Are you sure you want to delete "${editingLeague?.name}"? This action cannot be undone and will remove all associated data including participant registrations and standings.`}
-          confirmText="Delete League"
-          cancelText="Keep League"
-          type="danger"
-          loading={deleteLoading}
-        />
+                deleteLoading={deleteLoading}
+                members={members}
+              />
+            </div>
+          </Modal>
+        )}
 
         {/* Tournament Detail Modal */}
-        <Modal
-          isOpen={showTournamentDetailModal}
-          onClose={() => {
-            setShowTournamentDetailModal(false);
-            setViewingTournament(null);
-          }}
-          title={viewingTournament?.name || 'Tournament Discussion'}
-          size="xl"
-        >
-          {viewingTournament && (
+        {activeModal === MODAL_TYPES.TOURNAMENT_DETAIL && modalData?.tournament && (
+          <Modal
+            isOpen={true}
+            onClose={closeModal}
+            title={modalData.tournament.name || 'Tournament Discussion'}
+            size="xl"
+          >
             <CommentSection
-              eventId={viewingTournament.id}
+              eventId={modalData.tournament.id}
               eventType="tournament"
-              event={viewingTournament}
+              event={modalData.tournament}
             />
-          )}
-        </Modal>
+          </Modal>
+        )}
 
-        {/* League Modal with proper header buttons */}
-        <Modal
-          isOpen={showLeagueModal}
-          onClose={handleLeagueModalClose}
-          title={editingLeague ? 'Edit League' : 'Create New League'}
-          size="lg"
-          headerAction={editingLeague ? (
-            <>
-              <ModalHeaderButton
-                variant="danger"
-                onClick={() => setShowLeagueDeleteConfirm(true)}
-                disabled={formLoading || deleteLoading}
-                icon={<Trash2 className="h-4 w-4" />}
-              >
-                Delete
-              </ModalHeaderButton>
-              <ModalHeaderButton
-                variant="primary"
-                type="submit"
-                form="league-form"
+        {/* League Form Modal */}
+        {activeModal === MODAL_TYPES.LEAGUE_FORM && (
+          <Modal
+            isOpen={true}
+            onClose={closeModal}
+            title={editingLeague ? 'Edit League' : 'Create New League'}
+            size="lg"
+            headerAction={editingLeague ? (
+              <>
+                <ModalHeaderButton
+                  variant="danger"
+                  onClick={() => {
+                    setModalData({ league: editingLeague });
+                    setActiveModal(MODAL_TYPES.LEAGUE_DELETE_CONFIRM);
+                  }}
+                  disabled={formLoading || deleteLoading}
+                  icon={<Trash2 className="h-4 w-4" />}
+                >
+                  Delete
+                </ModalHeaderButton>
+                <ModalHeaderButton
+                  variant="primary"
+                  type="submit"
+                  form="league-form"
+                  loading={formLoading}
+                  disabled={formLoading || deleteLoading}
+                  icon={<CheckCircle className="h-4 w-4" />}
+                >
+                  Update League
+                </ModalHeaderButton>
+              </>
+            ) : null}
+          >
+            <div className="space-y-0">
+              <LeagueForm
+                league={editingLeague}
+                onSubmit={editingLeague ? handleUpdateLeague : handleCreateLeague}
+                onCancel={closeModal}
                 loading={formLoading}
-                disabled={formLoading || deleteLoading}
-                icon={<CheckCircle className="h-4 w-4" />}
-              >
-                Update League
-              </ModalHeaderButton>
-            </>
-          ) : null}
-        >
-          <div className="space-y-0">
-            <LeagueForm
-              league={editingLeague}
-              onSubmit={editingLeague ? handleUpdateLeague : handleCreateLeague}
-              onCancel={handleLeagueModalClose}
-              loading={formLoading}
-              deleteLoading={deleteLoading}
-            />
-            
-            {/* Member selection section */}
-            <div className="league-modal-section">
-              <div className="league-modal-header">
-                <div className="flex items-center">
-                  <Users className="h-5 w-5 text-indigo-600 mr-3" />
-                  <div>
-                    <h3 className="text-lg font-semibold text-gray-900">Select League Members</h3>
-                    <p className="text-sm text-gray-600 mt-1">Choose participants for this league</p>
+                deleteLoading={deleteLoading}
+              />
+              
+              <div className="league-modal-section">
+                <div className="league-modal-header">
+                  <div className="flex items-center">
+                    <Users className="h-5 w-5 text-indigo-600 mr-3" />
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-900">Select League Members</h3>
+                      <p className="text-sm text-gray-600 mt-1">Choose participants for this league</p>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="league-modal-content">
+                  <div className="league-modal-input-group">
+                    <LeagueMemberSelector
+                      members={members}
+                      selectedMembers={selectedLeagueMembers}
+                      onSelectionChange={setSelectedLeagueMembers}
+                      loading={membersLoading}
+                    />
                   </div>
                 </div>
               </div>
-              
-              <div className="league-modal-content">
-                <div className="league-modal-input-group">
-                  <LeagueMemberSelector
-                    members={members}
-                    selectedMembers={selectedLeagueMembers}
-                    onSelectionChange={setSelectedLeagueMembers}
-                    loading={membersLoading}
-                  />
-                </div>
-              </div>
             </div>
-          </div>
-        </Modal>
+          </Modal>
+        )}
 
         {/* League Detail Modal */}
-        <Modal
-          isOpen={showLeagueDetailModal}
-          onClose={() => {
-            setShowLeagueDetailModal(false);
-            setViewingLeague(null);
-          }}
-          title={viewingLeague?.name || 'League Discussion'}
-          size="xl"
-        >
-          {viewingLeague && (
+        {activeModal === MODAL_TYPES.LEAGUE_DETAIL && modalData?.league && (
+          <Modal
+            isOpen={true}
+            onClose={closeModal}
+            title={modalData.league.name || 'League Discussion'}
+            size="xl"
+          >
             <CommentSection
-              eventId={viewingLeague.id}
+              eventId={modalData.league.id}
               eventType="league"
-              event={viewingLeague}
+              event={modalData.league}
             />
-          )}
-        </Modal>
+          </Modal>
+        )}
 
         {/* Member Modal */}
-        <Modal
-          isOpen={showMemberModal}
-          onClose={handleMemberModalClose}
-          title={editingMember ? 'Edit Member' : 'Add New Member'}
-          size="lg"
-        >
-          <MemberForm
-            member={editingMember}
-            onSubmit={editingMember ? handleUpdateMember : handleCreateMember}
-            onCancel={handleMemberModalClose}
-            onDelete={editingMember ? handleDeleteMember : null}
-            loading={formLoading}
-            deleteLoading={deleteLoading}
-          />
-        </Modal>
+        {activeModal === MODAL_TYPES.MEMBER_FORM && (
+          <Modal
+            isOpen={true}
+            onClose={closeModal}
+            title={editingMember ? 'Edit Member' : 'Add New Member'}
+            size="lg"
+          >
+            <MemberForm
+              member={editingMember}
+              onSubmit={editingMember ? handleUpdateMember : handleCreateMember}
+              onCancel={closeModal}
+              onDelete={editingMember ? handleDeleteMember : null}
+              loading={formLoading}
+              deleteLoading={deleteLoading}
+            />
+          </Modal>
+        )}
 
-        {/* ADDED: Tournament Results Entry Modal */}
-        <Modal
-          isOpen={showTournamentResultsModal}
-          onClose={handleResultsModalClose}
-          title={`Enter Results: ${resultsForTournament?.name || 'Tournament'}`}
-          size="xl"
-        >
-          {resultsForTournament && (
+        {/* Tournament Results Entry Modal */}
+        {activeModal === MODAL_TYPES.TOURNAMENT_RESULTS_FORM && modalData?.tournament && (
+          <Modal
+            isOpen={true}
+            onClose={closeModal}
+            title={`Enter Results: ${modalData.tournament.name || 'Tournament'}`}
+            size="xl"
+          >
             <TournamentResultsForm
-              tournament={resultsForTournament}
+              tournament={modalData.tournament}
               members={members}
               onSubmit={handleTournamentResultsSubmit}
-              onCancel={handleResultsModalClose}
+              onCancel={closeModal}
               loading={formLoading}
             />
-          )}
-        </Modal>
+          </Modal>
+        )}
 
-        {/* ADDED: League Results Entry Modal */}
-        <Modal
-          isOpen={showLeagueResultsModal}
-          onClose={handleResultsModalClose}
-          title={`Enter Results: ${resultsForLeague?.name || 'League'}`}
-          size="xl"
-        >
-          {resultsForLeague && (
+        {/* League Results Entry Modal */}
+        {activeModal === MODAL_TYPES.LEAGUE_RESULTS_FORM && modalData?.league && (
+          <Modal
+            isOpen={true}
+            onClose={closeModal}
+            title={`Enter Results: ${modalData.league.name || 'League'}`}
+            size="xl"
+          >
             <LeagueResultsForm
-              league={resultsForLeague}
+              league={modalData.league}
               members={members}
               onSubmit={handleLeagueResultsSubmit}
-              onCancel={handleResultsModalClose}
+              onCancel={closeModal}
               loading={formLoading}
             />
-          )}
-        </Modal>
+          </Modal>
+        )}
 
-        {/* ADDED: Player Performance Entry Modal */}
-        <Modal
-          isOpen={showPlayerPerformanceModal}
-          onClose={handleResultsModalClose}
-          title={`Performance Assessment: ${performanceForEvent?.eventName || 'Event'}`}
-          size="lg"
-        >
-          {performanceForEvent && (
-            <PlayerPerformanceForm
-              event={performanceForEvent}
-              onSubmit={handlePlayerPerformanceSubmit}
-              onCancel={handleResultsModalClose}
-              loading={formLoading}
-            />
-          )}
-        </Modal>
-
-        {/* ADDED: Results View Modal */}
-        <Modal
-          isOpen={showResultsViewModal}
-          onClose={handleResultsModalClose}
-          title={`Results: ${viewingResults?.event?.name || 'Event'}`}
-          size="xl"
-        >
-          {viewingResults && (
+        {/* Results View Modal */}
+        {activeModal === MODAL_TYPES.RESULTS_VIEW && modalData && (
+          <Modal
+            isOpen={true}
+            onClose={closeModal}
+            title={`Results: ${modalData.event?.name || 'Event'}`}
+            size="xl"
+          >
             <div className="space-y-6">
-              <div className="bg-blue-50 border border-blue-200 p-4 rounded-lg">
-                <h4 className="font-semibold text-blue-900 mb-2">Debug Info:</h4>
-                <p className="text-blue-800 text-sm">Type: {viewingResults.type}</p>
-                <p className="text-blue-800 text-sm">Event: {viewingResults.event?.name}</p>
-                <p className="text-blue-800 text-sm">Has Results: {viewingResults.results ? 'Yes' : 'No'}</p>
-                {viewingResults.results && (
-                  <p className="text-blue-800 text-sm">Division Results: {viewingResults.results.divisionResults?.length || 0}</p>
-                )}
-              </div>
-              
-              {viewingResults.type === 'tournament' ? (
+              {modalData.type === 'tournament' ? (
                 <div>
                   <h3 className="text-lg font-semibold mb-4">Tournament Results</h3>
-                  {viewingResults.results ? (
+                  {modalData.results ? (
                     <div className="space-y-4">
-                      <div className="bg-green-50 border border-green-200 p-4 rounded-lg">
-                        <h4 className="font-semibold text-green-900 mb-2">Raw Results Data:</h4>
-                        <pre className="text-xs text-green-800 overflow-auto max-h-40">
-                          {JSON.stringify(viewingResults.results, null, 2)}
-                        </pre>
-                      </div>
                       <ResultsCard 
-                        result={viewingResults.results}
+                        result={modalData.results}
                         onClose={() => {}}
                         showPlayerPerformance={true}
                         allowEdit={false}
@@ -2737,10 +2674,10 @@ console.log('completed leagues:', completedLeagues.length);
               ) : (
                 <div>
                   <h3 className="text-lg font-semibold mb-4">League Results</h3>
-                  {viewingResults.results ? (
+                  {modalData.results ? (
                     <div className="space-y-4">
                       <ResultsCard 
-                        result={viewingResults.results}
+                        result={modalData.results}
                         onClose={() => {}}
                         showPlayerPerformance={true}
                         allowEdit={false}
@@ -2757,151 +2694,186 @@ console.log('completed leagues:', completedLeagues.length);
                 </div>
               )}
             </div>
-          )}
-        </Modal>
+          </Modal>
+        )}
+
+        {/* Delete Confirmation Modals */}
+        {activeModal === MODAL_TYPES.DELETE_CONFIRM && modalData?.tournament && (
+          <ConfirmDialog
+            isOpen={true}
+            onClose={() => setActiveModal(MODAL_TYPES.TOURNAMENT_FORM)}
+            onConfirm={() => {
+              handleDeleteTournament(modalData.tournament.id);
+            }}
+            title="Delete Tournament"
+            message={`Are you sure you want to delete "${modalData.tournament.name}"? This action cannot be undone and will remove all associated data including all divisions, participant registrations, and payment information.`}
+            confirmText="Delete Tournament"
+            cancelText="Keep Tournament"
+            type="danger"
+            loading={deleteLoading}
+          />
+        )}
+
+        {activeModal === MODAL_TYPES.LEAGUE_DELETE_CONFIRM && modalData?.league && (
+          <ConfirmDialog
+            isOpen={true}
+            onClose={() => setActiveModal(MODAL_TYPES.LEAGUE_FORM)}
+            onConfirm={() => {
+              handleDeleteLeague(modalData.league.id);
+            }}
+            title="Delete League"
+            message={`Are you sure you want to delete "${modalData.league.name}"? This action cannot be undone and will remove all associated data including participant registrations and standings.`}
+            confirmText="Delete League"
+            cancelText="Keep League"
+            type="danger"
+            loading={deleteLoading}
+          />
+        )}
 
         {/* Payment Modal */}
-        <Modal
-          isOpen={showPaymentModal}
-          onClose={() => setShowPaymentModal(false)}
-          title="Payment Tracking Overview"
-          size="xl"
-        >
-          <div className="space-y-8">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="bg-blue-50 p-4 rounded-lg border-2 border-blue-200">
-                <h4 className="font-medium text-blue-900">Total Expected</h4>
-                <p className="text-2xl font-bold text-blue-600">${paymentSummary.totalExpected}</p>
-                <p className="text-xs text-blue-700 mt-1">
-                  {paymentSummary.paidTournaments} tournaments • {paymentSummary.paidDivisions} divisions • {paymentSummary.paidLeagues} leagues
-                </p>
+        {activeModal === MODAL_TYPES.PAYMENT_TRACKER && (
+          <Modal
+            isOpen={true}
+            onClose={closeModal}
+            title="Payment Tracking Overview"
+            size="xl"
+          >
+            <div className="space-y-8">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="bg-blue-50 p-4 rounded-lg border-2 border-blue-200">
+                  <h4 className="font-medium text-blue-900">Total Expected</h4>
+                  <p className="text-2xl font-bold text-blue-600">${paymentSummary.totalExpected}</p>
+                  <p className="text-xs text-blue-700 mt-1">
+                    {paymentSummary.paidTournaments} tournaments • {paymentSummary.paidDivisions} divisions • {paymentSummary.paidLeagues} leagues
+                  </p>
+                </div>
+                <div className="bg-green-50 p-4 rounded-lg border-2 border-green-200">
+                  <h4 className="font-medium text-green-900">Total Collected</h4>
+                  <p className="text-2xl font-bold text-green-600">${paymentSummary.totalCollected}</p>
+                  <p className="text-xs text-green-700 mt-1">
+                    {paymentSummary.participantsPaid} of {paymentSummary.participantsWithPayments} paid
+                  </p>
+                </div>
+                <div className="bg-red-50 p-4 rounded-lg border-2 border-red-200">
+                  <h4 className="font-medium text-red-900">Outstanding</h4>
+                  <p className="text-2xl font-bold text-red-600">${paymentSummary.totalOwed}</p>
+                  <p className="text-xs text-red-700 mt-1">
+                    {paymentSummary.paymentRate}% payment rate
+                  </p>
+                </div>
               </div>
-              <div className="bg-green-50 p-4 rounded-lg border-2 border-green-200">
-                <h4 className="font-medium text-green-900">Total Collected</h4>
-                <p className="text-2xl font-bold text-green-600">${paymentSummary.totalCollected}</p>
-                <p className="text-xs text-green-700 mt-1">
-                  {paymentSummary.participantsPaid} of {paymentSummary.participantsWithPayments} paid
-                </p>
-              </div>
-              <div className="bg-red-50 p-4 rounded-lg border-2 border-red-200">
-                <h4 className="font-medium text-red-900">Outstanding</h4>
-                <p className="text-2xl font-bold text-red-600">${paymentSummary.totalOwed}</p>
-                <p className="text-xs text-red-700 mt-1">
-                  {paymentSummary.paymentRate}% payment rate
-                </p>
-              </div>
-            </div>
 
-            {/* Tournament Payment Section */}
-            <div className="bg-white border-2 border-gray-200 rounded-lg p-6">
-              <div className="border-b border-gray-200 pb-4 mb-6">
-                <h3 className="text-xl font-semibold text-gray-900 flex items-center">
-                  <Trophy className="h-6 w-6 text-green-600 mr-2" />
-                  Tournament Division Payments
-                </h3>
-                <p className="text-sm text-gray-600 mt-1">Track entry fee payments by division</p>
-              </div>
-              
-              <div className="space-y-6">
-                {tournaments.filter(t => 
-                  t.divisions && t.divisions.some(div => div.entryFee > 0)
-                ).map(tournament => {
-                  const paidDivisions = tournament.divisions.filter(div => div.entryFee > 0);
-                  
-                  return (
-                    <div key={tournament.id} className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-                      <div className="mb-4">
-                        <h4 className="font-medium text-gray-900">{tournament.name}</h4>
-                        <p className="text-sm text-gray-600">
-                          {paidDivisions.length} paid division{paidDivisions.length !== 1 ? 's' : ''}
-                        </p>
-                      </div>
-                      
-                      <div className="space-y-4">
-                        {paidDivisions.map(division => (
-                          <div key={division.id} className="bg-white border border-gray-200 rounded p-3">
-                            <div className="flex justify-between items-center mb-3">
-                              <h5 className="font-medium text-gray-800">{division.name}</h5>
-                              <span className="text-sm text-gray-500 bg-gray-100 px-2 py-1 rounded">
-                                ${division.entryFee} per person
-                              </span>
+              {/* Tournament Payment Section */}
+              <div className="bg-white border-2 border-gray-200 rounded-lg p-6">
+                <div className="border-b border-gray-200 pb-4 mb-6">
+                  <h3 className="text-xl font-semibold text-gray-900 flex items-center">
+                    <Trophy className="h-6 w-6 text-green-600 mr-2" />
+                    Tournament Division Payments
+                  </h3>
+                  <p className="text-sm text-gray-600 mt-1">Track entry fee payments by division</p>
+                </div>
+                
+                <div className="space-y-6">
+                  {tournaments.filter(t => 
+                    t.divisions && t.divisions.some(div => div.entryFee > 0)
+                  ).map(tournament => {
+                    const paidDivisions = tournament.divisions.filter(div => div.entryFee > 0);
+                    
+                    return (
+                      <div key={tournament.id} className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                        <div className="mb-4">
+                          <h4 className="font-medium text-gray-900">{tournament.name}</h4>
+                          <p className="text-sm text-gray-600">
+                            {paidDivisions.length} paid division{paidDivisions.length !== 1 ? 's' : ''}
+                          </p>
+                        </div>
+                        
+                        <div className="space-y-4">
+                          {paidDivisions.map(division => (
+                            <div key={division.id} className="bg-white border border-gray-200 rounded p-3">
+                              <div className="flex justify-between items-center mb-3">
+                                <h5 className="font-medium text-gray-800">{division.name}</h5>
+                                <span className="text-sm text-gray-500 bg-gray-100 px-2 py-1 rounded">
+                                  ${division.entryFee} per person
+                                </span>
+                              </div>
+                              <PaymentStatus
+                                event={{ ...tournament, ...division, participants: division.participants, paymentData: division.paymentData }}
+                                eventType="tournament"
+                                members={members}
+                                onPaymentUpdate={(eventId, updates) => {
+                                  const updatedDivisions = tournament.divisions.map(div => 
+                                    div.id === division.id ? { ...div, ...updates } : div
+                                  );
+                                  updateTournament(tournament.id, { divisions: updatedDivisions });
+                                }}
+                                currentUserId={user?.uid}
+                              />
                             </div>
-                            <PaymentStatus
-                              event={{ ...tournament, ...division, participants: division.participants, paymentData: division.paymentData }}
-                              eventType="tournament"
-                              members={members}
-                              onPaymentUpdate={(eventId, updates) => {
-                                const updatedDivisions = tournament.divisions.map(div => 
-                                  div.id === division.id ? { ...div, ...updates } : div
-                                );
-                                updateTournament(tournament.id, { divisions: updatedDivisions });
-                              }}
-                              currentUserId={user?.uid}
-                            />
-                          </div>
-                        ))}
+                          ))}
+                        </div>
                       </div>
-                    </div>
-                  );
-                })}
-                
-                {tournaments.filter(t => 
-                  t.divisions && t.divisions.some(div => div.entryFee > 0)
-                ).length === 0 && (
-                  <p className="text-gray-500 text-center py-8 bg-gray-50 rounded-lg">
-                    No tournament divisions with entry fees found.
-                  </p>
-                )}
+                    );
+                  })}
+                  
+                  {tournaments.filter(t => 
+                    t.divisions && t.divisions.some(div => div.entryFee > 0)
+                  ).length === 0 && (
+                    <p className="text-gray-500 text-center py-8 bg-gray-50 rounded-lg">
+                      No tournament divisions with entry fees found.
+                    </p>
+                  )}
+                </div>
               </div>
-            </div>
 
-            {/* League Payment Section */}
-            <div className="bg-white border-2 border-gray-200 rounded-lg p-6">
-              <div className="border-b border-gray-200 pb-4 mb-6">
-                <h3 className="text-xl font-semibold text-gray-900 flex items-center">
-                  <Activity className="h-6 w-6 text-blue-600 mr-2" />
-                  League Payments
-                </h3>
-                <p className="text-sm text-gray-600 mt-1">Track registration fee payments for leagues</p>
-              </div>
-              
-              <div className="space-y-6">
-                {leagues.filter(l => l.registrationFee > 0).map(league => (
-                  <div key={league.id} className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-                    <div className="flex justify-between items-center mb-4">
-                      <h4 className="font-medium text-gray-900">{league.name}</h4>
-                      <span className="text-sm text-gray-500 bg-white px-2 py-1 rounded">
-                        ${league.registrationFee} per person
-                      </span>
-                    </div>
-                    <PaymentStatus
-                      event={league}
-                      eventType="league"
-                      members={members}
-                      onPaymentUpdate={updateLeague}
-                      currentUserId={user?.uid}
-                    />
-                  </div>
-                ))}
+              {/* League Payment Section */}
+              <div className="bg-white border-2 border-gray-200 rounded-lg p-6">
+                <div className="border-b border-gray-200 pb-4 mb-6">
+                  <h3 className="text-xl font-semibold text-gray-900 flex items-center">
+                    <Activity className="h-6 w-6 text-blue-600 mr-2" />
+                    League Payments
+                  </h3>
+                  <p className="text-sm text-gray-600 mt-1">Track registration fee payments for leagues</p>
+                </div>
                 
-                {leagues.filter(l => l.registrationFee > 0).length === 0 && (
-                  <p className="text-gray-500 text-center py-8 bg-gray-50 rounded-lg">
-                    No leagues with registration fees found.
-                  </p>
-                )}
+                <div className="space-y-6">
+                  {leagues.filter(l => l.registrationFee > 0).map(league => (
+                    <div key={league.id} className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                      <div className="flex justify-between items-center mb-4">
+                        <h4 className="font-medium text-gray-900">{league.name}</h4>
+                        <span className="text-sm text-gray-500 bg-white px-2 py-1 rounded">
+                          ${league.registrationFee} per person
+                        </span>
+                      </div>
+                      <PaymentStatus
+                        event={league}
+                        eventType="league"
+                        members={members}
+                        onPaymentUpdate={updateLeague}
+                        currentUserId={user?.uid}
+                      />
+                    </div>
+                  ))}
+                  
+                  {leagues.filter(l => l.registrationFee > 0).length === 0 && (
+                    <p className="text-gray-500 text-center py-8 bg-gray-50 rounded-lg">
+                      No leagues with registration fees found.
+                    </p>
+                  )}
+                </div>
               </div>
-            </div>
 
-            {paymentSummary.paidEvents === 0 && (
-              <div className="text-center py-12 bg-gray-50 rounded-lg border-2 border-gray-200">
-                <DollarSign className="h-16 w-16 mx-auto text-gray-300 mb-4" />
-                <h3 className="text-lg font-medium text-gray-700 mb-2">No Payment Tracking Needed</h3>
-                <p className="text-gray-500 mb-4">No tournaments, divisions, or leagues with fees found.</p>
-                <p className="text-sm text-gray-400">Create a tournament division or league with fees to start tracking payments.</p>
-              </div>
-            )}
-          </div>
-        </Modal>
+              {paymentSummary.paidEvents === 0 && (
+                <div className="text-center py-12 bg-gray-50 rounded-lg border-2 border-gray-200">
+                  <DollarSign className="h-16 w-16 mx-auto text-gray-300 mb-4" />
+                  <h3 className="text-lg font-medium text-gray-700 mb-2">No Payment Tracking Needed</h3>
+                  <p className="text-gray-500 mb-4">No tournaments, divisions, or leagues with fees found.</p>
+                  <p className="text-sm text-gray-400">Create a tournament division or league with fees to start tracking payments.</p>
+                </div>
+              )}
+            </div>
+          </Modal>
+        )}
       </div>
     </div>
   );
