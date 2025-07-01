@@ -1140,36 +1140,69 @@ const MemberCard = React.memo(({ member, onEdit }) => {
 const ResultsDashboard = ({ results, tournaments, leagues, members, onViewTournamentResults, onViewLeagueResults }) => {
   // Combine tournament and league results for unified display
   const allResults = useMemo(() => {
-    const tournamentResults = results.tournament?.map(result => ({
-      ...result,
-      type: 'tournament',
-      eventName: tournaments.find(t => t.id === result.eventId)?.name || 'Unknown Tournament',
-      eventDate: tournaments.find(t => t.id === result.eventId)?.eventDate,
-      location: tournaments.find(t => t.id === result.eventId)?.location
-    })) || [];
+    console.log('=== RESULTS DASHBOARD DEBUG ===');
+    console.log('results.tournament:', results.tournament);
+    console.log('results.league:', results.league);
+    console.log('tournaments:', tournaments);
+    console.log('leagues:', leagues);
 
-    const leagueResults = results.league?.map(result => ({
-      ...result,
-      type: 'league', 
-      eventName: leagues.find(l => l.id === result.eventId)?.name || 'Unknown League',
-      eventDate: leagues.find(l => l.id === result.eventId)?.endDate, // Use end date for leagues
-      location: leagues.find(l => l.id === result.eventId)?.location
-    })) || [];
+    const tournamentResults = results.tournament?.map(result => {
+      console.log('Processing tournament result:', result);
+      const tournament = tournaments.find(t => t.id === result.eventId);
+      console.log('Found tournament for result:', tournament);
+      
+      return {
+        ...result,
+        type: 'tournament',
+        eventName: tournament?.name || 'Unknown Tournament',
+        eventDate: tournament?.eventDate,
+        location: tournament?.location
+      };
+    }) || [];
 
-    return [...tournamentResults, ...leagueResults]
-      .sort((a, b) => {
-        const dateA = a.eventDate?.seconds ? new Date(a.eventDate.seconds * 1000) : new Date(0);
-        const dateB = b.eventDate?.seconds ? new Date(b.eventDate.seconds * 1000) : new Date(0);
-        return dateB - dateA; // Most recent first
-      });
+    const leagueResults = results.league?.map(result => {
+      console.log('Processing league result:', result);
+      const league = leagues.find(l => l.id === result.eventId);
+      console.log('Found league for result:', league);
+      
+      return {
+        ...result,
+        type: 'league', 
+        eventName: league?.name || 'Unknown League',
+        eventDate: league?.endDate, // Use end date for leagues
+        location: league?.location
+      };
+    }) || [];
+
+    const combined = [...tournamentResults, ...leagueResults];
+    console.log('Combined results before sort:', combined);
+
+    const sorted = combined.sort((a, b) => {
+      const dateA = a.eventDate?.seconds ? new Date(a.eventDate.seconds * 1000) : new Date(0);
+      const dateB = b.eventDate?.seconds ? new Date(b.eventDate.seconds * 1000) : new Date(0);
+      return dateB - dateA; // Most recent first
+    });
+
+    console.log('Final sorted results:', sorted);
+    return sorted;
   }, [results, tournaments, leagues]);
 
+  console.log('=== RESULTS DASHBOARD RENDER ===');
+  console.log('allResults.length:', allResults.length);
+  console.log('allResults:', allResults);
+  console.log('=== RENDERING RESULTS CARDS ===');
+  console.log('About to render', allResults.length, 'results');
+
   if (allResults.length === 0) {
+    console.log('No results to display - showing empty state');
     return (
       <div className="text-center py-12 text-gray-500">
         <BarChart3 className="h-12 w-12 mx-auto mb-4 text-gray-300" />
         <p className="text-lg font-medium">No results yet</p>
         <p className="text-sm mt-1">Tournament and league results will appear here when entered</p>
+        <div className="mt-4 text-xs text-gray-400">
+          Debug: {results.tournament?.length || 0} tournament results, {results.league?.length || 0} league results
+        </div>
       </div>
     );
   }
@@ -1202,6 +1235,7 @@ const ResultsDashboard = ({ results, tournaments, leagues, members, onViewTourna
           key={`${result.type}-${result.id}`}
           className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow cursor-pointer"
           onClick={() => {
+            console.log('Clicked on result:', result);
             if (result.type === 'tournament') {
               onViewTournamentResults(tournaments.find(t => t.id === result.eventId));
             } else {
@@ -1294,6 +1328,15 @@ console.log('completed leagues:', completedLeagues.length);
     updatePlayerPerformance 
   } = usePlayerPerformance();
 
+  // MOVED: Filter out archived items (moved early to avoid temporal dead zone)
+  const activeTournaments = useMemo(() => {
+    return tournaments.filter(tournament => tournament.status !== 'archived');
+  }, [tournaments]);
+
+  const activeLeagues = useMemo(() => {
+    return leagues.filter(league => league.status !== 'archived');
+  }, [leagues]);
+
   // Smooth navigation hook
   const { activeSection, scrollToSection, navItems, refs } = useSmoothNavigation();
 
@@ -1385,7 +1428,7 @@ console.log('completed leagues:', completedLeagues.length);
     const latestTournament = tournaments.find(t => t.id === tournament.id) || tournament;
     setEditingTournament(latestTournament);
     setShowTournamentModal(true);
-  }, [activeTournaments]);
+  }, [tournaments]);
 
   const handleEditLeague = useCallback((league) => {
     console.log('Editing league:', league);
@@ -1472,14 +1515,7 @@ console.log('completed leagues:', completedLeagues.length);
     });
   }, [activeLeagues]);
 
-  // ADDED: Filter out archived items
-  const activeTournaments = useMemo(() => {
-    return tournaments.filter(tournament => tournament.status !== 'archived');
-  }, [activeTournaments]);
-
-  const activeLeagues = useMemo(() => {
-    return leagues.filter(league => league.status !== 'archived');
-  }, [activeLeagues]);
+  // REMOVED: Duplicate declarations moved earlier
 
   const sortedTournaments = useMemo(() => getSortedTournaments(), [getSortedTournaments]);
   const sortedLeagues = useMemo(() => getSortedLeagues(), [getSortedLeagues]);
@@ -2661,11 +2697,27 @@ console.log('completed leagues:', completedLeagues.length);
         >
           {viewingResults && (
             <div className="space-y-6">
+              <div className="bg-blue-50 border border-blue-200 p-4 rounded-lg">
+                <h4 className="font-semibold text-blue-900 mb-2">Debug Info:</h4>
+                <p className="text-blue-800 text-sm">Type: {viewingResults.type}</p>
+                <p className="text-blue-800 text-sm">Event: {viewingResults.event?.name}</p>
+                <p className="text-blue-800 text-sm">Has Results: {viewingResults.results ? 'Yes' : 'No'}</p>
+                {viewingResults.results && (
+                  <p className="text-blue-800 text-sm">Division Results: {viewingResults.results.divisionResults?.length || 0}</p>
+                )}
+              </div>
+              
               {viewingResults.type === 'tournament' ? (
                 <div>
                   <h3 className="text-lg font-semibold mb-4">Tournament Results</h3>
                   {viewingResults.results ? (
                     <div className="space-y-4">
+                      <div className="bg-green-50 border border-green-200 p-4 rounded-lg">
+                        <h4 className="font-semibold text-green-900 mb-2">Raw Results Data:</h4>
+                        <pre className="text-xs text-green-800 overflow-auto max-h-40">
+                          {JSON.stringify(viewingResults.results, null, 2)}
+                        </pre>
+                      </div>
                       <ResultsCard 
                         result={viewingResults.results}
                         onClose={() => {}}
