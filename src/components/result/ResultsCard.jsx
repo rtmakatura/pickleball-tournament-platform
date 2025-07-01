@@ -151,12 +151,9 @@ const ResultsCard = ({
     return winner ? winner.displayName : 'TBD';
   };
 
-  // FIXED: Close handler with multiple approaches
+  // FIXED: Simplified close handler
   const handleClose = (e) => {
-    if (e) {
-      e.preventDefault();
-      e.stopPropagation();
-    }
+    e?.stopPropagation();
     console.log('🔴 Close handler called');
     if (onClose && typeof onClose === 'function') {
       onClose();
@@ -280,23 +277,17 @@ const ResultsCard = ({
               </button>
             )}
             
-            {/* FIXED: Multiple approaches for close button */}
-            <div 
-              className="p-3 text-gray-400 hover:text-red-600 transition-colors rounded-full hover:bg-gray-100 cursor-pointer relative z-[60]"
-              style={{ minWidth: '44px', minHeight: '44px' }}
-              onMouseDown={handleClose}
+            {/* FIXED: Simple, reliable close button */}
+            <button
               onClick={handleClose}
-              onTouchStart={handleClose}
-              role="button"
-              tabIndex={0}
+              className="p-2 text-gray-400 hover:text-red-600 transition-colors rounded-full hover:bg-gray-100 flex items-center justify-center"
+              style={{ minWidth: '40px', minHeight: '40px' }}
               aria-label="Close"
               title="Close"
+              type="button"
             >
-              <X 
-                className="h-6 w-6 absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2" 
-                style={{ pointerEvents: 'none' }}
-              />
-            </div>
+              <X className="h-5 w-5" />
+            </button>
           </div>
         </div>
 

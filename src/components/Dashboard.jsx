@@ -1336,13 +1336,6 @@ const ResultsDashboard = ({ results, tournaments, leagues, members, onViewTourna
                   </span>
                 )}
               </div>
-              
-              {/* Additional info for development */}
-              {process.env.NODE_ENV === 'development' && (
-                <div className="mt-2 text-xs text-gray-400">
-                  ID: {result.id} | Event ID: {result.tournamentId || result.leagueId}
-                </div>
-              )}
             </div>
           </div>
         </div>
@@ -2703,56 +2696,40 @@ console.log('completed leagues:', completedLeagues.length);
           </Modal>
         )}
 
-        {/* Results View Modal */}
-        {activeModal === MODAL_TYPES.RESULTS_VIEW && modalData && (
+        {/* Results View Modal - FIXED: Remove double modal wrapper */}
+        {activeModal === MODAL_TYPES.RESULTS_VIEW && modalData && modalData.results && (
+          <ResultsCard 
+            result={modalData.results}
+            onClose={closeModal}
+            showPlayerPerformance={true}
+            allowEdit={false}
+          />
+        )}
+
+        {/* No Results Found - Show in regular modal */}
+        {activeModal === MODAL_TYPES.RESULTS_VIEW && modalData && !modalData.results && (
           <Modal
             isOpen={true}
             onClose={closeModal}
             title={`Results: ${modalData.event?.name || 'Event'}`}
-            size="xl"
+            size="lg"
           >
-            <div className="space-y-6">
+            <div className="text-center py-8">
               {modalData.type === 'tournament' ? (
-                <div>
-                  <h3 className="text-lg font-semibold mb-4">Tournament Results</h3>
-                  {modalData.results ? (
-                    <div className="space-y-4">
-                      <ResultsCard 
-                        result={modalData.results}
-                        onClose={() => {}}
-                        showPlayerPerformance={true}
-                        allowEdit={false}
-                      />
-                    </div>
-                  ) : (
-                    <div className="bg-yellow-50 border border-yellow-200 p-4 rounded-lg">
-                      <p className="text-yellow-800">
-                        <Trophy className="h-5 w-5 inline mr-2" />
-                        No detailed results found for this tournament.
-                      </p>
-                    </div>
-                  )}
+                <div className="bg-yellow-50 border border-yellow-200 p-6 rounded-lg">
+                  <Trophy className="h-12 w-12 text-yellow-500 mx-auto mb-4" />
+                  <p className="text-lg font-medium text-yellow-800 mb-2">No Results Found</p>
+                  <p className="text-yellow-700">
+                    No detailed results found for this tournament.
+                  </p>
                 </div>
               ) : (
-                <div>
-                  <h3 className="text-lg font-semibold mb-4">League Results</h3>
-                  {modalData.results ? (
-                    <div className="space-y-4">
-                      <ResultsCard 
-                        result={modalData.results}
-                        onClose={() => {}}
-                        showPlayerPerformance={true}
-                        allowEdit={false}
-                      />
-                    </div>
-                  ) : (
-                    <div className="bg-yellow-50 border border-yellow-200 p-4 rounded-lg">
-                      <p className="text-yellow-800">
-                        <Activity className="h-5 w-5 inline mr-2" />
-                        No detailed results found for this league.
-                      </p>
-                    </div>
-                  )}
+                <div className="bg-yellow-50 border border-yellow-200 p-6 rounded-lg">
+                  <Activity className="h-12 w-12 text-blue-500 mx-auto mb-4" />
+                  <p className="text-lg font-medium text-yellow-800 mb-2">No Results Found</p>
+                  <p className="text-yellow-700">
+                    No detailed results found for this league.
+                  </p>
                 </div>
               )}
             </div>
