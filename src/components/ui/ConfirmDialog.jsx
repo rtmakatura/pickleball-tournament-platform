@@ -1,22 +1,11 @@
 // src/components/ui/ConfirmDialog.jsx
 import React from 'react';
-import { AlertTriangle, Trash2 } from 'lucide-react';
+import { AlertTriangle, Trash2, Archive, RotateCcw } from 'lucide-react';
 import Button from './Button.jsx';
 import Modal from './Modal.jsx';
 
 /**
- * ConfirmDialog Component - For confirming destructive actions
- * 
- * Props:
- * - isOpen: boolean - Whether dialog is visible
- * - onClose: function - Called when dialog is closed
- * - onConfirm: function - Called when user confirms action
- * - title: string - Dialog title
- * - message: string - Confirmation message
- * - confirmText: string - Text for confirm button
- * - cancelText: string - Text for cancel button
- * - type: 'danger' | 'warning' - Dialog type for styling
- * - loading: boolean - Whether action is in progress
+ * ConfirmDialog Component - Clean, minimal confirmation dialogs
  */
 const ConfirmDialog = ({
   isOpen,
@@ -33,21 +22,24 @@ const ConfirmDialog = ({
     onConfirm();
   };
 
-  const iconConfig = {
-    danger: {
-      icon: Trash2,
-      color: 'text-red-600',
-      bgColor: 'bg-red-100'
-    },
-    warning: {
-      icon: AlertTriangle,
-      color: 'text-yellow-600',
-      bgColor: 'bg-yellow-100'
+  const getIcon = (type) => {
+    switch (type) {
+      case 'danger':
+        return Trash2;
+      case 'archive':
+        return Archive;
+      case 'restore':
+        return RotateCcw;
+      default:
+        return AlertTriangle;
     }
   };
 
-  const config = iconConfig[type];
-  const Icon = config.icon;
+  const getConfirmVariant = (type) => {
+    return type === 'danger' ? 'danger' : 'primary';
+  };
+
+  const Icon = getIcon(type);
 
   return (
     <Modal
@@ -56,37 +48,39 @@ const ConfirmDialog = ({
       title=""
       size="sm"
     >
-      <div className="text-center">
+      <div className="p-6 text-center">
         {/* Icon */}
-        <div className={`mx-auto flex items-center justify-center h-12 w-12 rounded-full ${config.bgColor} mb-4`}>
-          <Icon className={`h-6 w-6 ${config.color}`} />
+        <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-gray-100 mb-4">
+          <Icon className="h-6 w-6 text-gray-600" />
         </div>
 
         {/* Title */}
-        <h3 className="text-lg font-medium text-gray-900 mb-2">
+        <h3 className="text-lg font-semibold text-gray-900 mb-2">
           {title}
         </h3>
 
         {/* Message */}
-        <p className="text-sm text-gray-500 mb-6">
+        <p className="text-sm text-gray-600 mb-6 leading-relaxed">
           {message}
         </p>
 
         {/* Actions */}
-        <div className="flex space-x-3 justify-center">
+        <div className="flex flex-col sm:flex-row gap-3 justify-center">
           <Button
             variant="outline"
             onClick={onClose}
             disabled={loading}
+            className="sm:order-1"
           >
             {cancelText}
           </Button>
           
           <Button
-            variant="danger"
+            variant={getConfirmVariant(type)}
             onClick={handleConfirm}
             loading={loading}
             disabled={loading}
+            className="sm:order-2"
           >
             {confirmText}
           </Button>

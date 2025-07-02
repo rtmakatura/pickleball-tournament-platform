@@ -1392,6 +1392,15 @@ console.log('completed leagues:', completedLeagues.length);
   const activeLeagues = useMemo(() => {
     return leagues.filter(league => league.status !== 'archived');
   }, [leagues]);
+  
+  // Archived items
+  const archivedTournaments = useMemo(() => {
+    return tournaments.filter(tournament => tournament.status === 'archived');
+  }, [tournaments]);
+
+  const archivedLeagues = useMemo(() => {
+    return leagues.filter(league => league.status === 'archived');
+  }, [leagues]);
 
   // Smooth navigation hook
   const { activeSection, scrollToSection, navItems, refs } = useSmoothNavigation();
@@ -1413,7 +1422,12 @@ console.log('completed leagues:', completedLeagues.length);
     PLAYER_PERFORMANCE_FORM: 'player_performance_form',
     RESULTS_VIEW: 'results_view',
     DELETE_CONFIRM: 'delete_confirm',
-    LEAGUE_DELETE_CONFIRM: 'league_delete_confirm'
+    LEAGUE_DELETE_CONFIRM: 'league_delete_confirm',
+    ARCHIVE_TOURNAMENT_CONFIRM: 'archive_tournament_confirm',
+    UNARCHIVE_TOURNAMENT_CONFIRM: 'unarchive_tournament_confirm',
+    ARCHIVE_LEAGUE_CONFIRM: 'archive_league_confirm',
+    UNARCHIVE_LEAGUE_CONFIRM: 'unarchive_league_confirm',
+    ARCHIVED_ITEMS: 'archived_items'
   };
   
   // Enhanced tournament state management
@@ -1454,6 +1468,9 @@ console.log('completed leagues:', completedLeagues.length);
   const [visibleTournaments, setVisibleTournaments] = useState(4);
   const [visibleLeagues, setVisibleLeagues] = useState(4);
   const [visibleMembers, setVisibleMembers] = useState(8);
+  
+  // Archive management state
+  const [showArchived, setShowArchived] = useState(false);
   
   // Form states
   const [selectedLeagueMembers, setSelectedLeagueMembers] = useState([]);
@@ -2158,6 +2175,59 @@ console.log('completed leagues:', completedLeagues.length);
     }
   };
 
+  // Archive handlers
+  const handleArchiveTournament = async (tournamentId) => {
+    setDeleteLoading(true);
+    try {
+      await archiveTournament(tournamentId);
+      closeModal();
+      showAlert('success', 'Tournament archived!', 'Tournament has been moved to archive');
+    } catch (err) {
+      showAlert('error', 'Failed to archive tournament', err.message);
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
+
+  const handleUnarchiveTournament = async (tournamentId) => {
+    setDeleteLoading(true);
+    try {
+      await unarchiveTournament(tournamentId);
+      closeModal();
+      showAlert('success', 'Tournament restored!', 'Tournament has been restored from archive');
+    } catch (err) {
+      showAlert('error', 'Failed to restore tournament', err.message);
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
+
+  const handleArchiveLeague = async (leagueId) => {
+    setDeleteLoading(true);
+    try {
+      await archiveLeague(leagueId);
+      closeModal();
+      showAlert('success', 'League archived!', 'League has been moved to archive');
+    } catch (err) {
+      showAlert('error', 'Failed to archive league', err.message);
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
+
+  const handleUnarchiveLeague = async (leagueId) => {
+    setDeleteLoading(true);
+    try {
+      await unarchiveLeague(leagueId);
+      closeModal();
+      showAlert('success', 'League restored!', 'League has been restored from archive');
+    } catch (err) {
+      showAlert('error', 'Failed to restore league', err.message);
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
+
   // ADDED: Results submission handlers
   const handleTournamentResultsSubmit = async (resultsData) => {
     setFormLoading(true);
@@ -2354,7 +2424,7 @@ console.log('completed leagues:', completedLeagues.length);
 
         {/* Quick Actions - Responsive */}
         <Card ref={refs.actionsRef} title="Quick Actions" className="mb-8 sm:mb-8">
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-4">
+          <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 sm:gap-4">
             <Button 
               variant="outline" 
               onClick={() => setActiveModal(MODAL_TYPES.MEMBER_FORM)}
@@ -2393,6 +2463,16 @@ console.log('completed leagues:', completedLeagues.length);
             >
               <DollarSign className="h-5 w-5" />
               <span className="text-xs sm:text-sm">Payment Tracker</span>
+            </Button>
+
+            <Button 
+              variant="outline" 
+              onClick={() => setActiveModal(MODAL_TYPES.ARCHIVED_ITEMS)}
+              className={`h-16 flex-col gap-2 ${isMobile ? 'mobile-action-button' : ''}`}
+              size="md"
+            >
+              <Clock className="h-5 w-5" />
+              <span className="text-xs sm:text-sm">View Archive</span>
             </Button>
           </div>
         </Card>
@@ -2503,6 +2583,19 @@ console.log('completed leagues:', completedLeagues.length);
             size="xl"
             headerAction={editingTournament ? (
               <>
+                {editingTournament.status === TOURNAMENT_STATUS.COMPLETED && (
+                  <ModalHeaderButton
+                    variant="outline"
+                    onClick={() => {
+                      setModalData({ tournament: editingTournament });
+                      setActiveModal(MODAL_TYPES.ARCHIVE_TOURNAMENT_CONFIRM);
+                    }}
+                    disabled={formLoading || deleteLoading}
+                    icon={<Activity className="h-4 w-4" />}
+                  >
+                    Archive
+                  </ModalHeaderButton>
+                )}
                 <ModalHeaderButton
                   variant="danger"
                   onClick={() => {
@@ -2566,6 +2659,19 @@ console.log('completed leagues:', completedLeagues.length);
             size="lg"
             headerAction={editingLeague ? (
               <>
+                {editingLeague.status === LEAGUE_STATUS.COMPLETED && (
+                  <ModalHeaderButton
+                    variant="outline"
+                    onClick={() => {
+                      setModalData({ league: editingLeague });
+                      setActiveModal(MODAL_TYPES.ARCHIVE_LEAGUE_CONFIRM);
+                    }}
+                    disabled={formLoading || deleteLoading}
+                    icon={<Activity className="h-4 w-4" />}
+                  >
+                    Archive
+                  </ModalHeaderButton>
+                )}
                 <ModalHeaderButton
                   variant="danger"
                   onClick={() => {
@@ -2767,6 +2873,254 @@ console.log('completed leagues:', completedLeagues.length);
             type="danger"
             loading={deleteLoading}
           />
+        )}
+
+        {/* Archive Tournament Confirmation */}
+        {activeModal === MODAL_TYPES.ARCHIVE_TOURNAMENT_CONFIRM && modalData?.tournament && (
+          <ConfirmDialog
+            isOpen={true}
+            onClose={() => setActiveModal(MODAL_TYPES.TOURNAMENT_FORM)}
+            onConfirm={() => {
+              handleArchiveTournament(modalData.tournament.id);
+            }}
+            title="Archive Tournament"
+            message={`Are you sure you want to archive "${modalData.tournament.name}"? The tournament will be hidden from the main list but can be restored later. All results and data will be preserved.`}
+            confirmText="Archive Tournament"
+            cancelText="Keep Active"
+            type="warning"
+            loading={deleteLoading}
+          />
+        )}
+
+        {/* Unarchive Tournament Confirmation */}
+        {activeModal === MODAL_TYPES.UNARCHIVE_TOURNAMENT_CONFIRM && modalData?.tournament && (
+          <ConfirmDialog
+            isOpen={true}
+            onClose={closeModal}
+            onConfirm={() => {
+              handleUnarchiveTournament(modalData.tournament.id);
+            }}
+            title="Restore Tournament"
+            message={`Are you sure you want to restore "${modalData.tournament.name}" from the archive? It will appear back in the main tournaments list.`}
+            confirmText="Restore Tournament"
+            cancelText="Keep Archived"
+            type="warning"
+            loading={deleteLoading}
+          />
+        )}
+
+        {/* Archive League Confirmation */}
+        {activeModal === MODAL_TYPES.ARCHIVE_LEAGUE_CONFIRM && modalData?.league && (
+          <ConfirmDialog
+            isOpen={true}
+            onClose={() => setActiveModal(MODAL_TYPES.LEAGUE_FORM)}
+            onConfirm={() => {
+              handleArchiveLeague(modalData.league.id);
+            }}
+            title="Archive League"
+            message={`Are you sure you want to archive "${modalData.league.name}"? The league will be hidden from the main list but can be restored later. All results and data will be preserved.`}
+            confirmText="Archive League"
+            cancelText="Keep Active"
+            type="warning"
+            loading={deleteLoading}
+          />
+        )}
+
+        {/* Unarchive League Confirmation */}
+        {activeModal === MODAL_TYPES.UNARCHIVE_LEAGUE_CONFIRM && modalData?.league && (
+          <ConfirmDialog
+            isOpen={true}
+            onClose={closeModal}
+            onConfirm={() => {
+              handleUnarchiveLeague(modalData.league.id);
+            }}
+            title="Restore League"
+            message={`Are you sure you want to restore "${modalData.league.name}" from the archive? It will appear back in the main leagues list.`}
+            confirmText="Restore League"
+            cancelText="Keep Archived"
+            type="warning"
+            loading={deleteLoading}
+          />
+        )}
+
+        {/* Archived Items Modal */}
+        {activeModal === MODAL_TYPES.ARCHIVED_ITEMS && (
+          <Modal
+            isOpen={true}
+            onClose={closeModal}
+            title="Archived Events"
+            size="xl"
+          >
+            <div className="space-y-6 p-6">
+              {/* Archive Summary */}
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <div className="flex items-center mb-3">
+                  <Clock className="h-5 w-5 text-blue-600 mr-2" />
+                  <h3 className="text-lg font-semibold text-blue-900">Archive Overview</h3>
+                </div>
+                <div className="grid grid-cols-2 gap-4 text-center">
+                  <div className="bg-white p-3 rounded-lg">
+                    <div className="text-2xl font-bold text-blue-600">{archivedTournaments.length}</div>
+                    <div className="text-sm text-blue-700">Archived Tournaments</div>
+                  </div>
+                  <div className="bg-white p-3 rounded-lg">
+                    <div className="text-2xl font-bold text-blue-600">{archivedLeagues.length}</div>
+                    <div className="text-sm text-blue-700">Archived Leagues</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Archived Tournaments */}
+              {archivedTournaments.length > 0 && (
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold text-gray-900 flex items-center">
+                    <Trophy className="h-5 w-5 text-yellow-600 mr-2" />
+                    Archived Tournaments
+                  </h3>
+                  <div className="space-y-3">
+                    {archivedTournaments.map((tournament) => (
+                      <div key={tournament.id} className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                        <div className="flex items-center justify-between">
+                          <div className="flex-1">
+                            <h4 className="font-medium text-gray-900">{tournament.name}</h4>
+                            <div className="flex items-center space-x-4 text-sm text-gray-600 mt-1">
+                              <span className="flex items-center">
+                                <Calendar className="h-3 w-3 mr-1" />
+                                {tournament.eventDate 
+                                  ? new Date(tournament.eventDate.seconds * 1000).toLocaleDateString('en-US', {
+                                      month: 'short',
+                                      day: 'numeric',
+                                      year: 'numeric'
+                                    })
+                                  : 'TBD'
+                                }
+                              </span>
+                              <span className="flex items-center">
+                                <MapPin className="h-3 w-3 mr-1" />
+                                {tournament.location || 'No location'}
+                              </span>
+                              <span className="flex items-center">
+                                <Users className="h-3 w-3 mr-1" />
+                                {getTournamentTotalParticipants(tournament)} participants
+                              </span>
+                            </div>
+                          </div>
+                          <div className="flex space-x-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                setModalData({ tournament });
+                                setActiveModal(MODAL_TYPES.UNARCHIVE_TOURNAMENT_CONFIRM);
+                              }}
+                              disabled={deleteLoading}
+                            >
+                              <Activity className="h-4 w-4 mr-1" />
+                              Restore
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                setEditingTournament(tournament);
+                                setModalData({ tournament });
+                                setActiveModal(MODAL_TYPES.TOURNAMENT_FORM);
+                              }}
+                            >
+                              <Trophy className="h-4 w-4 mr-1" />
+                              View
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Archived Leagues */}
+              {archivedLeagues.length > 0 && (
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold text-gray-900 flex items-center">
+                    <Activity className="h-5 w-5 text-blue-600 mr-2" />
+                    Archived Leagues
+                  </h3>
+                  <div className="space-y-3">
+                    {archivedLeagues.map((league) => (
+                      <div key={league.id} className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                        <div className="flex items-center justify-between">
+                          <div className="flex-1">
+                            <h4 className="font-medium text-gray-900">{league.name}</h4>
+                            <div className="flex items-center space-x-4 text-sm text-gray-600 mt-1">
+                              <span className="flex items-center">
+                                <Calendar className="h-3 w-3 mr-1" />
+                                {league.startDate && league.endDate
+                                  ? `${new Date(league.startDate.seconds * 1000).toLocaleDateString('en-US', {
+                                      month: 'short',
+                                      day: 'numeric'
+                                    })} - ${new Date(league.endDate.seconds * 1000).toLocaleDateString('en-US', {
+                                      month: 'short',
+                                      day: 'numeric'
+                                    })}`
+                                  : 'TBD'
+                                }
+                              </span>
+                              <span className="flex items-center">
+                                <MapPin className="h-3 w-3 mr-1" />
+                                {league.location || 'No location'}
+                              </span>
+                              <span className="flex items-center">
+                                <Users className="h-3 w-3 mr-1" />
+                                {league.participants?.length || 0} members
+                              </span>
+                            </div>
+                          </div>
+                          <div className="flex space-x-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                setModalData({ league });
+                                setActiveModal(MODAL_TYPES.UNARCHIVE_LEAGUE_CONFIRM);
+                              }}
+                              disabled={deleteLoading}
+                            >
+                              <Activity className="h-4 w-4 mr-1" />
+                              Restore
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                setEditingLeague(league);
+                                setSelectedLeagueMembers(league.participants || []);
+                                setModalData({ league });
+                                setActiveModal(MODAL_TYPES.LEAGUE_FORM);
+                              }}
+                            >
+                              <Activity className="h-4 w-4 mr-1" />
+                              View
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Empty State */}
+              {archivedTournaments.length === 0 && archivedLeagues.length === 0 && (
+                <div className="text-center py-12">
+                  <Clock className="h-16 w-16 mx-auto text-gray-300 mb-4" />
+                  <h3 className="text-lg font-medium text-gray-700 mb-2">No Archived Events</h3>
+                  <p className="text-gray-500">
+                    When you archive completed tournaments or leagues, they will appear here.
+                  </p>
+                </div>
+              )}
+            </div>
+          </Modal>
         )}
 
         {/* Payment Modal */}

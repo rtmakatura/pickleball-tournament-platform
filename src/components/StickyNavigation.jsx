@@ -34,7 +34,7 @@ const StickyNavigation = ({ activeSection, onNavigate, navItems }) => {
                   'Tournaments': 'Events',
                   'Leagues': 'Leagues',
                   'Members': 'People',
-                  'Results': 'Results' // ADDED: Results mobile label
+                  'Results': 'Results'
                 }[item.label] || item.label;
 
                 return (

@@ -20,17 +20,16 @@ export const SKILL_LEVELS = {
 export const TOURNAMENT_STATUS = {
   DRAFT: 'draft',
   REGISTRATION_OPEN: 'registration_open',
-  REGISTRATION_CLOSED: 'registration_closed',
   IN_PROGRESS: 'in_progress',
   COMPLETED: 'completed',
-  CANCELLED: 'cancelled'
+  ARCHIVED: 'archived'
 };
 
 // League statuses
 export const LEAGUE_STATUS = {
   ACTIVE: 'active',
   COMPLETED: 'completed',
-  PAUSED: 'paused'
+  ARCHIVED: 'archived'
 };
 
 // Payment modes
