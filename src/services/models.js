@@ -4,7 +4,6 @@
 // Member roles
 export const MEMBER_ROLES = {
   PLAYER: 'player',
-  ORGANIZER: 'organizer',
   ADMIN: 'admin'
 };
 

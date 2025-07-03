@@ -358,6 +358,22 @@ const MemberProfile = ({
                 )}
               </div>
 
+              {/* Role - Display only, not editable by users */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Account Role
+                </label>
+                <div className="flex items-center space-x-2">
+                  <Shield className="h-4 w-4 text-gray-400" />
+                  <span className="text-gray-900 capitalize">
+                    {currentMember.role}
+                  </span>
+                  <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
+                    Contact admin to change
+                  </span>
+                </div>
+              </div>
+
               {/* Account Information */}
               <div className="border-t pt-6">
                 <h3 className="text-lg font-medium text-gray-900 mb-4">Account Information</h3>

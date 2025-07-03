@@ -13,6 +13,9 @@ import {
 } from 'lucide-react';
 import { Input, Select, Button, ConfirmDialog } from '../ui';
 import { SKILL_LEVELS, MEMBER_ROLES } from '../../services/models';
+import { useAuth } from '../../hooks/useAuth';
+import { useMembers } from '../../hooks/useMembers';
+import { canEditUserRoles } from '../../utils/roleUtils';
 
 // Enhanced member form styles matching tournament form quality
 const memberFormStyles = `
@@ -235,6 +238,11 @@ const MemberForm = ({
 
   const [errors, setErrors] = useState({});
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  
+  // Permission checking
+  const { user } = useAuth();
+  const { members } = useMembers();
+  const canEditRoles = canEditUserRoles(user?.uid, member, members);
 
   // Section toggle
   const toggleSection = useCallback((section) => {
@@ -471,16 +479,35 @@ const MemberForm = ({
                     />
                   </div>
 
-                  <div className="form-input-group">
-                    <Select
-                      label="Role"
-                      value={formData.role}
-                      onChange={handleChange('role')}
-                      options={roleOptions}
-                      helperText="Role in tournaments and leagues"
-                      disabled={loading}
-                    />
-                  </div>
+                  {/* Role selection - Only visible to admins */}
+                  {canEditRoles && (
+                    <div className="form-input-group">
+                      <Select
+                        label="Role"
+                        value={formData.role}
+                        onChange={handleChange('role')}
+                        options={roleOptions}
+                        helperText="Role in tournaments and leagues"
+                        disabled={loading}
+                      />
+                    </div>
+                  )}
+                  
+                  {/* Role display for non-admins */}
+                  {!canEditRoles && (
+                    <div className="form-input-group">
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Role
+                      </label>
+                      <div className="flex items-center space-x-2 p-3 bg-gray-50 rounded-md">
+                        <Shield className="h-4 w-4 text-gray-400" />
+                        <span className="text-gray-900 capitalize">{formData.role}</span>
+                        <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
+                          Contact admin to change
+                        </span>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* Active status */}
@@ -503,16 +530,7 @@ const MemberForm = ({
                   </div>
                 </div>
 
-                {/* Payment Information */}
-                <div className="form-input-group">
-                  <div className="bg-blue-50 p-4 rounded-lg">
-                    <h4 className="text-sm font-medium text-blue-900 mb-2">Payment Information</h4>
-                    <p className="text-sm text-blue-800">
-                      Providing a Venmo handle makes it easier for organizers to collect payments and 
-                      for other participants to pay you back in group payment scenarios.
-                    </p>
-                  </div>
-                </div>
+                
               </div>
             </div>
           </div>
