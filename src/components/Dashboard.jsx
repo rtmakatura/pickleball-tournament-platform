@@ -1294,47 +1294,77 @@ const ResultsDashboard = ({ results, tournaments, leagues, members, onViewTourna
   return (
     <div className="space-y-4">
       {allResults.map((result) => (
-        <div 
+        <div
           key={`${result.type}-${result.id}`}
-          className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow cursor-pointer hover:border-gray-300"
+          className="mobile-card bg-white rounded-xl border border-gray-200 shadow-sm hover:border-gray-300 transition-all duration-200 overflow-hidden cursor-pointer"
           onClick={() => handleResultClick(result)}
         >
-          <div className="flex items-start justify-between">
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center space-x-3 mb-2">
-                <div className={`p-2 rounded-lg ${
-                  result.type === 'tournament' 
-                    ? 'bg-yellow-100 text-yellow-700' 
-                    : 'bg-blue-100 text-blue-700'
-                }`}>
-                  {result.type === 'tournament' ? (
-                    <Trophy className="h-4 w-4" />
-                  ) : (
-                    <Activity className="h-4 w-4" />
-                  )}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <h4 className="font-semibold text-gray-900 truncate">
-                    {result.eventName}
-                  </h4>
-                  <p className="text-sm text-gray-600 capitalize">
-                    {result.type} • {formatDate(result.eventDate)}
-                  </p>
-                </div>
-                <span className="results-indicator flex-shrink-0">
-                  <Award className="h-3 w-3 mr-1" />
-                  Complete
-                </span>
-              </div>
-              
-              <div className="flex items-center justify-between text-sm text-gray-600">
-                <span>{getResultSummary(result)}</span>
-                {result.location && result.location !== 'Location TBD' && (
-                  <span className="flex items-center">
-                    <MapPin className="h-3 w-3 mr-1" />
-                    <span className="truncate max-w-xs">{result.location}</span>
+          {/* ENHANCED: Card Header with responsive padding */}
+          <div className="p-3 sm:p-4 pb-2 sm:pb-3">
+            <div className="flex items-start justify-between mb-2 sm:mb-3">
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center space-x-2 sm:space-x-3 mb-2">
+                  <div className={`p-1.5 sm:p-2 rounded-lg ${
+                    result.type === 'tournament' 
+                      ? 'bg-yellow-100 text-yellow-700' 
+                      : 'bg-blue-100 text-blue-700'
+                  }`}>
+                    {result.type === 'tournament' ? (
+                      <Trophy className="h-3 w-3 sm:h-4 sm:w-4" />
+                    ) : (
+                      <Activity className="h-3 w-3 sm:h-4 sm:w-4" />
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h4 className="text-base sm:text-lg font-semibold text-gray-900 truncate">
+                      {result.eventName}
+                    </h4>
+                    <p className="text-xs sm:text-sm text-gray-600 capitalize mt-1">
+                      {result.type} • {formatDate(result.eventDate)}
+                    </p>
+                  </div>
+                  <span className="results-indicator flex-shrink-0">
+                    <Award className="h-3 w-3 mr-1" />
+                    Complete
                   </span>
-                )}
+                </div>
+              </div>
+            </div>
+
+            {/* ENHANCED: Quick Info Grid with responsive layout */}
+            <div className="grid grid-cols-1 xs:grid-cols-2 gap-2 sm:gap-3 text-sm">
+              <div className="flex items-center text-gray-600 min-w-0">
+                <Calendar className="h-3 w-3 sm:h-4 sm:w-4 mr-2 text-gray-400 flex-shrink-0" />
+                <span className="text-xs truncate">{formatDate(result.eventDate)}</span>
+              </div>
+              <div className="flex items-center text-gray-600 min-w-0">
+                <Users className="h-3 w-3 sm:h-4 sm:w-4 mr-2 text-gray-400 flex-shrink-0" />
+                <span className="text-xs truncate">{getResultSummary(result)}</span>
+              </div>
+              {result.location && result.location !== 'Location TBD' && (
+                <div className="col-span-1 xs:col-span-2 flex items-center text-gray-600 min-w-0">
+                  <MapPin className="h-3 w-3 sm:h-4 sm:w-4 mr-2 text-gray-400 flex-shrink-0" />
+                  <span className="truncate text-xs">{result.location}</span>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Quick Actions Bar */}
+          <div className="border-t border-gray-100 px-3 sm:px-4 py-2 sm:py-3 bg-gray-50">
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-gray-600 font-medium">Result Details</span>
+              <div className="flex space-x-1 sm:space-x-2">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleResultClick(result);
+                  }}
+                  className="touch-target p-1.5 sm:p-2 rounded-md hover:bg-gray-200 transition-colors"
+                  title="View Details"
+                >
+                  <Trophy className="h-3 w-3 sm:h-4 sm:w-4 text-gray-500" />
+                </button>
               </div>
             </div>
           </div>

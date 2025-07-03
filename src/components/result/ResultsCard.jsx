@@ -216,7 +216,7 @@ const ResultsCard = ({
 
   return (
     <div 
-      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 sm:p-4"
       onClick={(e) => {
         // FIXED: Allow backdrop click to close
         if (e.target === e.currentTarget) {
@@ -225,7 +225,7 @@ const ResultsCard = ({
         }
       }}
     >
-      <div className="bg-white rounded-lg shadow-xl max-w-5xl w-full max-h-[90vh] overflow-hidden">
+      <div className="bg-white rounded-lg shadow-xl max-w-5xl w-full max-h-[95vh] sm:max-h-[90vh] overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
           <div className="flex items-center space-x-3">
@@ -292,7 +292,7 @@ const ResultsCard = ({
         </div>
 
         {/* Event Details */}
-        <div className="p-6 bg-gray-50 border-b border-gray-200">
+        <div className="p-4 sm:p-6 bg-gray-50 border-b border-gray-200">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
             <div className="flex items-center text-gray-600">
               <Calendar className="h-4 w-4 mr-2" />
@@ -319,7 +319,7 @@ const ResultsCard = ({
 
         {/* Tabs */}
         <div className="border-b border-gray-200">
-          <nav className="flex space-x-8 px-6">
+          <nav className="flex space-x-4 sm:space-x-8 px-4 sm:px-6">
             <button
               onClick={() => setActiveTab('standings')}
               className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
@@ -346,9 +346,9 @@ const ResultsCard = ({
         </div>
 
         {/* Content */}
-        <div className="overflow-y-auto max-h-[50vh]">
+        <div className="overflow-y-auto max-h-[60vh] sm:max-h-[50vh]">
           {activeTab === 'standings' && (
-            <div className="p-6">
+            <div className="p-4 sm:p-6">
               {participantsByDivision.length > 0 ? (
                 <div className="space-y-6">
                   {participantsByDivision.map((division, divIndex) => (
@@ -475,7 +475,7 @@ const ResultsCard = ({
           )}
 
           {activeTab === 'performance' && (
-            <div className="p-6">
+            <div className="p-4 sm:p-6">
               {result.playerPerformances && result.playerPerformances.length > 0 ? (
                 <div className="space-y-4">
                   {result.playerPerformances.map((performance, index) => (
