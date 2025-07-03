@@ -1,8 +1,162 @@
 // src/components/member/MemberForm.jsx (ENHANCED - Added Venmo Handle)
-import React, { useState } from 'react';
-import { Trash2 } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { 
+  Trash2, 
+  User, 
+  Trophy, 
+  Shield, 
+  ChevronDown, 
+  Users, 
+  DollarSign, 
+  CheckCircle, 
+  Calendar 
+} from 'lucide-react';
 import { Input, Select, Button, ConfirmDialog } from '../ui';
 import { SKILL_LEVELS, MEMBER_ROLES } from '../../services/models';
+import { useAuth } from '../../hooks/useAuth';
+import { useMembers } from '../../hooks/useMembers';
+import { getAvailableRoles } from '../../utils/roleUtils';
+
+// Enhanced member form styles matching tournament form quality
+const memberFormStyles = `
+  /* Base form container */
+  .member-form {
+    -webkit-overflow-scrolling: touch;
+    scroll-behavior: smooth;
+  }
+  
+  /* Consistent section spacing system - exactly 24px everywhere */
+  .form-section {
+    background: white;
+    border-radius: 16px;
+    border: 1px solid #e5e7eb;
+    margin-bottom: 24px;
+    overflow: hidden;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  }
+  
+  .form-section:last-child {
+    margin-bottom: 0;
+  }
+  
+  .form-section-header {
+    padding: 20px;
+    border-bottom: 1px solid #e5e7eb;
+    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+  }
+  
+  .form-section-header:active {
+    background: linear-gradient(135deg, #e2e8f0 0%, #cbd5e1 100%);
+  }
+  
+  /* Consistent content padding - exactly 24px always */
+  .form-section-content {
+    padding: 24px;
+  }
+  
+  /* Standardized input group spacing - exactly 24px always */
+  .form-input-group {
+    margin-bottom: 24px;
+  }
+  
+  .form-input-group:last-child {
+    margin-bottom: 0;
+  }
+  
+  /* Touch-optimized buttons */
+  .form-touch-button {
+    min-height: 52px;
+    min-width: 52px;
+    transition: all 0.2s ease;
+    -webkit-tap-highlight-color: transparent;
+    border-radius: 12px;
+  }
+  
+  .form-touch-button:active {
+    transform: scale(0.96);
+  }
+  
+  /* Responsive grid system */
+  .form-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+  
+  @media (min-width: 640px) {
+    .form-grid-sm {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+  
+  /* Progressive disclosure animations */
+  .form-expandable {
+    transition: max-height 0.3s ease-out, opacity 0.2s ease-out;
+    overflow: hidden;
+  }
+  
+  .form-expandable.collapsed {
+    max-height: 0;
+    opacity: 0;
+  }
+  
+  .form-expandable.expanded {
+    max-height: 2000px;
+    opacity: 1;
+  }
+  
+  /* Member info card */
+  .member-info-card {
+    background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+    color: white;
+    border-radius: 16px;
+    padding: 20px;
+    margin-bottom: 24px;
+  }
+  
+  /* Member features info card styling */
+  .member-features-card {
+    background: linear-gradient(135deg, #059669 0%, #047857 100%);
+    color: white;
+    border-radius: 16px;
+    padding: 24px;
+    margin-bottom: 24px;
+  }
+  
+  .member-features-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+  
+  @media (min-width: 768px) {
+    .member-features-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+  
+  .member-feature-item {
+    display: flex;
+    align-items: center;
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+    opacity: 0.95;
+  }
+  
+  .member-feature-icon {
+    height: 1rem;
+    width: 1rem;
+    margin-right: 0.5rem;
+    color: rgba(255, 255, 255, 0.9);
+    flex-shrink: 0;
+  }
+`;
+
+const StyleSheet = () => (
+  <style dangerouslySetInnerHTML={{ __html: memberFormStyles }} />
+);
 
 /**
  * MemberForm Component - For creating/editing members
@@ -23,6 +177,55 @@ const MemberForm = ({
   loading = false,
   deleteLoading = false
 }) => {
+  const { user } = useAuth();
+  const { members } = useMembers();
+  // Mobile detection with proper initial state
+  const [isMobile, setIsMobile] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return window.innerWidth < 768;
+    }
+    return false;
+  });
+  
+  // Section expansion logic
+  const getInitialSectionState = useCallback(() => {
+    const isNewEntry = !member;
+    
+    if (!isMobile) {
+      return {
+        personal: true,
+        pickleball: true,
+        account: true
+      };
+    }
+    
+    return {
+      personal: isNewEntry,
+      pickleball: isNewEntry,
+      account: isNewEntry
+    };
+  }, [isMobile, member]);
+
+  const [expandedSections, setExpandedSections] = useState(() => getInitialSectionState());
+
+  // Mobile detection effect
+  useEffect(() => {
+    const checkMobile = () => {
+      const mobile = window.innerWidth < 768;
+      setIsMobile(mobile);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  // Section state updates
+  useEffect(() => {
+    const newSectionState = getInitialSectionState();
+    setExpandedSections(newSectionState);
+  }, [getInitialSectionState]);
+
   // Form state - initialize with existing member data or defaults
   const [formData, setFormData] = useState({
     firstName: member?.firstName || '',
@@ -37,6 +240,14 @@ const MemberForm = ({
 
   const [errors, setErrors] = useState({});
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
+  // Section toggle
+  const toggleSection = useCallback((section) => {
+    setExpandedSections(prev => ({
+      ...prev,
+      [section]: !prev[section]
+    }));
+  }, []);
 
   // Handle input changes
   const handleChange = (field) => (e) => {
@@ -124,162 +335,322 @@ const MemberForm = ({
     label: key.charAt(0) + key.slice(1).toLowerCase()
   }));
 
-  // Role options
-  const roleOptions = Object.entries(MEMBER_ROLES).map(([key, value]) => ({
-    value,
-    label: key.charAt(0) + key.slice(1).toLowerCase()
-  }));
+  // Role options - only show player role
+  const roleOptions = [
+    { value: MEMBER_ROLES.PLAYER, label: 'Player' }
+  ];
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
-      {/* Personal Information */}
-      <div className="space-y-4">
-        <h3 className="text-lg font-medium text-gray-900">
-          Personal Information
-        </h3>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <Input
-            label="First Name"
-            type="text"
-            value={formData.firstName}
-            onChange={handleChange('firstName')}
-            error={errors.firstName}
-            required
-            placeholder="Enter first name"
-          />
+    <div className="member-form">
+      <StyleSheet />
+      
+      <div className="p-6">
+        <form id="member-form" onSubmit={handleSubmit}>
+          {/* Personal Information Section */}
+          <div className="form-section">
+            <div 
+              className="form-section-header"
+              onClick={() => toggleSection('personal')}
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center">
+                  <User className="h-5 w-5 text-blue-600 mr-3" />
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900">Personal Information</h3>
+                    <p className="text-sm text-gray-600 mt-1">Basic contact and identification details</p>
+                  </div>
+                </div>
+                <ChevronDown className={`h-5 w-5 text-gray-400 transition-transform ${expandedSections.personal ? 'rotate-180' : ''}`} />
+              </div>
+            </div>
+            
+            <div className={`form-expandable ${expandedSections.personal ? 'expanded' : 'collapsed'}`}>
+              <div className="form-section-content">
+                <div className={`form-grid ${isMobile ? '' : 'form-grid-sm'}`}>
+          <div className="form-input-group">
+                    <Input
+                      label="First Name"
+                      type="text"
+                      value={formData.firstName}
+                      onChange={handleChange('firstName')}
+                      error={errors.firstName}
+                      required
+                      placeholder="Enter first name"
+                      disabled={loading}
+                      className="text-lg"
+                    />
+                  </div>
 
-          <Input
-            label="Last Name"
-            type="text"
-            value={formData.lastName}
-            onChange={handleChange('lastName')}
-            error={errors.lastName}
-            required
-            placeholder="Enter last name"
-          />
-        </div>
+                  <div className="form-input-group">
+                    <Input
+                      label="Last Name"
+                      type="text"
+                      value={formData.lastName}
+                      onChange={handleChange('lastName')}
+                      error={errors.lastName}
+                      required
+                      placeholder="Enter last name"
+                      disabled={loading}
+                      className="text-lg"
+                    />
+                  </div>
+                </div>
 
-        <Input
-          label="Email Address"
-          type="email"
-          value={formData.email}
-          onChange={handleChange('email')}
-          error={errors.email}
-          required
-          placeholder="Enter email address"
-          helperText="Used for notifications and login"
-        />
+                <div className="form-input-group">
+                  <Input
+                    label="Email Address"
+                    type="email"
+                    value={formData.email}
+                    onChange={handleChange('email')}
+                    error={errors.email}
+                    required
+                    placeholder="Enter email address"
+                    helperText="Used for notifications and login"
+                    disabled={loading}
+                  />
+                </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <Input
-            label="Phone Number"
-            type="tel"
-            value={formData.phoneNumber}
-            onChange={handleChange('phoneNumber')}
-            error={errors.phoneNumber}
-            placeholder="(555) 123-4567"
-            helperText="Optional - for tournament communications"
-          />
+                <div className={`form-grid ${isMobile ? '' : 'form-grid-sm'}`}>
+                  <div className="form-input-group">
+                    <Input
+                      label="Phone Number"
+                      type="tel"
+                      value={formData.phoneNumber}
+                      onChange={handleChange('phoneNumber')}
+                      error={errors.phoneNumber}
+                      placeholder="(555) 123-4567"
+                      helperText="Optional - for tournament communications"
+                      disabled={loading}
+                    />
+                  </div>
 
-          <Input
-            label="Venmo Handle"
-            type="text"
-            value={formData.venmoHandle}
-            onChange={handleChange('venmoHandle')}
-            error={errors.venmoHandle}
-            placeholder="your-venmo"
-            helperText="Optional - for payment collection"
-          />
-        </div>
-      </div>
+                  <div className="form-input-group">
+                    <Input
+                      label="Venmo Handle"
+                      type="text"
+                      value={formData.venmoHandle}
+                      onChange={handleChange('venmoHandle')}
+                      error={errors.venmoHandle}
+                      placeholder="your-venmo"
+                      helperText="Optional - for payment collection"
+                      disabled={loading}
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
 
-      {/* Pickleball Information */}
-      <div className="space-y-4">
-        <h3 className="text-lg font-medium text-gray-900">
-          Pickleball Information
-        </h3>
+          {/* Pickleball Information Section */}
+          <div className="form-section">
+            <div 
+              className="form-section-header"
+              onClick={() => toggleSection('pickleball')}
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center">
+                  <Trophy className="h-5 w-5 text-yellow-600 mr-3" />
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900">Pickleball Information</h3>
+                    <p className="text-sm text-gray-600 mt-1">Skill level and playing preferences</p>
+                  </div>
+                </div>
+                <ChevronDown className={`h-5 w-5 text-gray-400 transition-transform ${expandedSections.pickleball ? 'rotate-180' : ''}`} />
+              </div>
+            </div>
+            
+            <div className={`form-expandable ${expandedSections.pickleball ? 'expanded' : 'collapsed'}`}>
+              <div className="form-section-content">
+                <div className={`form-grid ${isMobile ? '' : 'form-grid-sm'}`}>
+          <div className="form-input-group">
+                    <Select
+                      label="Skill Level"
+                      value={formData.skillLevel}
+                      onChange={handleChange('skillLevel')}
+                      options={skillLevelOptions}
+                      error={errors.skillLevel}
+                      required
+                      helperText="Your current playing level"
+                      disabled={loading}
+                    />
+                  </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <Select
-            label="Skill Level"
-            value={formData.skillLevel}
-            onChange={handleChange('skillLevel')}
-            options={skillLevelOptions}
-            error={errors.skillLevel}
-            required
-            helperText="Your current playing level"
-          />
+                  <div className="form-input-group">
+                    <Select
+                      label="Role"
+                      value={formData.role}
+                      onChange={handleChange('role')}
+                      options={roleOptions}
+                      helperText="Role in tournaments and leagues"
+                      disabled={loading}
+                    />
+                  </div>
+                </div>
 
-          <Select
-            label="Role"
-            value={formData.role}
-            onChange={handleChange('role')}
-            options={roleOptions}
-            helperText="Role in tournaments and leagues"
-          />
-        </div>
+                {/* Active status */}
+                <div className="form-input-group">
+                  <div className="flex items-center">
+                    <input
+                      id="isActive"
+                      type="checkbox"
+                      checked={formData.isActive}
+                      onChange={handleChange('isActive')}
+                      className="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded"
+                      disabled={loading}
+                    />
+                    <label htmlFor="isActive" className="ml-2 block text-sm text-gray-900">
+                      Active member
+                    </label>
+                    <p className="ml-2 text-sm text-gray-500">
+                      (Inactive members won't appear in tournament registration)
+                    </p>
+                  </div>
+                </div>
 
-        {/* Active status */}
-        <div className="flex items-center">
-          <input
-            id="isActive"
-            type="checkbox"
-            checked={formData.isActive}
-            onChange={handleChange('isActive')}
-            className="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded"
-          />
-          <label htmlFor="isActive" className="ml-2 block text-sm text-gray-900">
-            Active member
-          </label>
-          <p className="ml-2 text-sm text-gray-500">
-            (Inactive members won't appear in tournament registration)
-          </p>
-        </div>
-      </div>
+                {/* Payment Information */}
+                <div className="form-input-group">
+                  <div className="bg-blue-50 p-4 rounded-lg">
+                    <h4 className="text-sm font-medium text-blue-900 mb-2">Payment Information</h4>
+                    <p className="text-sm text-blue-800">
+                      Providing a Venmo handle makes it easier to collect payments and
+                      for other participants to pay you back in group payment scenarios.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
 
-      {/* Payment Information */}
-      <div className="bg-blue-50 p-4 rounded-lg">
-        <h4 className="text-sm font-medium text-blue-900 mb-2">Payment Information</h4>
-        <p className="text-sm text-blue-800">
-          Providing a Venmo handle makes it easier for organizers to collect payments and 
-          for other participants to pay you back in group payment scenarios.
-        </p>
-      </div>
-
-      {/* Form Actions */}
-      <div className="flex justify-between items-center pt-6 border-t">
+          {/* Account Settings Section */}
+          <div className="form-section">
+            <div 
+              className="form-section-header"
+              onClick={() => toggleSection('account')}
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center">
+                  <Shield className="h-5 w-5 text-green-600 mr-3" />
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900">Account Settings</h3>
+                    <p className="text-sm text-gray-600 mt-1">Member status and permissions</p>
+                  </div>
+                </div>
+                <ChevronDown className={`h-5 w-5 text-gray-400 transition-transform ${expandedSections.account ? 'rotate-180' : ''}`} />
+              </div>
+            </div>
+            
+            <div className={`form-expandable ${expandedSections.account ? 'expanded' : 'collapsed'}`}>
+              <div className="form-section-content">
+                {/* Member summary if editing */}
+                {member && (
+                  <div className="member-info-card">
+                    <h4 className="text-lg font-semibold mb-4">Member Summary</h4>
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div>
+                        <span className="font-medium opacity-90">Member Since:</span>
+                        <p className="text-white">{member.createdAt ? new Date(member.createdAt.seconds * 1000).toLocaleDateString() : 'Unknown'}</p>
+                      </div>
+                      <div>
+                        <span className="font-medium opacity-90">Status:</span>
+                        <p className="text-white">{member.isActive ? 'Active' : 'Inactive'}</p>
+                      </div>
+                      <div>
+                        <span className="font-medium opacity-90">Current Role:</span>
+                        <p className="text-white capitalize">{member.role}</p>
+                      </div>
+                      <div>
+                        <span className="font-medium opacity-90">Skill Level:</span>
+                        <p className="text-white capitalize">{member.skillLevel}</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                
+                {/* Form Actions */}
+                <div className="form-input-group">
+                  <div className="flex justify-between items-center pt-6 border-t">
         {/* Delete button - only show when editing */}
-        {member && onDelete && (
-          <Button
-            type="button"
-            variant="danger"
-            onClick={() => setShowDeleteConfirm(true)}
-            disabled={loading || deleteLoading}
-          >
-            <Trash2 className="h-4 w-4 mr-2" />
-            Delete Member
-          </Button>
-        )}
-        
-        {/* Main action buttons */}
-        <div className={`flex space-x-3 ${member && onDelete ? '' : 'ml-auto'}`}>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={onCancel}
-            disabled={loading || deleteLoading}
-          >
-            Cancel
-          </Button>
-          
-          <Button
-            type="submit"
-            loading={loading}
-            disabled={loading || deleteLoading}
-          >
-            {member ? 'Update Member' : 'Add Member'}
-          </Button>
+                    {member && onDelete && (
+                      <Button
+                        type="button"
+                        variant="danger"
+                        onClick={() => setShowDeleteConfirm(true)}
+                        disabled={loading || deleteLoading}
+                        className="form-touch-button"
+                      >
+                        <Trash2 className="h-4 w-4 mr-2" />
+                        Delete Member
+                      </Button>
+                    )}
+                    
+                    {/* Main action buttons */}
+                    <div className={`flex space-x-3 ${member && onDelete ? '' : 'ml-auto'}`}>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={onCancel}
+                        disabled={loading || deleteLoading}
+                        className="form-touch-button"
+                      >
+                        Cancel
+                      </Button>
+                      
+                      <Button
+                        type="submit"
+                        loading={loading}
+                        disabled={loading || deleteLoading}
+                        className="form-touch-button"
+                      >
+                        {member ? 'Update Member' : 'Add Member'}
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </form>
+
+        {/* Member Features Section */}
+        <div className="form-section">
+          <div className="form-section-content">
+            <div className="member-features-card">
+              <h4 className="text-lg font-semibold mb-3 flex items-center">
+                <Users className="h-5 w-5 mr-2" />
+                Member Management Features
+              </h4>
+              <div className="member-features-grid">
+                <div className="space-y-3">
+                  <div className="member-feature-item">
+                    <User className="member-feature-icon" />
+                    Complete profile management with contact details
+                  </div>
+                  <div className="member-feature-item">
+                    <Trophy className="member-feature-icon" />
+                    Skill level tracking and tournament categorization
+                  </div>
+                  <div className="member-feature-item">
+                    <DollarSign className="member-feature-icon" />
+                    Venmo integration for seamless payments
+                  </div>
+                </div>
+                <div className="space-y-3">
+                  <div className="member-feature-item">
+                    <Shield className="member-feature-icon" />
+                    Role-based access control and permissions
+                  </div>
+                  <div className="member-feature-item">
+                    <CheckCircle className="member-feature-icon" />
+                    Active/inactive status management
+                  </div>
+                  <div className="member-feature-item">
+                    <Calendar className="member-feature-icon" />
+                    Tournament and league participation tracking
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -295,7 +666,7 @@ const MemberForm = ({
         type="danger"
         loading={deleteLoading}
       />
-    </form>
+    </div>
   );
 };
 

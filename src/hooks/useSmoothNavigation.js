@@ -3,6 +3,7 @@ import { useRef, useState, useEffect, useCallback } from 'react';
 // Enhanced hook with results section navigation
 export const useSmoothNavigation = () => {
   const [activeSection, setActiveSection] = useState('stats');
+  const [manualNavigation, setManualNavigation] = useState(false);
   
   // Refs for each section
   const statsRef = useRef(null);
@@ -32,14 +33,8 @@ export const useSmoothNavigation = () => {
       const documentHeight = document.documentElement.scrollHeight;
       const maxScroll = documentHeight - windowHeight;
       
-      // Different offset strategies based on section
-      let offset = 90; // Default offset for header
-      
-      // Special handling for sections near the bottom
-      if (sectionId === 'leagues' || sectionId === 'members' || sectionId === 'results') {
-        // For bottom sections, use a smaller offset or position them in the middle of viewport
-        offset = windowHeight * 0.3; // Position section 30% from top of viewport
-      }
+      // Consistent offset for all sections
+      let offset = 120; // Slightly larger offset to account for sticky nav
       
       let targetScroll = Math.max(0, elementTop - offset);
       
@@ -48,65 +43,59 @@ export const useSmoothNavigation = () => {
         targetScroll = maxScroll;
       }
       
-      // Force immediate active state for better UX
+      // Set manual navigation flag to prevent immediate override
+      setManualNavigation(true);
       setActiveSection(sectionId);
       
       window.scrollTo({
         top: targetScroll,
         behavior: 'smooth'
       });
+      
+      // Clear manual navigation flag after scroll completes
+      setTimeout(() => {
+        setManualNavigation(false);
+      }, 1000);
     }
   }, [navItems]);
   
   // Enhanced scroll detection with results section logic
   useEffect(() => {
     const handleScroll = () => {
+      // Don't update active section during manual navigation
+      if (manualNavigation) return;
+      
       const scrollPosition = window.scrollY;
       const windowHeight = window.innerHeight;
-      const documentHeight = document.documentElement.scrollHeight;
       
-      // Check if we're in the bottom 20% of the page
-      const isNearBottom = (scrollPosition + windowHeight) > (documentHeight * 0.8);
+      // Mobile-friendly detection point - closer to top of viewport
+      const isMobile = window.innerWidth < 768;
+      const detectionPoint = scrollPosition + (isMobile ? 200 : 250);
       
-      if (isNearBottom) {
-        // In the bottom area, determine between leagues, members, and results
-        const leaguesElement = leaguesRef.current;
-        const membersElement = membersRef.current;
-        const resultsElement = resultsRef.current;
-        
-        if (leaguesElement && membersElement && resultsElement) {
-          const leaguesTop = leaguesElement.offsetTop;
-          const membersTop = membersElement.offsetTop;
-          const resultsTop = resultsElement.offsetTop;
-          const currentScroll = scrollPosition + windowHeight * 0.5; // Middle of viewport
-          
-          // Find the closest section
-          const distances = [
-            { section: 'leagues', distance: Math.abs(currentScroll - leaguesTop) },
-            { section: 'members', distance: Math.abs(currentScroll - membersTop) },
-            { section: 'results', distance: Math.abs(currentScroll - resultsTop) }
-          ];
-          
-          const closest = distances.reduce((prev, current) => 
-            current.distance < prev.distance ? current : prev
-          );
-          
-          setActiveSection(closest.section);
-        }
-        return;
-      }
+      let currentSection = 'stats'; // Default fallback
       
-      // Normal detection for top sections
-      const checkPosition = scrollPosition + 150;
-      
-      // Check sections from bottom to top
+      // Check sections from bottom to top to find which one the detection point is in
       for (let i = navItems.length - 1; i >= 0; i--) {
-        const section = navItems[i].ref.current;
-        if (section && section.offsetTop <= checkPosition) {
-          setActiveSection(navItems[i].id);
-          break;
+        const element = navItems[i].ref.current;
+        if (element) {
+          const elementTop = element.offsetTop;
+          const elementHeight = element.offsetHeight;
+          const elementBottom = elementTop + elementHeight;
+          
+          // Check if detection point is within this section's bounds
+          if (detectionPoint >= elementTop && detectionPoint <= elementBottom) {
+            currentSection = navItems[i].id;
+            break;
+          }
+          // If detection point is past the top of this section, use this section
+          else if (detectionPoint >= elementTop) {
+            currentSection = navItems[i].id;
+            break;
+          }
         }
       }
+      
+      setActiveSection(currentSection);
     };
     
     // Throttle scroll events
@@ -125,7 +114,7 @@ export const useSmoothNavigation = () => {
     handleScroll(); // Initial check
     
     return () => window.removeEventListener('scroll', throttledScroll);
-  }, [navItems]);
+  }, [navItems, manualNavigation]);
   
   return {
     activeSection,
