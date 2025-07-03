@@ -13,9 +13,6 @@ import {
 } from 'lucide-react';
 import { Input, Select, Button, ConfirmDialog } from '../ui';
 import { SKILL_LEVELS, MEMBER_ROLES } from '../../services/models';
-import { useAuth } from '../../hooks/useAuth';
-import { useMembers } from '../../hooks/useMembers';
-import { getAvailableRoles } from '../../utils/roleUtils';
 
 // Enhanced member form styles matching tournament form quality
 const memberFormStyles = `
@@ -177,8 +174,6 @@ const MemberForm = ({
   loading = false,
   deleteLoading = false
 }) => {
-  const { user } = useAuth();
-  const { members } = useMembers();
   // Mobile detection with proper initial state
   const [isMobile, setIsMobile] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -335,10 +330,11 @@ const MemberForm = ({
     label: key.charAt(0) + key.slice(1).toLowerCase()
   }));
 
-  // Role options - only show player role
-  const roleOptions = [
-    { value: MEMBER_ROLES.PLAYER, label: 'Player' }
-  ];
+  // Role options
+  const roleOptions = Object.entries(MEMBER_ROLES).map(([key, value]) => ({
+    value,
+    label: key.charAt(0) + key.slice(1).toLowerCase()
+  }));
 
   return (
     <div className="member-form">
@@ -512,7 +508,7 @@ const MemberForm = ({
                   <div className="bg-blue-50 p-4 rounded-lg">
                     <h4 className="text-sm font-medium text-blue-900 mb-2">Payment Information</h4>
                     <p className="text-sm text-blue-800">
-                      Providing a Venmo handle makes it easier to collect payments and
+                      Providing a Venmo handle makes it easier for organizers to collect payments and 
                       for other participants to pay you back in group payment scenarios.
                     </p>
                   </div>
