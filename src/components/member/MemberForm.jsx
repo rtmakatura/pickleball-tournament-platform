@@ -65,6 +65,11 @@ const memberFormStyles = `
     margin-bottom: 0;
   }
   
+  /* FIXED: Remove margin from grid children to prevent double spacing */
+  .form-grid .form-input-group {
+    margin-bottom: 0;
+  }
+  
   /* Touch-optimized buttons */
   .form-touch-button {
     min-height: 52px;
@@ -438,8 +443,8 @@ const MemberForm = ({
             
             <div className={`form-expandable ${expandedSections.personal ? 'expanded' : 'collapsed'}`}>
               <div className="form-section-content">
-                <div className={`form-grid ${isMobile ? '' : 'form-grid-sm'}`}>
-                  <div className="form-input-group">
+                <div className={`form-input-group form-grid ${isMobile ? '' : 'form-grid-sm'}`}>
+                  <div>
                     <Input
                       label="First Name"
                       type="text"
@@ -453,7 +458,7 @@ const MemberForm = ({
                     />
                   </div>
 
-                  <div className="form-input-group">
+                  <div>
                     <Input
                       label="Last Name"
                       type="text"
@@ -482,8 +487,8 @@ const MemberForm = ({
                   />
                 </div>
 
-                <div className={`form-grid ${isMobile ? '' : 'form-grid-sm'}`}>
-                  <div className="form-input-group">
+                <div className={`form-input-group form-grid ${isMobile ? '' : 'form-grid-sm'}`}>
+                  <div>
                     <Input
                       label="Phone Number"
                       type="tel"
@@ -496,7 +501,7 @@ const MemberForm = ({
                     />
                   </div>
 
-                  <div className="form-input-group">
+                  <div>
                     <Input
                       label="Venmo Handle"
                       type="text"
@@ -533,8 +538,8 @@ const MemberForm = ({
             
             <div className={`form-expandable ${expandedSections.pickleball ? 'expanded' : 'collapsed'}`}>
               <div className="form-section-content">
-                <div className={`form-grid ${isMobile ? '' : 'form-grid-sm'}`}>
-                  <div className="form-input-group">
+                <div className={`form-input-group form-grid ${isMobile ? '' : 'form-grid-sm'}`}>
+                  <div>
                     <Select
                       label="Skill Level"
                       value={formData.skillLevel}
@@ -549,7 +554,7 @@ const MemberForm = ({
 
                   {/* Role selection - Only visible to admins */}
                   {canEditRoles && (
-                    <div className="form-input-group">
+                    <div>
                       <Select
                         label="Role"
                         value={formData.role}
@@ -563,7 +568,7 @@ const MemberForm = ({
                   
                   {/* Role display for non-admins */}
                   {!canEditRoles && (
-                    <div className="form-input-group">
+                    <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
                         Role
                       </label>
