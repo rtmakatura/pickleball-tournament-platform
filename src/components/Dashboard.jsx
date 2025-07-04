@@ -1453,6 +1453,7 @@ console.log('completed leagues:', completedLeagues.length);
     RESULTS_VIEW: 'results_view',
     DELETE_CONFIRM: 'delete_confirm',
     LEAGUE_DELETE_CONFIRM: 'league_delete_confirm',
+    MEMBER_DELETE_CONFIRM: 'member_delete_confirm',
     ARCHIVE_TOURNAMENT_CONFIRM: 'archive_tournament_confirm',
     UNARCHIVE_TOURNAMENT_CONFIRM: 'unarchive_tournament_confirm',
     ARCHIVE_LEAGUE_CONFIRM: 'archive_league_confirm',
@@ -2549,7 +2550,7 @@ console.log('completed leagues:', completedLeagues.length);
               New
             </Button>
           ]}
-          className="mb-8 sm:mb-8"
+          className="mb-8 sm:mb-8 min-h-[400px]"
         >
           <ResponsiveLeagueList 
             data={sortedLeagues}
@@ -2779,17 +2780,43 @@ console.log('completed leagues:', completedLeagues.length);
 
         {/* Member Modal */}
         {activeModal === MODAL_TYPES.MEMBER_FORM && (
+          console.log('🔍 Member Modal Debug:', { editingMember, activeModal }) ||
           <Modal
             isOpen={true}
             onClose={closeModal}
             title={editingMember ? 'Edit Member' : 'Add New Member'}
             size="lg"
+            headerAction={editingMember ? (
+              console.log('✅ Header buttons should render for:', editingMember) ||
+              <>
+                <ModalHeaderButton
+                  variant="danger"
+                  onClick={() => {
+                    setModalData({ member: editingMember });
+                    setActiveModal(MODAL_TYPES.MEMBER_DELETE_CONFIRM);
+                  }}
+                  disabled={formLoading || deleteLoading}
+                  icon={<Trash2 className="h-4 w-4" />}
+                >
+                  Delete
+                </ModalHeaderButton>
+                <ModalHeaderButton
+                  variant="primary"
+                  type="submit"
+                  form="member-form"
+                  loading={formLoading}
+                  disabled={formLoading || deleteLoading}
+                  icon={<CheckCircle className="h-4 w-4" />}
+                >
+                  Update Member
+                </ModalHeaderButton>
+              </>
+            ) : null}
           >
             <MemberForm
               member={editingMember}
               onSubmit={editingMember ? handleUpdateMember : handleCreateMember}
               onCancel={closeModal}
-              onDelete={editingMember ? handleDeleteMember : null}
               loading={formLoading}
               deleteLoading={deleteLoading}
             />
@@ -2900,6 +2927,22 @@ console.log('completed leagues:', completedLeagues.length);
             message={`Are you sure you want to delete "${modalData.league.name}"? This action cannot be undone and will remove all associated data including participant registrations and standings.`}
             confirmText="Delete League"
             cancelText="Keep League"
+            type="danger"
+            loading={deleteLoading}
+          />
+        )}
+
+        {activeModal === MODAL_TYPES.MEMBER_DELETE_CONFIRM && modalData?.member && (
+          <ConfirmDialog
+            isOpen={true}
+            onClose={() => setActiveModal(MODAL_TYPES.MEMBER_FORM)}
+            onConfirm={() => {
+              handleDeleteMember(modalData.member.id);
+            }}
+            title="Delete Member"
+            message={`Are you sure you want to delete "${modalData.member.firstName} ${modalData.member.lastName}"? This action cannot be undone and will remove all their data including tournament registrations and payment information.`}
+            confirmText="Delete Member"
+            cancelText="Keep Member"
             type="danger"
             loading={deleteLoading}
           />
