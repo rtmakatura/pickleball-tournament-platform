@@ -245,8 +245,7 @@ const StyleSheet = () => (
 const MemberForm = ({ 
   member = null, 
   onSubmit, 
-  onCancel, 
-  onDelete,
+  onCancel,
   loading = false,
   deleteLoading = false
 }) => {
@@ -310,7 +309,6 @@ const MemberForm = ({
   });
 
   const [errors, setErrors] = useState({});
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   
   // Permission checking
   const { user } = useAuth();
@@ -397,13 +395,7 @@ const MemberForm = ({
     onSubmit(submissionData);
   };
 
-  // Handle delete action
-  const handleDelete = () => {
-    if (onDelete) {
-      onDelete(member.id);
-    }
-    setShowDeleteConfirm(false);
-  };
+  // Delete function removed - now handled by parent component
 
   // Skill level options for dropdown
   const skillLevelOptions = Object.entries(SKILL_LEVELS).map(([key, value]) => ({
@@ -730,63 +722,35 @@ const MemberForm = ({
           )}
         </form>
 
-        {/* MOBILE-OPTIMIZED: Form Actions */}
-        <div className="form-actions-section">
-          <div className="form-actions-container">
-            {/* Delete button - only show when editing and user has permission */}
-            {member && onDelete && (
-              <Button
-                type="button"
-                variant="danger"
-                onClick={() => setShowDeleteConfirm(true)}
-                disabled={loading || deleteLoading}
-                className="form-touch-button"
-              >
-                <Trash2 className="h-4 w-4 mr-2" />
-                Delete Member
-              </Button>
-            )}
-            
-            {/* Main action buttons */}
-            <div className={`flex ${isMobile ? 'flex-col' : 'flex-row'} ${isMobile ? 'gap-3' : 'space-x-3'} ${member && onDelete ? '' : 'ml-auto'}`}>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={onCancel}
-                disabled={loading || deleteLoading}
-                className="form-touch-button"
-              >
-                Cancel
-              </Button>
-              
-              <Button
-                type="submit"
-                form="member-form"
-                loading={loading}
-                disabled={loading || deleteLoading}
-                className="form-touch-button"
-              >
-                {member ? 'Update Member' : 'Add Member'}
-              </Button>
+        {/* Create/Cancel Button for New Members - Only show when creating new member */}
+        {!member && (
+          <div className="form-section">
+            <div className="form-section-content">
+              <div className="grid grid-cols-2 gap-4">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={onCancel}
+                  disabled={loading || deleteLoading}
+                  className="form-touch-button"
+                >
+                  Cancel
+                </Button>
+                
+                <Button
+                  type="submit"
+                  loading={loading}
+                  disabled={loading || deleteLoading}
+                  className="form-touch-button"
+                >
+                  Add Member
+                </Button>
+              </div>
             </div>
           </div>
-        </div>
+        )}
 
-        
         </div>
-
-      {/* Delete Confirmation Dialog */}
-      <ConfirmDialog
-        isOpen={showDeleteConfirm}
-        onClose={() => setShowDeleteConfirm(false)}
-        onConfirm={handleDelete}
-        title="Delete Member"
-        message={`Are you sure you want to delete "${formData.firstName} ${formData.lastName}"? This action cannot be undone and will remove them from all tournaments and leagues.`}
-        confirmText="Delete Member"
-        cancelText="Keep Member"
-        type="danger"
-        loading={deleteLoading}
-      />
     </div>
   );
 };
