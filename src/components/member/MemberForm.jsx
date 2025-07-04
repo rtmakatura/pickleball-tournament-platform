@@ -19,7 +19,7 @@ import { canEditUserRoles } from '../../utils/roleUtils';
 
 // Enhanced member form styles matching tournament form quality
 const memberFormStyles = `
-  /* Base form container */
+  /* Base form container - match tournament form */
   .member-form {
     -webkit-overflow-scrolling: touch;
     scroll-behavior: smooth;
@@ -151,6 +151,74 @@ const memberFormStyles = `
     margin-right: 0.5rem;
     color: rgba(255, 255, 255, 0.9);
     flex-shrink: 0;
+  }
+  
+  /* Form actions section */
+  .form-actions-section {
+    background: #f9fafb;
+    border-top: 1px solid #e5e7eb;
+    padding: 20px 24px;
+    margin: 0 -24px -24px -24px;
+  }
+  
+  .form-actions-container {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  
+  .form-actions-container .form-touch-button {
+    width: 100%;
+    justify-content: center;
+  }
+  
+  /* Admin warning section */
+  .admin-warning-section {
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    border-radius: 8px;
+    padding: 16px;
+    margin-bottom: 24px;
+  }
+  
+  /* Better checkbox and radio spacing */
+  .form-checkbox-group {
+    display: flex;
+    align-items: center;
+    padding: 12px 0;
+  }
+  
+  .form-checkbox-group input[type="checkbox"] {
+    margin-right: 12px;
+    min-width: 16px;
+    min-height: 16px;
+  }
+  
+  .form-checkbox-group label {
+    font-size: 16px;
+    line-height: 1.5;
+    margin: 0;
+  }
+  
+  /* Helper text styling */
+  .form-helper-text {
+    font-size: 14px;
+    color: #6b7280;
+    margin-top: 4px;
+    line-height: 1.4;
+  }
+  
+  /* Responsive adjustments */
+  @media (min-width: 640px) {
+    .form-actions-container {
+      flex-direction: row;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .form-actions-container .form-touch-button {
+      width: auto;
+    }
   }
 `;
 
@@ -371,7 +439,7 @@ const MemberForm = ({
             <div className={`form-expandable ${expandedSections.personal ? 'expanded' : 'collapsed'}`}>
               <div className="form-section-content">
                 <div className={`form-grid ${isMobile ? '' : 'form-grid-sm'}`}>
-          <div className="form-input-group">
+                  <div className="form-input-group">
                     <Input
                       label="First Name"
                       type="text"
@@ -466,7 +534,7 @@ const MemberForm = ({
             <div className={`form-expandable ${expandedSections.pickleball ? 'expanded' : 'collapsed'}`}>
               <div className="form-section-content">
                 <div className={`form-grid ${isMobile ? '' : 'form-grid-sm'}`}>
-          <div className="form-input-group">
+                  <div className="form-input-group">
                     <Select
                       label="Skill Level"
                       value={formData.skillLevel}
@@ -512,7 +580,7 @@ const MemberForm = ({
 
                 {/* Active status */}
                 <div className="form-input-group">
-                  <div className="flex items-center">
+                  <div className="form-checkbox-group">
                     <input
                       id="isActive"
                       type="checkbox"
@@ -521,12 +589,14 @@ const MemberForm = ({
                       className="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded"
                       disabled={loading}
                     />
-                    <label htmlFor="isActive" className="ml-2 block text-sm text-gray-900">
-                      Active member
-                    </label>
-                    <p className="ml-2 text-sm text-gray-500">
-                      (Inactive members won't appear in tournament registration)
-                    </p>
+                    <div>
+                      <label htmlFor="isActive" className="block text-gray-900 font-medium">
+                        Active member
+                      </label>
+                      <p className="form-helper-text">
+                        Inactive members won't appear in tournament registration
+                      </p>
+                    </div>
                   </div>
                 </div>
 
@@ -535,30 +605,33 @@ const MemberForm = ({
             </div>
           </div>
 
-          {/* Account Settings Section */}
-          <div className="form-section">
-            <div 
-              className="form-section-header"
-              onClick={() => toggleSection('account')}
-            >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center">
-                  <Shield className="h-5 w-5 text-green-600 mr-3" />
-                  <div>
-                    <h3 className="text-lg font-semibold text-gray-900">Account Settings</h3>
-                    <p className="text-sm text-gray-600 mt-1">Member status and permissions</p>
+          {/* Admin Account Management Section - Only show for admins when editing existing members */}
+          {member && canEditRoles && (
+            <div className="form-section">
+              <div 
+                className="form-section-header"
+                onClick={() => toggleSection('account')}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center">
+                    <Shield className="h-5 w-5 text-red-600 mr-3" />
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-900">Account Management</h3>
+                      <p className="text-sm text-gray-600 mt-1">Administrative controls and member summary</p>
+                    </div>
                   </div>
+                  <ChevronDown className={`h-5 w-5 text-gray-400 transition-transform ${expandedSections.account ? 'rotate-180' : ''}`} />
                 </div>
-                <ChevronDown className={`h-5 w-5 text-gray-400 transition-transform ${expandedSections.account ? 'rotate-180' : ''}`} />
               </div>
-            </div>
-            
-            <div className={`form-expandable ${expandedSections.account ? 'expanded' : 'collapsed'}`}>
-              <div className="form-section-content">
-                {/* Member summary if editing */}
-                {member && (
+              
+              <div className={`form-expandable ${expandedSections.account ? 'expanded' : 'collapsed'}`}>
+                <div className="form-section-content">
+                  {/* Member Summary */}
                   <div className="member-info-card">
-                    <h4 className="text-lg font-semibold mb-4">Member Summary</h4>
+                    <h4 className="text-lg font-semibold mb-4 flex items-center">
+                      <Shield className="h-5 w-5 mr-2" />
+                      Member Summary
+                    </h4>
                     <div className="grid grid-cols-2 gap-4 text-sm">
                       <div>
                         <span className="font-medium opacity-90">Member Since:</span>
@@ -578,95 +651,124 @@ const MemberForm = ({
                       </div>
                     </div>
                   </div>
-                )}
-                
-                {/* Form Actions */}
-                <div className="form-input-group">
-                  <div className="flex justify-between items-center pt-6 border-t">
-        {/* Delete button - only show when editing */}
-                    {member && onDelete && (
-                      <Button
-                        type="button"
-                        variant="danger"
-                        onClick={() => setShowDeleteConfirm(true)}
-                        disabled={loading || deleteLoading}
-                        className="form-touch-button"
-                      >
-                        <Trash2 className="h-4 w-4 mr-2" />
-                        Delete Member
-                      </Button>
-                    )}
-                    
-                    {/* Main action buttons */}
-                    <div className={`flex space-x-3 ${member && onDelete ? '' : 'ml-auto'}`}>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={onCancel}
-                        disabled={loading || deleteLoading}
-                        className="form-touch-button"
-                      >
-                        Cancel
-                      </Button>
-                      
-                      <Button
-                        type="submit"
-                        loading={loading}
-                        disabled={loading || deleteLoading}
-                        className="form-touch-button"
-                      >
-                        {member ? 'Update Member' : 'Add Member'}
-                      </Button>
+
+                  {/* Admin Actions */}
+                  <div className="form-input-group">
+                    <div className="bg-red-50 p-4 rounded-lg border border-red-200">
+                      <h4 className="text-sm font-medium text-red-900 mb-3 flex items-center">
+                        <Shield className="h-4 w-4 mr-2" />
+                        Administrative Actions
+                      </h4>
+                      <div className="space-y-3 text-sm">
+                        <p className="text-red-800">
+                          <strong>Role Management:</strong> You can modify this member's role using the Role dropdown in the Pickleball Information section above.
+                        </p>
+                        <p className="text-red-800">
+                          <strong>Account Status:</strong> Use the "Active member" checkbox above to activate or deactivate this account.
+                        </p>
+                        <p className="text-red-800">
+                          <strong>Full Account Deletion:</strong> Use the Delete Member button below to permanently remove this member and all their data.
+                        </p>
+                        <p className="text-red-700 bg-red-100 p-2 rounded text-xs">
+                          ⚠️ Advanced user management (password resets, role changes, etc.) can be performed in the Admin → User Management section.
+                        </p>
+                      </div>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
-          </div>
-        </form>
+          )}
 
-        {/* Member Features Section */}
-        <div className="form-section">
-          <div className="form-section-content">
-            <div className="member-features-card">
-              <h4 className="text-lg font-semibold mb-3 flex items-center">
-                <Users className="h-5 w-5 mr-2" />
-                Member Management Features
-              </h4>
-              <div className="member-features-grid">
-                <div className="space-y-3">
-                  <div className="member-feature-item">
-                    <User className="member-feature-icon" />
-                    Complete profile management with contact details
-                  </div>
-                  <div className="member-feature-item">
-                    <Trophy className="member-feature-icon" />
-                    Skill level tracking and tournament categorization
-                  </div>
-                  <div className="member-feature-item">
-                    <DollarSign className="member-feature-icon" />
-                    Venmo integration for seamless payments
-                  </div>
-                </div>
-                <div className="space-y-3">
-                  <div className="member-feature-item">
-                    <Shield className="member-feature-icon" />
-                    Role-based access control and permissions
-                  </div>
-                  <div className="member-feature-item">
-                    <CheckCircle className="member-feature-icon" />
-                    Active/inactive status management
-                  </div>
-                  <div className="member-feature-item">
-                    <Calendar className="member-feature-icon" />
-                    Tournament and league participation tracking
+          {/* Member Benefits Section - Always show for new members */}
+          {!member && (
+            <div className="form-section">
+              <div className="form-section-content">
+                <div className="member-features-card">
+                  <h4 className="text-lg font-semibold mb-3 flex items-center">
+                    <Users className="h-5 w-5 mr-2" />
+                    Member Benefits & Features
+                  </h4>
+                  <div className="member-features-grid">
+                    <div className="space-y-3">
+                      <div className="member-feature-item">
+                        <User className="member-feature-icon" />
+                        Complete profile management with contact details
+                      </div>
+                      <div className="member-feature-item">
+                        <Trophy className="member-feature-icon" />
+                        Tournament and league participation tracking
+                      </div>
+                      <div className="member-feature-item">
+                        <DollarSign className="member-feature-icon" />
+                        Venmo integration for seamless payments
+                      </div>
+                    </div>
+                    <div className="space-y-3">
+                      <div className="member-feature-item">
+                        <Shield className="member-feature-icon" />
+                        Secure account with role-based permissions
+                      </div>
+                      <div className="member-feature-item">
+                        <CheckCircle className="member-feature-icon" />
+                        Real-time updates on tournament status
+                      </div>
+                      <div className="member-feature-item">
+                        <Calendar className="member-feature-icon" />
+                        Event history and performance tracking
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
+          )}
+        </form>
+
+        {/* MOBILE-OPTIMIZED: Form Actions */}
+        <div className="form-actions-section">
+          <div className="form-actions-container">
+            {/* Delete button - only show when editing and user has permission */}
+            {member && onDelete && (
+              <Button
+                type="button"
+                variant="danger"
+                onClick={() => setShowDeleteConfirm(true)}
+                disabled={loading || deleteLoading}
+                className="form-touch-button"
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                Delete Member
+              </Button>
+            )}
+            
+            {/* Main action buttons */}
+            <div className={`flex ${isMobile ? 'flex-col' : 'flex-row'} ${isMobile ? 'gap-3' : 'space-x-3'} ${member && onDelete ? '' : 'ml-auto'}`}>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={onCancel}
+                disabled={loading || deleteLoading}
+                className="form-touch-button"
+              >
+                Cancel
+              </Button>
+              
+              <Button
+                type="submit"
+                form="member-form"
+                loading={loading}
+                disabled={loading || deleteLoading}
+                className="form-touch-button"
+              >
+                {member ? 'Update Member' : 'Add Member'}
+              </Button>
+            </div>
           </div>
         </div>
-      </div>
+
+        
+        </div>
 
       {/* Delete Confirmation Dialog */}
       <ConfirmDialog
