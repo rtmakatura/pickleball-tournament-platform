@@ -1,7 +1,7 @@
 // src/services/models.js (UPDATED - Results & Performance Tracking Support)
 // Data models and validation schemas for the pickleball app
 
-// Member roles
+// Member roles - Two-tier system: Players and Admins
 export const MEMBER_ROLES = {
   PLAYER: 'player',
   ADMIN: 'admin'

@@ -30,11 +30,11 @@ export const isAdmin = (authUid, members = []) => {
 };
 
 /**
- * Check if user is an organizer or higher
+ * Check if user is an organizer or higher (DEPRECATED - now same as isAdmin)
  */
 export const isOrganizer = (authUid, members = []) => {
-  const role = getUserRole(authUid, members);
-  return role === MEMBER_ROLES.ORGANIZER || role === MEMBER_ROLES.ADMIN;
+  // In two-tier system, organizer permissions = admin permissions
+  return isAdmin(authUid, members);
 };
 
 /**
@@ -244,8 +244,7 @@ export const canManageSystemSettings = (authUid, members = []) => {
 export const getRoleLevel = (role) => {
   const levels = {
     [MEMBER_ROLES.PLAYER]: 1,
-    [MEMBER_ROLES.ORGANIZER]: 2,
-    [MEMBER_ROLES.ADMIN]: 3
+    [MEMBER_ROLES.ADMIN]: 2
   };
   return levels[role] || 0;
 };
@@ -260,10 +259,11 @@ export const canPromoteToRole = (promoterAuthUid, targetRole, members = []) => {
   // Only admins can promote users
   if (promoterRole !== MEMBER_ROLES.ADMIN) return false;
   
-  // Cannot promote to admin level or higher than your own level
+  // ADMIN ROLE ASSIGNMENT RESTRICTED - Cannot promote anyone to admin
   if (targetRole === MEMBER_ROLES.ADMIN) return false;
   
-  return true;
+  // Can only promote to player role
+  return targetRole === MEMBER_ROLES.PLAYER;
 };
 
 /**
@@ -327,14 +327,19 @@ export const validateRoleAssignment = (assignerAuthUid, targetMemberId, newRole,
     errors.push('Invalid role specified');
   }
   
-  // Check if trying to create another admin
+  // CRITICAL: Admin role assignment is completely restricted
   if (newRole === MEMBER_ROLES.ADMIN) {
-    errors.push('Cannot assign admin role through this interface');
+    errors.push('Admin role cannot be assigned through this interface. Contact system administrator.');
   }
   
   // Check if trying to modify own role
   if (targetMember?.authUid === assignerAuthUid) {
     errors.push('Cannot modify your own role');
+  }
+  
+  // Only allow assignment to player role
+  if (newRole !== MEMBER_ROLES.PLAYER) {
+    errors.push('Only player role can be assigned');
   }
   
   return {
@@ -351,10 +356,9 @@ export const getAvailableRoles = (assignerAuthUid, members = []) => {
     return [];
   }
   
-  // Admins can assign player and organizer roles
+  // Admins can only assign player role (admin role assignment restricted)
   return [
-    { value: MEMBER_ROLES.PLAYER, label: 'Player' },
-    { value: MEMBER_ROLES.ORGANIZER, label: 'Organizer' }
+    { value: MEMBER_ROLES.PLAYER, label: 'Player' }
   ];
 };
 
