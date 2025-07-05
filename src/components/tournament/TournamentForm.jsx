@@ -22,7 +22,7 @@ import {
   Award,
   Activity
 } from 'lucide-react';
-import { Input, Select, Button, Alert, ConfirmDialog, Card, Modal } from '../ui';
+import { Input, Select, Button, Alert, ConfirmDialog, Card, Modal, ModalHeaderButton } from '../ui';
 import DivisionMemberSelector from './DivisionMemberSelector';
 import { 
   SKILL_LEVELS, 
@@ -53,12 +53,26 @@ const tournamentFormStyles = `
     border-radius: 16px;
     border: 1px solid #e5e7eb;
     margin-bottom: 24px;
-    overflow: hidden;
+    overflow: visible;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    position: relative;
+    z-index: 1;
   }
   
   .form-section:last-child {
     margin-bottom: 0;
+  }
+  
+  /* ADDED: Special handling for form sections with dropdowns */
+  .form-section-with-dropdown {
+    overflow: visible;
+    z-index: 10;
+  }
+  
+  .form-section-with-dropdown .form-section-content {
+    overflow: visible;
+    position: relative;
+    z-index: 10;
   }
   
   .form-section-header {
@@ -76,6 +90,8 @@ const tournamentFormStyles = `
   /* Consistent content padding - exactly 24px always */
   .form-section-content {
     padding: 24px;
+    position: relative;
+    z-index: 5;
   }
   
   /* Standardized input group spacing - exactly 24px always */
@@ -167,30 +183,74 @@ const tournamentFormStyles = `
   
   .quick-stats {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 8px;
+    grid-template-columns: 1fr;
+    gap: 12px;
     text-align: center;
+  }
+  
+  @media (min-width: 480px) {
+    .quick-stats {
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+    }
+  }
+  
+  @media (min-width: 640px) {
+    .quick-stats {
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+    }
   }
   
   .stat-item {
     background: rgba(255, 255, 255, 0.15);
     border-radius: 12px;
-    padding: 12px 8px;
+    padding: 16px 12px;
     backdrop-filter: blur(10px);
     border: 1px solid rgba(255, 255, 255, 0.2);
+    min-height: 80px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+  }
+  
+  @media (min-width: 640px) {
+    .stat-item {
+      padding: 12px 8px;
+      min-height: auto;
+    }
   }
   
   .stat-number {
-    font-size: 1.25rem;
+    font-size: 1.125rem;
     font-weight: bold;
-    line-height: 1;
-    margin-bottom: 4px;
+    line-height: 1.2;
+    margin-bottom: 6px;
+    word-break: break-word;
+    text-align: center;
+  }
+  
+  @media (min-width: 640px) {
+    .stat-number {
+      font-size: 1.25rem;
+      margin-bottom: 4px;
+      line-height: 1;
+    }
   }
   
   .stat-label {
-    font-size: 0.6875rem;
+    font-size: 0.75rem;
     opacity: 0.9;
-    line-height: 1;
+    line-height: 1.2;
+    font-weight: 500;
+  }
+  
+  @media (min-width: 640px) {
+    .stat-label {
+      font-size: 0.6875rem;
+      line-height: 1;
+    }
   }
   
   /* Tournament features info card styling */
@@ -326,6 +386,32 @@ const tournamentFormStyles = `
     opacity: 0.9;
     line-height: 1;
   }
+
+  /* ADDED: Enhanced dropdown positioning to escape containers */
+  .dropdown-container {
+    position: relative;
+    z-index: 100;
+  }
+  
+  .dropdown-container .custom-select-dropdown {
+    position: fixed !important;
+    z-index: 9999 !important;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15) !important;
+    border: 1px solid #d1d5db !important;
+    background: white !important;
+    max-height: 240px !important;
+    overflow-y: auto !important;
+  }
+  
+  /* Mobile dropdown optimizations */
+  @media (max-width: 768px) {
+    .dropdown-container .custom-select-dropdown {
+      max-height: 200px !important;
+      left: 16px !important;
+      right: 16px !important;
+      width: auto !important;
+    }
+  }
 `;
 
 const StyleSheet = () => (
@@ -427,11 +513,8 @@ const TournamentForm = ({
       })];
     }
     
-    return [createTournamentDivision({
-      name: 'Main Division',
-      eventType: EVENT_TYPES.MIXED_DOUBLES,
-      skillLevel: SKILL_LEVELS.INTERMEDIATE
-    })];
+    // For new tournaments, start with empty divisions array
+    return [];
   }, [tournament]);
 
   // Mobile detection with proper initial state
@@ -782,6 +865,7 @@ const TournamentForm = ({
 
   // Utility functions
   const formatEventType = (eventType) => {
+    if (!eventType) return '';
     return eventType.split('_').map(word => 
       word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
     ).join(' ');
@@ -1123,37 +1207,22 @@ const TournamentForm = ({
                     <Alert type="error" title="Division Error" message={errors.divisions} />
                   </div>
                 )}
+                
+                {/* Info message when no divisions exist */}
+                {divisions.length === 0 && (
+                  <div className="form-input-group">
+                    <Alert 
+                      type="info" 
+                      title="No Divisions Added" 
+                      message="Add at least one division to organize your tournament participants." 
+                    />
+                  </div>
+                )}
               </div>
             </div>
           </div>
 
-          {/* Cancel/Create Button for New Tournaments */}
-          {!tournament && (
-            <div className="form-section">
-              <div className="form-section-content">
-                <div className="grid grid-cols-2 gap-4">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={onCancel}
-                    disabled={loading || deleteLoading || isSubmitting}
-                    className="form-touch-button"
-                  >
-                    Cancel
-                  </Button>
-                  
-                  <Button
-                    type="submit"
-                    loading={loading || isSubmitting}
-                    disabled={loading || deleteLoading || isSubmitting}
-                    className="form-touch-button"
-                  >
-                    Create Tournament
-                  </Button>
-                </div>
-              </div>
-            </div>
-          )}
+          {/* Footer buttons removed - Dashboard handles all modal actions via header buttons */}
         </form>
 
         {/* Division Participants Section */}
@@ -1476,7 +1545,7 @@ const DivisionCard = ({ division, index, onEdit, onDelete, canDelete, disabled, 
 };
 
 /**
- * Division Form Modal Component (unchanged)
+ * ENHANCED: Division Form Modal Component with consistent styling and collapsible sections
  */
 const DivisionFormModal = ({ 
   isOpen, 
@@ -1497,6 +1566,73 @@ const DivisionFormModal = ({
     paymentMode: PAYMENT_MODES.INDIVIDUAL
   });
   const [errors, setErrors] = useState({});
+
+  // Mobile detection
+  const [isMobile, setIsMobile] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return window.innerWidth < 768;
+    }
+    return false;
+  });
+
+  // Section expansion logic based on mobile/desktop and new/edit mode
+  const getInitialSectionState = useCallback(() => {
+    const isNewDivision = !division;
+    
+    if (!isMobile) {
+      // Desktop: Always expanded by default, but collapsible
+      return {
+        details: true,
+        configuration: true,
+        pricing: true
+      };
+    }
+    
+    // Mobile: New divisions expanded, editing divisions collapsed
+    if (isNewDivision) {
+      return {
+        details: true,
+        configuration: true, 
+        pricing: true
+      };
+    } else {
+      return {
+        details: true, // Always show details section
+        configuration: false,
+        pricing: false
+      };
+    }
+  }, [isMobile, division]);
+
+  const [expandedSections, setExpandedSections] = useState(() => getInitialSectionState());
+
+  // Mobile detection effect
+  useEffect(() => {
+    const checkMobile = () => {
+      const mobile = window.innerWidth < 768;
+      setIsMobile(mobile);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  // Reset section state when modal opens/closes or division changes
+  useEffect(() => {
+    if (isOpen) {
+      const newSectionState = getInitialSectionState();
+      setExpandedSections(newSectionState);
+    }
+  }, [isOpen, getInitialSectionState]);
+
+  // Section toggle handler
+  const toggleSection = useCallback((section) => {
+    setExpandedSections(prev => ({
+      ...prev,
+      [section]: !prev[section]
+    }));
+  }, []);
 
   useEffect(() => {
     if (isOpen) {
@@ -1572,91 +1708,220 @@ const DivisionFormModal = ({
     label: key.split('_').map(word => word.charAt(0) + word.slice(1).toLowerCase()).join(' ')
   }));
 
+  // Helper function for formatting event types
+  const formatEventType = (eventType) => {
+    if (!eventType) return '';
+    return eventType.split('_').map(word => 
+      word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+    ).join(' ');
+  };
+
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title={title} size="lg">
-      <div className="space-y-6">
-        {errors.submit && <Alert type="error" title="Save Error" message={errors.submit} />}
-        
-        <div className="space-y-6">
-          <Input
-            label="Division Name"
-            type="text"
-            value={formData.name}
-            onChange={handleChange('name')}
-            error={errors.name}
-            required
-            placeholder="e.g., Men's Singles, Mixed Doubles"
-            disabled={isSaving}
-          />
-
-          <div className="grid gap-6 md:grid-cols-2">
-            <Select
-              label="Event Type"
-              value={formData.eventType}
-              onChange={handleChange('eventType')}
-              options={eventTypeOptions}
-              error={errors.eventType}
-              required
-              disabled={isSaving}
-            />
-
-            <Select
-              label="Skill Level"
-              value={formData.skillLevel}
-              onChange={handleChange('skillLevel')}
-              options={skillLevelOptions}
-              error={errors.skillLevel}
-              required
-              disabled={isSaving}
-            />
-          </div>
-
-          <div className="grid gap-6 md:grid-cols-2">
-            <Input
-              label="Entry Fee ($)"
-              type="number"
-              value={formData.entryFee}
-              onChange={handleChange('entryFee')}
-              error={errors.entryFee}
-              min="0"
-              step="0.01"
-              placeholder="0.00"
-              disabled={isSaving}
-            />
-
-            <Input
-              label="Max Participants"
-              type="number"
-              value={formData.maxParticipants}
-              onChange={handleChange('maxParticipants')}
-              error={errors.maxParticipants}
-              min="1"
-              placeholder="Optional"
-              disabled={isSaving}
-            />
-          </div>
-        </div>
-
-        <div className="flex flex-col sm:flex-row gap-3 pt-6 border-t">
-          <Button
-            type="button"
+    <Modal 
+      isOpen={isOpen} 
+      onClose={onClose} 
+      title={title} 
+      size="lg"
+      headerAction={
+        <>
+          <ModalHeaderButton
             variant="outline"
             onClick={onClose}
             disabled={isSaving}
-            className="flex-1"
+            icon={<X className="h-4 w-4" />}
           >
             Cancel
-          </Button>
-          
-          <Button 
-            type="button"
+          </ModalHeaderButton>
+          <ModalHeaderButton
+            variant="primary"
             onClick={handleSave}
             loading={isSaving}
             disabled={isSaving}
-            className="flex-1"
+            icon={<CheckCircle className="h-4 w-4" />}
           >
             {division ? 'Update' : 'Add'} Division
-          </Button>
+          </ModalHeaderButton>
+        </>
+      }
+    >
+      <div className="p-6">
+        {/* Error alerts */}
+        {errors.submit && (
+          <div className="form-section">
+            <div className="form-section-content">
+              <Alert type="error" title="Save Error" message={errors.submit} />
+            </div>
+          </div>
+        )}
+
+        {/* Basic Information Section */}
+        <div className="form-section">
+          <div 
+            className="form-section-header"
+            onClick={() => toggleSection('details')}
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center">
+                <Trophy className="h-5 w-5 text-blue-600 mr-3" />
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900">Division Details</h3>
+                  <p className="text-sm text-gray-600 mt-1">Configure the division name and description</p>
+                </div>
+              </div>
+              <ChevronDown className={`h-5 w-5 text-gray-400 transition-transform ${expandedSections.details ? 'rotate-180' : ''}`} />
+            </div>
+          </div>
+          
+          <div className={`form-expandable ${expandedSections.details ? 'expanded' : 'collapsed'}`}>
+            <div className="form-section-content">
+              <div className="form-input-group">
+                <Input
+                  label="Division Name"
+                  type="text"
+                  value={formData.name}
+                  onChange={handleChange('name')}
+                  error={errors.name}
+                  required
+                  placeholder="e.g., Men's Singles, Mixed Doubles"
+                  disabled={isSaving}
+                  className="text-lg"
+                />
+              </div>
+
+              <div className="form-input-group">
+                <Input
+                  label="Description"
+                  type="text"
+                  value={formData.description}
+                  onChange={handleChange('description')}
+                  placeholder="Optional description for this division"
+                  disabled={isSaving}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Event Configuration Section */}
+        <div className="form-section form-section-with-dropdown">
+          <div 
+            className="form-section-header"
+            onClick={() => toggleSection('configuration')}
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center">
+                <Target className="h-5 w-5 text-green-600 mr-3" />
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900">Event Configuration</h3>
+                  <p className="text-sm text-gray-600 mt-1">Set the event type and skill level</p>
+                </div>
+              </div>
+              <ChevronDown className={`h-5 w-5 text-gray-400 transition-transform ${expandedSections.configuration ? 'rotate-180' : ''}`} />
+            </div>
+          </div>
+          
+          <div className={`form-expandable ${expandedSections.configuration ? 'expanded' : 'collapsed'}`}>
+            <div className="form-section-content">
+              <div className="form-grid form-grid-sm">
+                <div className="form-input-group">
+                  <Select
+                    label="Event Type"
+                    value={formData.eventType}
+                    onChange={handleChange('eventType')}
+                    options={eventTypeOptions}
+                    error={errors.eventType}
+                    required
+                    disabled={isSaving}
+                  />
+                </div>
+
+                <div className="form-input-group">
+                  <Select
+                    label="Skill Level"
+                    value={formData.skillLevel}
+                    onChange={handleChange('skillLevel')}
+                    options={skillLevelOptions}
+                    error={errors.skillLevel}
+                    required
+                    disabled={isSaving}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Entry & Participation Section */}
+        <div className="form-section">
+          <div 
+            className="form-section-header"
+            onClick={() => toggleSection('pricing')}
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center">
+                <DollarSign className="h-5 w-5 text-purple-600 mr-3" />
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900">Entry Fee & Limits</h3>
+                  <p className="text-sm text-gray-600 mt-1">Configure entry fee and participant limits</p>
+                </div>
+              </div>
+              <ChevronDown className={`h-5 w-5 text-gray-400 transition-transform ${expandedSections.pricing ? 'rotate-180' : ''}`} />
+            </div>
+          </div>
+          
+          <div className={`form-expandable ${expandedSections.pricing ? 'expanded' : 'collapsed'}`}>
+            <div className="form-section-content">
+              <div className="form-grid form-grid-sm">
+                <div className="form-input-group">
+                  <Input
+                    label="Entry Fee ($)"
+                    type="number"
+                    value={formData.entryFee}
+                    onChange={handleChange('entryFee')}
+                    error={errors.entryFee}
+                    min="0"
+                    step="0.01"
+                    placeholder="0.00"
+                    disabled={isSaving}
+                    helperText="Amount each participant pays to enter"
+                  />
+                </div>
+
+                <div className="form-input-group">
+                  <Input
+                    label="Max Participants"
+                    type="number"
+                    value={formData.maxParticipants}
+                    onChange={handleChange('maxParticipants')}
+                    error={errors.maxParticipants}
+                    min="1"
+                    placeholder="Optional"
+                    disabled={isSaving}
+                    helperText="Leave blank for unlimited participants"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Division Summary */}
+        <div className="summary-card">
+          <h4 className="text-lg font-semibold mb-4">Division Summary</h4>
+          <div className="quick-stats">
+            <div className="stat-item">
+              <div className="stat-number">{formatEventType(formData.eventType)}</div>
+              <div className="stat-label">Event Type</div>
+            </div>
+            <div className="stat-item">
+              <div className="stat-number">{formData.skillLevel.charAt(0).toUpperCase() + formData.skillLevel.slice(1)}</div>
+              <div className="stat-label">Skill Level</div>
+            </div>
+            <div className="stat-item">
+              <div className="stat-number">${formData.entryFee || 0}</div>
+              <div className="stat-label">Entry Fee</div>
+            </div>
+          </div>
         </div>
       </div>
     </Modal>

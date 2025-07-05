@@ -75,7 +75,8 @@ const Modal = ({
         .modal-header-action {
           display: flex;
           align-items: center;
-          gap: 12px;
+          gap: 8px;
+          flex-shrink: 0;
         }
         
         .modal-header-button {
@@ -90,6 +91,7 @@ const Modal = ({
           white-space: nowrap;
           position: relative;
           text-decoration: none;
+          flex-shrink: 0;
           
           /* Desktop sizing */
           min-height: 36px;
@@ -103,17 +105,61 @@ const Modal = ({
           cursor: not-allowed;
         }
         
-        /* ENHANCED: Mobile - Icon-only buttons with perfect centering */
-        @media (max-width: 768px) {
+        /* ENHANCED: Better mobile responsiveness */
+        @media (max-width: 480px) {
+          .modal-header-action {
+            gap: 6px;
+            margin-right: 8px;
+            flex-wrap: nowrap;
+            overflow: visible;
+          }
+          
           .modal-header-button {
-            min-height: 52px;
-            min-width: 52px;
+            min-height: 44px;
+            min-width: 44px;
+            max-width: 44px;
             padding: 0 !important;
-            font-size: 15px;
-            border-radius: 12px;
+            font-size: 16px;
+            border-radius: 10px;
+            flex-shrink: 0;
+          }
+          
+          /* Hide text on very small screens */
+          .modal-header-button .button-text {
+            display: none;
+          }
+          
+          .modal-header-button .icon {
+            margin: 0 !important;
+            width: 20px;
+            height: 20px;
             display: flex;
             align-items: center;
             justify-content: center;
+          }
+          
+          .modal-header-button .icon svg {
+            width: 18px;
+            height: 18px;
+            display: block;
+          }
+        }
+        
+        /* Medium mobile screens */
+        @media (min-width: 481px) and (max-width: 768px) {
+          .modal-header-action {
+            gap: 8px;
+            margin-right: 12px;
+          }
+          
+          .modal-header-button {
+            min-height: 48px;
+            min-width: 48px;
+            max-width: 48px;
+            padding: 0 !important;
+            font-size: 16px;
+            border-radius: 12px;
+            flex-shrink: 0;
           }
           
           /* Hide text on mobile, show only icons */
@@ -121,32 +167,29 @@ const Modal = ({
             display: none;
           }
           
-          /* Perfect icon centering on mobile */
           .modal-header-button .icon {
             margin: 0 !important;
-            padding: 0 !important;
+            width: 22px;
+            height: 22px;
             display: flex;
             align-items: center;
             justify-content: center;
-            line-height: 1 !important;
-            width: 24px;
-            height: 24px;
           }
           
           .modal-header-button .icon svg {
+            width: 20px;
+            height: 20px;
             display: block;
-            margin: 0 !important;
-            padding: 0;
-            vertical-align: middle;
-          }
-          
-          .modal-header-action {
-            gap: 8px;
           }
         }
         
         /* Desktop - Full text buttons with proper icon spacing */
         @media (min-width: 769px) {
+          .modal-header-action {
+            gap: 12px;
+            margin-right: 16px;
+          }
+          
           .modal-header-button .button-text {
             display: inline;
           }
@@ -155,6 +198,8 @@ const Modal = ({
             margin-right: 8px;
             display: inline-flex;
             align-items: center;
+            width: 16px;
+            height: 16px;
           }
         }
         
@@ -226,16 +271,13 @@ const Modal = ({
         /* Active state for mobile */
         @media (max-width: 768px) {
           .modal-header-button:active:not(:disabled) {
-            transform: scale(0.96);
+            transform: scale(0.94);
           }
-        }
-        
-        /* Enhanced loading state for mobile */
-        @media (max-width: 768px) {
+          
           .modal-header-button .loading-spinner {
             margin-right: 0;
-            width: 20px;
-            height: 20px;
+            width: 18px;
+            height: 18px;
           }
         }
       `}} />
@@ -252,26 +294,26 @@ const Modal = ({
             max-h-[90vh] overflow-hidden flex flex-col
           `}
         >
-          {/* ENHANCED: Modal Header with better action support */}
-          <div className="flex items-center justify-between p-4 border-b bg-white">
-            <h2 className="text-lg font-semibold text-gray-900 flex-1 mr-4">
+          {/* ENHANCED: Modal Header with better action support and mobile optimization */}
+          <div className="flex items-center justify-between p-3 sm:p-4 border-b bg-white">
+            <h2 className="text-base sm:text-lg font-semibold text-gray-900 flex-1 min-w-0 mr-2 sm:mr-4 truncate">
               {title}
             </h2>
             
-            {/* Enhanced header action layout */}
-            <div className="flex items-center">
+            {/* Enhanced header action layout with mobile optimization */}
+            <div className="flex items-center flex-shrink-0">
               {headerAction && (
-                <div className="modal-header-action mr-3">
+                <div className="modal-header-action">
                   {headerAction}
                 </div>
               )}
               
               <button
                 onClick={onClose}
-                className="p-1.5 hover:bg-gray-100 rounded-full transition-colors flex-shrink-0 ml-2"
+                className="p-2 sm:p-1.5 hover:bg-gray-100 rounded-full transition-colors flex-shrink-0 ml-1 sm:ml-2 min-w-[44px] min-h-[44px] sm:min-w-[36px] sm:min-h-[36px] flex items-center justify-center"
                 title="Close"
               >
-                <X className="h-5 w-5 text-gray-400" />
+                <X className="h-5 w-5 sm:h-5 sm:w-5 text-gray-400" />
               </button>
             </div>
           </div>
