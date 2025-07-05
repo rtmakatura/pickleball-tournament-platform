@@ -106,7 +106,18 @@ const dashboardStyles = `
     }
     
     .mobile-action-button.flex-1 {
-      min-width: 100px !important;
+      min-width: 60px !important;
+      flex-basis: 0 !important;
+    }
+    
+    .mobile-action-button.w-full {
+      min-width: 0 !important;
+      width: 100% !important;
+    }
+    
+    .mobile-action-button.w-full {
+      width: 100% !important;
+      min-width: unset !important;
     }
     
     .mobile-action-button svg {
@@ -158,7 +169,18 @@ const dashboardStyles = `
     }
     
     .mobile-action-button.flex-1 {
-      min-width: 120px;
+      min-width: 80px;
+      flex-basis: 0;
+    }
+    
+    .mobile-action-button.w-full {
+      min-width: 0 !important;
+      width: 100% !important;
+    }
+    
+    .mobile-action-button.w-full {
+      width: 100% !important;
+      min-width: unset !important;
     }
     
     /* Better spacing on larger mobile screens */
@@ -387,13 +409,13 @@ const TournamentCard = React.memo(({ tournament, onView, onEdit, onEnterResults,
       {/* ENHANCED: Action Buttons with responsive sizing */}
       <div className="p-3 sm:px-4 sm:pb-4 pt-0">
         <div className="flex flex-col space-y-2">
-          <div className="flex space-x-2">
+          <div className="flex gap-2 w-full">
             <Button
               onClick={(e) => {
                 e.stopPropagation();
                 onView(tournament);
               }}
-              className="mobile-action-button flex-1 bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm"
+              className="mobile-action-button flex-1 min-w-0 bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm"
               size="sm"
             >
               <MessageSquare className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
@@ -406,7 +428,7 @@ const TournamentCard = React.memo(({ tournament, onView, onEdit, onEnterResults,
                 onEdit(tournament);
               }}
               variant="outline"
-              className="mobile-action-button flex-1 text-xs sm:text-sm"
+              className="mobile-action-button flex-1 min-w-0 text-xs sm:text-sm"
               size="sm"
             >
               <Trophy className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
@@ -416,32 +438,36 @@ const TournamentCard = React.memo(({ tournament, onView, onEdit, onEnterResults,
           </div>
           
           {canEnterResults && (
-            <Button
-              onClick={(e) => {
-                e.stopPropagation();
-                onEnterResults(tournament);
-              }}
-              className="mobile-action-button w-full results-button text-xs sm:text-sm"
-              size="sm"
-            >
-              <BarChart3 className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
-              Enter Results
-            </Button>
+            <div className="flex">
+              <Button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onEnterResults(tournament);
+                }}
+                className="mobile-action-button flex-1 results-button text-xs sm:text-sm"
+                size="sm"
+              >
+                <BarChart3 className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+                Enter Results
+              </Button>
+            </div>
           )}
           
           {hasResults && (
-            <Button
-              onClick={(e) => {
-                e.stopPropagation();
-                onViewResults(tournament);
-              }}
-              variant="outline"
-              className="mobile-action-button w-full border-green-300 text-green-700 hover:bg-green-50 text-xs sm:text-sm"
-              size="sm"
-            >
-              <Award className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
-              View Results
-            </Button>
+            <div className="flex">
+              <Button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onViewResults(tournament);
+                }}
+                variant="outline"
+                className="mobile-action-button flex-1 border-green-300 text-green-700 hover:bg-green-50 text-xs sm:text-sm"
+                size="sm"
+              >
+                <Award className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+                View Results
+              </Button>
+            </div>
           )}
         </div>
       </div>
@@ -817,13 +843,13 @@ const LeagueCard = React.memo(({ league, onView, onEdit, onEnterResults, onViewR
       {/* UPDATED: Action Buttons with Results Entry */}
       <div className="px-4 pb-4">
         <div className="flex flex-col space-y-2">
-          <div className="flex space-x-2">
+          <div className="flex gap-2 w-full">
             <Button
               onClick={(e) => {
                 e.stopPropagation();
                 onView(league);
               }}
-              className="mobile-action-button flex-1 bg-blue-600 hover:bg-blue-700 text-white"
+              className="mobile-action-button flex-1 min-w-0 bg-blue-600 hover:bg-blue-700 text-white"
               size="md"
             >
               <MessageSquare className="h-4 w-4 mr-2" />
@@ -835,7 +861,7 @@ const LeagueCard = React.memo(({ league, onView, onEdit, onEnterResults, onViewR
                 onEdit(league);
               }}
               variant="outline"
-              className="mobile-action-button flex-1"
+              className="mobile-action-button flex-1 min-w-0"
               size="md"
             >
               <Activity className="h-4 w-4 mr-2" />
@@ -845,32 +871,36 @@ const LeagueCard = React.memo(({ league, onView, onEdit, onEnterResults, onViewR
           
           {/* ADDED: Results action button */}
           {canEnterResults && (
-            <Button
-              onClick={(e) => {
-                e.stopPropagation();
-                onEnterResults(league);
-              }}
-              className="mobile-action-button w-full results-button"
-              size="md"
-            >
-              <BarChart3 className="h-4 w-4 mr-2" />
-              Enter Results
-            </Button>
+            <div className="flex">
+              <Button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onEnterResults(league);
+                }}
+                className="mobile-action-button flex-1 results-button"
+                size="md"
+              >
+                <BarChart3 className="h-4 w-4 mr-2" />
+                Enter Results
+              </Button>
+            </div>
           )}
           
           {hasResults && (
-            <Button
-              onClick={(e) => {
-                e.stopPropagation();
-                onViewResults(league);
-              }}
-              variant="outline"
-              className="mobile-action-button w-full border-green-300 text-green-700 hover:bg-green-50"
-              size="md"
-            >
-              <Award className="h-4 w-4 mr-2" />
-              View Results
-            </Button>
+            <div className="flex">
+              <Button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onViewResults(league);
+                }}
+                variant="outline"
+                className="mobile-action-button flex-1 border-green-300 text-green-700 hover:bg-green-50"
+                size="md"
+              >
+                <Award className="h-4 w-4 mr-2" />
+                View Results
+              </Button>
+            </div>
           )}
         </div>
       </div>
