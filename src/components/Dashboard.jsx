@@ -2648,7 +2648,28 @@ console.log('completed leagues:', completedLeagues.length);
                   Update Tournament
                 </ModalHeaderButton>
               </>
-            ) : null}
+            ) : (
+              <>
+                <ModalHeaderButton
+                  variant="outline"
+                  onClick={closeModal}
+                  disabled={formLoading || deleteLoading}
+                  icon={<X className="h-4 w-4" />}
+                >
+                  Cancel
+                </ModalHeaderButton>
+                <ModalHeaderButton
+                  variant="primary"
+                  type="submit"
+                  form="tournament-form"
+                  loading={formLoading}
+                  disabled={formLoading || deleteLoading}
+                  icon={<CheckCircle className="h-4 w-4" />}
+                >
+                  Create Tournament
+                </ModalHeaderButton>
+              </>
+            )}
           >
             <div className="space-y-6">
               <TournamentForm
@@ -2724,7 +2745,28 @@ console.log('completed leagues:', completedLeagues.length);
                   Update League
                 </ModalHeaderButton>
               </>
-            ) : null}
+            ) : (
+              <>
+                <ModalHeaderButton
+                  variant="outline"
+                  onClick={closeModal}
+                  disabled={formLoading || deleteLoading}
+                  icon={<X className="h-4 w-4" />}
+                >
+                  Cancel
+                </ModalHeaderButton>
+                <ModalHeaderButton
+                  variant="primary"
+                  type="submit"
+                  form="league-form"
+                  loading={formLoading}
+                  disabled={formLoading || deleteLoading}
+                  icon={<CheckCircle className="h-4 w-4" />}
+                >
+                  Create League
+                </ModalHeaderButton>
+              </>
+            )}
           >
             <div className="space-y-0">
               <LeagueForm

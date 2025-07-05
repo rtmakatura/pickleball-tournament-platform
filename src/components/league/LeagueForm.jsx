@@ -1338,29 +1338,7 @@ const LeagueForm = ({
               </div>
             </div>
 
-            {/* Footer Actions for new leagues only - Dashboard handles edit mode */}
-            {!league && (
-              <div className="flex flex-col sm:flex-row gap-3 w-full pt-6 border-t">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={onCancel}
-                  disabled={loading || deleteLoading || isSubmitting}
-                  className="mobile-league-touch-button flex-1"
-                >
-                  Cancel
-                </Button>
-                
-                <Button
-                  type="submit"
-                  loading={loading || isSubmitting}
-                  disabled={loading || deleteLoading || isSubmitting}
-                  className="mobile-league-touch-button flex-1"
-                >
-                  Create League
-                </Button>
-              </div>
-            )}
+            {/* Footer buttons removed - Dashboard handles all modal actions via header buttons */}
           </form>
         </div>
       </div>
