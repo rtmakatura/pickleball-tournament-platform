@@ -18,7 +18,8 @@ import {
   Trash2,
   BarChart3,
   Target,
-  Award
+  Award,
+  X
 } from 'lucide-react';
 import { 
   useMembers, 
@@ -2164,12 +2165,12 @@ console.log('completed leagues:', completedLeagues.length);
     }
   };
 
-  // Member functions (keeping existing implementations)
+  // Member functions (fixed to use unified modal system)
   const handleCreateMember = async (memberData) => {
     setFormLoading(true);
     try {
       await addMember(memberData);
-      setShowMemberModal(false);
+      closeModal();
       showAlert('success', 'Member added!', `${memberData.firstName} ${memberData.lastName} has been added successfully`);
     } catch (err) {
       showAlert('error', 'Failed to add member', err.message);
@@ -2182,8 +2183,7 @@ console.log('completed leagues:', completedLeagues.length);
     setFormLoading(true);
     try {
       await updateMember(editingMember.id, memberData);
-      setShowMemberModal(false);
-      setEditingMember(null);
+      closeModal();
       showAlert('success', 'Member updated!', `${memberData.firstName} ${memberData.lastName} has been updated successfully`);
     } catch (err) {
       showAlert('error', 'Failed to update member', err.message);
@@ -2196,8 +2196,7 @@ console.log('completed leagues:', completedLeagues.length);
     setDeleteLoading(true);
     try {
       await deleteMember(memberId);
-      setShowMemberModal(false);
-      setEditingMember(null);
+      closeModal();
       showAlert('success', 'Member deleted!', 'Member has been successfully deleted');
     } catch (err) {
       showAlert('error', 'Failed to delete member', err.message);
@@ -2780,14 +2779,12 @@ console.log('completed leagues:', completedLeagues.length);
 
         {/* Member Modal */}
         {activeModal === MODAL_TYPES.MEMBER_FORM && (
-          console.log('🔍 Member Modal Debug:', { editingMember, activeModal }) ||
           <Modal
             isOpen={true}
             onClose={closeModal}
             title={editingMember ? 'Edit Member' : 'Add New Member'}
             size="lg"
             headerAction={editingMember ? (
-              console.log('✅ Header buttons should render for:', editingMember) ||
               <>
                 <ModalHeaderButton
                   variant="danger"
@@ -2811,7 +2808,28 @@ console.log('completed leagues:', completedLeagues.length);
                   Update Member
                 </ModalHeaderButton>
               </>
-            ) : null}
+            ) : (
+              <>
+                <ModalHeaderButton
+                  variant="outline"
+                  onClick={closeModal}
+                  disabled={formLoading || deleteLoading}
+                  icon={<X className="h-4 w-4" />}
+                >
+                  Cancel
+                </ModalHeaderButton>
+                <ModalHeaderButton
+                  variant="primary"
+                  type="submit"
+                  form="member-form"
+                  loading={formLoading}
+                  disabled={formLoading || deleteLoading}
+                  icon={<CheckCircle className="h-4 w-4" />}
+                >
+                  Add Member
+                </ModalHeaderButton>
+              </>
+            )}
           >
             <MemberForm
               member={editingMember}

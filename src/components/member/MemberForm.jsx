@@ -395,7 +395,11 @@ const MemberForm = ({
     onSubmit(submissionData);
   };
 
-  // Delete function removed - now handled by parent component
+  // Header action handlers - matching TournamentForm pattern
+  const handleFormSubmit = (e) => {
+    e.preventDefault();
+    handleSubmit(e);
+  };
 
   // Skill level options for dropdown
   const skillLevelOptions = Object.entries(SKILL_LEVELS).map(([key, value]) => ({
@@ -414,7 +418,7 @@ const MemberForm = ({
       <StyleSheet />
       
       <div className="p-6">
-        <form id="member-form" onSubmit={handleSubmit}>
+        <form id="member-form" onSubmit={handleFormSubmit}>
           {/* Personal Information Section */}
           <div className="form-section">
             <div 
@@ -722,37 +726,8 @@ const MemberForm = ({
           )}
         </form>
 
-        {/* Create/Cancel Button for New Members - Only show when creating new member */}
-        {!member && (
-          <div className="form-section">
-            <div className="form-section-content">
-              <div className="grid grid-cols-2 gap-4">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={onCancel}
-                  disabled={loading || deleteLoading}
-                  className="form-touch-button"
-                >
-                  Cancel
-                </Button>
-                
-                <Button
-                  type="submit"
-                  loading={loading}
-                  disabled={loading || deleteLoading}
-                  className="form-touch-button"
-                >
-                  Add Member
-                </Button>
-              </div>
-            </div>
-          </div>
-        )}
-
         </div>
     </div>
   );
 };
-
 export default MemberForm;
