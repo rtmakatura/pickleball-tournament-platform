@@ -101,9 +101,12 @@ const dashboardStyles = `
     
     .mobile-action-button {
       min-height: 44px !important;
-      min-width: 100px !important;
       font-size: 0.75rem !important;
       padding: 8px 12px !important;
+    }
+    
+    .mobile-action-button.flex-1 {
+      min-width: 100px !important;
     }
     
     .mobile-action-button svg {
@@ -152,6 +155,9 @@ const dashboardStyles = `
     
     .mobile-action-button {
       min-height: 52px;
+    }
+    
+    .mobile-action-button.flex-1 {
       min-width: 120px;
     }
     
@@ -379,63 +385,65 @@ const TournamentCard = React.memo(({ tournament, onView, onEdit, onEnterResults,
       </div>
 
       {/* ENHANCED: Action Buttons with responsive sizing */}
-      <div className="p-3 sm:px-4 sm:pb-4 pt-0 space-y-2">
-        <div className="flex space-x-2">
-          <Button
-            onClick={(e) => {
-              e.stopPropagation();
-              onView(tournament);
-            }}
-            className="mobile-action-button flex-1 bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm"
-            size="sm"
-          >
-            <MessageSquare className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
-            <span className="hidden xs:inline">Discuss</span>
-            <span className="xs:hidden">Talk</span>
-          </Button>
-          <Button
-            onClick={(e) => {
-              e.stopPropagation();
-              onEdit(tournament);
-            }}
-            variant="outline"
-            className="mobile-action-button flex-1 text-xs sm:text-sm"
-            size="sm"
-          >
-            <Trophy className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
-            <span className="hidden xs:inline">Manage</span>
-            <span className="xs:hidden">Edit</span>
-          </Button>
+      <div className="p-3 sm:px-4 sm:pb-4 pt-0">
+        <div className="flex flex-col space-y-2">
+          <div className="flex space-x-2">
+            <Button
+              onClick={(e) => {
+                e.stopPropagation();
+                onView(tournament);
+              }}
+              className="mobile-action-button flex-1 bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm"
+              size="sm"
+            >
+              <MessageSquare className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+              <span className="hidden xs:inline">Discuss</span>
+              <span className="xs:hidden">Talk</span>
+            </Button>
+            <Button
+              onClick={(e) => {
+                e.stopPropagation();
+                onEdit(tournament);
+              }}
+              variant="outline"
+              className="mobile-action-button flex-1 text-xs sm:text-sm"
+              size="sm"
+            >
+              <Trophy className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+              <span className="hidden xs:inline">Manage</span>
+              <span className="xs:hidden">Edit</span>
+            </Button>
+          </div>
+          
+          {canEnterResults && (
+            <Button
+              onClick={(e) => {
+                e.stopPropagation();
+                onEnterResults(tournament);
+              }}
+              className="mobile-action-button w-full results-button text-xs sm:text-sm"
+              size="sm"
+            >
+              <BarChart3 className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+              Enter Results
+            </Button>
+          )}
+          
+          {hasResults && (
+            <Button
+              onClick={(e) => {
+                e.stopPropagation();
+                onViewResults(tournament);
+              }}
+              variant="outline"
+              className="mobile-action-button w-full border-green-300 text-green-700 hover:bg-green-50 text-xs sm:text-sm"
+              size="sm"
+            >
+              <Award className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+              View Results
+            </Button>
+          )}
         </div>
-        
-        {canEnterResults && (
-          <Button
-            onClick={(e) => {
-              e.stopPropagation();
-              onEnterResults(tournament);
-            }}
-            className="mobile-action-button w-full results-button text-xs sm:text-sm"
-            size="sm"
-          >
-            <BarChart3 className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
-            Enter Results
-          </Button>
-        )}
-        
-        {hasResults && (
-          <Button
-            onClick={(e) => {
-              e.stopPropagation();
-              onViewResults(tournament);
-            }}
-            variant="outline"
-            className="mobile-action-button w-full border-green-300 text-green-700 hover:bg-green-50 text-xs sm:text-sm"
-            size="sm"
-          >
-            <Award className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
-            View Results
-          </Button>
-        )}
       </div>
 
       {/* Quick Actions Bar */}
@@ -807,62 +815,64 @@ const LeagueCard = React.memo(({ league, onView, onEdit, onEnterResults, onViewR
       </div>
 
       {/* UPDATED: Action Buttons with Results Entry */}
-      <div className="px-4 pb-4 space-y-2">
-        <div className="flex space-x-2">
-          <Button
-            onClick={(e) => {
-              e.stopPropagation();
-              onView(league);
-            }}
-            className="mobile-action-button flex-1 bg-blue-600 hover:bg-blue-700 text-white"
-            size="md"
-          >
-            <MessageSquare className="h-4 w-4 mr-2" />
-            Discuss
-          </Button>
-          <Button
-            onClick={(e) => {
-              e.stopPropagation();
-              onEdit(league);
-            }}
-            variant="outline"
-            className="mobile-action-button flex-1"
-            size="md"
-          >
-            <Activity className="h-4 w-4 mr-2" />
-            Manage
-          </Button>
+      <div className="px-4 pb-4">
+        <div className="flex flex-col space-y-2">
+          <div className="flex space-x-2">
+            <Button
+              onClick={(e) => {
+                e.stopPropagation();
+                onView(league);
+              }}
+              className="mobile-action-button flex-1 bg-blue-600 hover:bg-blue-700 text-white"
+              size="md"
+            >
+              <MessageSquare className="h-4 w-4 mr-2" />
+              Discuss
+            </Button>
+            <Button
+              onClick={(e) => {
+                e.stopPropagation();
+                onEdit(league);
+              }}
+              variant="outline"
+              className="mobile-action-button flex-1"
+              size="md"
+            >
+              <Activity className="h-4 w-4 mr-2" />
+              Manage
+            </Button>
+          </div>
+          
+          {/* ADDED: Results action button */}
+          {canEnterResults && (
+            <Button
+              onClick={(e) => {
+                e.stopPropagation();
+                onEnterResults(league);
+              }}
+              className="mobile-action-button w-full results-button"
+              size="md"
+            >
+              <BarChart3 className="h-4 w-4 mr-2" />
+              Enter Results
+            </Button>
+          )}
+          
+          {hasResults && (
+            <Button
+              onClick={(e) => {
+                e.stopPropagation();
+                onViewResults(league);
+              }}
+              variant="outline"
+              className="mobile-action-button w-full border-green-300 text-green-700 hover:bg-green-50"
+              size="md"
+            >
+              <Award className="h-4 w-4 mr-2" />
+              View Results
+            </Button>
+          )}
         </div>
-        
-        {/* ADDED: Results action button */}
-        {canEnterResults && (
-          <Button
-            onClick={(e) => {
-              e.stopPropagation();
-              onEnterResults(league);
-            }}
-            className="mobile-action-button w-full results-button"
-            size="md"
-          >
-            <BarChart3 className="h-4 w-4 mr-2" />
-            Enter Results
-          </Button>
-        )}
-        
-        {hasResults && (
-          <Button
-            onClick={(e) => {
-              e.stopPropagation();
-              onViewResults(league);
-            }}
-            variant="outline"
-            className="mobile-action-button w-full border-green-300 text-green-700 hover:bg-green-50"
-            size="md"
-          >
-            <Award className="h-4 w-4 mr-2" />
-            View Results
-          </Button>
-        )}
       </div>
     </div>
   );
