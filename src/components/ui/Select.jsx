@@ -1,5 +1,6 @@
 // src/components/ui/Select.jsx - UPDATED: Custom dropdown that respects container boundaries
 import React, { useState, useRef, useEffect } from 'react';
+import ReactDOM from 'react-dom';
 import { ChevronDown, Check } from 'lucide-react';
 
 /**
@@ -43,8 +44,25 @@ const Select = ({
   // Generate unique ID for accessibility
   const selectId = React.useId();
 
-  // Detect if we should use native select (mobile devices)
-  const shouldUseNative = useNativeSelect || (typeof window !== 'undefined' && window.innerWidth < 768);
+  // Detect if we should use native select (mobile devices) - DEBUGGING
+  const shouldUseNative = useNativeSelect || false; // Temporarily force custom dropdown
+  console.log('Select Debug:', { isOpen, shouldUseNative, useNativeSelect, windowWidth: typeof window !== 'undefined' ? window.innerWidth : 'undefined' });
+
+  // Debug dropdown positioning
+  useEffect(() => {
+    if (isOpen && selectRef.current) {
+      const rect = selectRef.current.getBoundingClientRect();
+      console.log('Dropdown positioning debug:', {
+        isOpen,
+        selectRect: rect,
+        calculatedTop: rect.bottom + 4,
+        calculatedLeft: rect.left,
+        windowWidth: window.innerWidth,
+        windowHeight: window.innerHeight,
+        shouldRender: isOpen && !shouldUseNative
+      });
+    }
+  }, [isOpen, shouldUseNative]);
 
   // Find selected option
   const selectedOption = options.find(opt => opt.value === value);
@@ -83,6 +101,28 @@ const Select = ({
     };
   }, [isOpen]);
 
+  // Update dropdown position when scrolling
+  useEffect(() => {
+    const updatePosition = () => {
+      if (isOpen && dropdownRef.current && selectRef.current) {
+        const rect = selectRef.current.getBoundingClientRect();
+        dropdownRef.current.style.top = `${rect.bottom + 4}px`;
+        dropdownRef.current.style.left = `${rect.left}px`;
+        dropdownRef.current.style.minWidth = `${rect.width}px`;
+      }
+    };
+
+    if (isOpen) {
+      window.addEventListener('scroll', updatePosition, true);
+      window.addEventListener('resize', updatePosition);
+    }
+
+    return () => {
+      window.removeEventListener('scroll', updatePosition, true);
+      window.removeEventListener('resize', updatePosition);
+    };
+  }, [isOpen]);
+
   // Handle option selection
   const handleOptionSelect = (optionValue) => {
     const syntheticEvent = {
@@ -100,6 +140,7 @@ const Select = ({
 
   // Toggle dropdown
   const toggleDropdown = () => {
+    console.log('Toggle clicked:', { disabled, currentIsOpen: isOpen, shouldUseNative });
     if (disabled) return;
     setIsOpen(!isOpen);
     if (!isOpen) {
@@ -187,49 +228,77 @@ const Select = ({
 
   // Custom dropdown implementation
   return (
-    <div className="space-y-1">
-      {label && (
-        <label 
-          htmlFor={selectId}
-          className="block text-sm font-medium text-gray-700"
-        >
-          {label}
-          {required && <span className="text-red-500 ml-1">*</span>}
-        </label>
-      )}
+    <>
+      <div className="space-y-1">
+        {label && (
+          <label 
+            htmlFor={selectId}
+            className="block text-sm font-medium text-gray-700"
+          >
+            {label}
+            {required && <span className="text-red-500 ml-1">*</span>}
+          </label>
+        )}
 
-      <div className="relative" ref={selectRef}>
-        {/* Custom Select Button */}
-        <button
-          type="button"
-          id={selectId}
-          className={`${baseClasses} bg-white cursor-pointer flex items-center justify-between text-left ${
-            isOpen ? 'ring-2 ring-green-500 border-green-500' : ''
-          }`}
-          onClick={toggleDropdown}
-          disabled={disabled}
-          aria-haspopup="listbox"
-          aria-expanded={isOpen}
-          {...props}
-        >
-          <span className={`block truncate ${!selectedOption ? 'text-gray-500' : 'text-gray-900'}`}>
-            {selectedOption ? selectedOption.label : placeholder}
-          </span>
-          <ChevronDown 
-            className={`h-4 w-4 text-gray-400 transition-transform duration-200 ${
-              isOpen ? 'transform rotate-180' : ''
-            }`} 
-          />
-        </button>
+        <div className="relative" ref={selectRef}>
+          {/* Custom Select Button */}
+          <button
+            type="button"
+            id={selectId}
+            className={`${baseClasses} bg-white cursor-pointer flex items-center justify-between text-left ${
+              isOpen ? 'ring-2 ring-green-500 border-green-500' : ''
+            }`}
+            onClick={toggleDropdown}
+            disabled={disabled}
+            aria-haspopup="listbox"
+            aria-expanded={isOpen}
+            {...props}
+          >
+            <span className={`block truncate ${!selectedOption ? 'text-gray-500' : 'text-gray-900'}`}>
+              {selectedOption ? selectedOption.label : placeholder}
+            </span>
+            <ChevronDown 
+              className={`h-4 w-4 text-gray-400 transition-transform duration-200 ${
+                isOpen ? 'transform rotate-180' : ''
+              }`} 
+            />
+          </button>
+        </div>
 
-        {/* Custom Dropdown */}
-        {isOpen && (
-          <div 
+        {/* Error Message */}
+        {error && (
+          <p className="text-sm text-red-600 flex items-center">
+            <svg className="h-4 w-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+              <path 
+                fillRule="evenodd" 
+                d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" 
+                clipRule="evenodd" 
+              />
+            </svg>
+            {error}
+          </p>
+        )}
+
+        {/* Helper Text */}
+        {helperText && !error && (
+          <p className="text-sm text-gray-500">
+            {helperText}
+          </p>
+        )}
+      </div>
+
+      {/* Custom Dropdown - PORTAL RENDERED */}
+      {isOpen && typeof document !== 'undefined' && 
+        ReactDOM.createPortal(
+          <div
             ref={dropdownRef}
-            className="absolute z-50 mt-1 w-full bg-white border border-gray-300 rounded-md shadow-lg"
-            style={{ 
+            className="fixed bg-white border border-gray-300 rounded-md shadow-lg"
+            style={{
               maxHeight: maxDropdownHeight,
-              minWidth: '100%'
+              minWidth: selectRef.current?.offsetWidth || '200px',
+              top: selectRef.current ? selectRef.current.getBoundingClientRect().bottom + 4 : 0,
+              left: selectRef.current ? selectRef.current.getBoundingClientRect().left : 0,
+              zIndex: 999999
             }}
           >
             {/* Search Input */}
@@ -279,31 +348,11 @@ const Select = ({
                 ))
               )}
             </div>
-          </div>
-        )}
-      </div>
-
-      {/* Error Message */}
-      {error && (
-        <p className="text-sm text-red-600 flex items-center">
-          <svg className="h-4 w-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
-            <path 
-              fillRule="evenodd" 
-              d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" 
-              clipRule="evenodd" 
-            />
-          </svg>
-          {error}
-        </p>
-      )}
-
-      {/* Helper Text */}
-      {helperText && !error && (
-        <p className="text-sm text-gray-500">
-          {helperText}
-        </p>
-      )}
-    </div>
+          </div>,
+          document.body
+        )
+      }
+    </>
   );
 };
 

@@ -63,16 +63,12 @@ const tournamentFormStyles = `
     margin-bottom: 0;
   }
   
-  /* ADDED: Special handling for form sections with dropdowns */
-  .form-section-with-dropdown {
-    overflow: visible;
-    z-index: 10;
-  }
-  
-  .form-section-with-dropdown .form-section-content {
-    overflow: visible;
+  /* REMOVED: No longer needed - all sections now support dropdowns */
+  .form-section-content {
+    padding: 24px;
     position: relative;
-    z-index: 10;
+    z-index: 15;
+    overflow: visible;
   }
   
   .form-section-header {
@@ -87,12 +83,7 @@ const tournamentFormStyles = `
     background: linear-gradient(135deg, #e2e8f0 0%, #cbd5e1 100%);
   }
   
-  /* Consistent content padding - exactly 24px always */
-  .form-section-content {
-    padding: 24px;
-    position: relative;
-    z-index: 5;
-  }
+  /* Consistent content padding - exactly 24px always - REMOVED: Handled above */
   
   /* Standardized input group spacing - exactly 24px always */
   .form-input-group {
@@ -135,20 +126,22 @@ const tournamentFormStyles = `
     }
   }
   
-  /* Progressive disclosure animations */
+  /* Progressive disclosure animations - FIXED: Allow dropdowns to escape */
   .form-expandable {
     transition: max-height 0.3s ease-out, opacity 0.2s ease-out;
-    overflow: hidden;
+    overflow: visible;
   }
   
   .form-expandable.collapsed {
     max-height: 0;
     opacity: 0;
+    overflow: hidden;
   }
   
   .form-expandable.expanded {
     max-height: 2000px;
     opacity: 1;
+    overflow: visible;
   }
   
   /* Division cards */
