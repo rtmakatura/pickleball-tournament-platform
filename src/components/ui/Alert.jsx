@@ -17,8 +17,10 @@ export const Alert = ({
   title,
   message,
   onClose,
+  actions,
   className = '' 
 }) => {
+  console.log('🚨 Alert component props:', { type, title, message: typeof message, actions: !!actions });
   // Icon and styling for each alert type
   const alertConfig = {
     success: {
@@ -75,7 +77,12 @@ export const Alert = ({
           )}
           {message && (
             <div className={`${title ? 'mt-2' : ''} text-sm ${config.messageColor}`}>
-              <p>{message}</p>
+              {typeof message === 'string' ? <p>{message}</p> : message}
+            </div>
+          )}
+          {actions && (
+            <div className="mt-3">
+              {actions}
             </div>
           )}
         </div>

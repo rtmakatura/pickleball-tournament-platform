@@ -22,6 +22,9 @@ import {
   Award,
   Activity
 } from 'lucide-react';
+import { useAuth } from '../../hooks/useAuth';
+import { updateDoc, doc, setDoc, getDoc } from 'firebase/firestore';
+import { db } from '../../services/firebase';
 import { Input, Select, Button, Alert, ConfirmDialog, Card, Modal, ModalHeaderButton } from '../ui';
 import DivisionMemberSelector from './DivisionMemberSelector';
 import { 
@@ -423,6 +426,7 @@ const TournamentForm = ({
   deleteLoading = false,
   members = []
 }) => {
+  console.log('🔥 TournamentForm loaded with:', { tournament: !!tournament });
   const isInitialMount = useRef(true);
   const tournamentIdRef = useRef(null);
 
@@ -433,6 +437,46 @@ const TournamentForm = ({
     addTournamentResults, 
     updateTournamentResults 
   } = useResults();
+
+  // ADDED: Auth hook for user preferences
+  const { user } = useAuth();
+
+  // ADDED: Help alert state management
+  const [showHelpAlert, setShowHelpAlert] = useState(false);
+
+  // ADDED: Show help alert when user loads (for new tournaments only)
+  useEffect(() => {
+    const checkUserPreferences = async () => {
+      if (!tournament && user?.uid) {
+        try {
+          // Check if user has dismissed the help alert
+          const userDocRef = doc(db, 'users', user.uid);
+          const userDoc = await getDoc(userDocRef);
+          
+          const hideCreateTournamentHelp = userDoc.exists() ? userDoc.data()?.hideCreateTournamentHelp : false;
+          const shouldShow = !hideCreateTournamentHelp;
+          
+          console.log('🚨 Debug showHelpAlert useEffect:', {
+            tournament: !!tournament,
+            user: !!user,
+            userDocExists: userDoc.exists(),
+            hideCreateTournamentHelp,
+            shouldShow
+          });
+          
+          setShowHelpAlert(shouldShow);
+        } catch (error) {
+          console.error('Error checking user preferences:', error);
+          // Default to showing the alert if there's an error
+          setShowHelpAlert(true);
+        }
+      } else {
+        setShowHelpAlert(false);
+      }
+    };
+
+    checkUserPreferences();
+  }, [tournament, user]);
 
   // Helper function to check if tournament has results
   const hasResults = useCallback(() => {
@@ -564,6 +608,41 @@ const TournamentForm = ({
   // ADDED: Results modal state
   const [showResultsModal, setShowResultsModal] = useState(false);
   const [resultsSubmitLoading, setResultsSubmitLoading] = useState(false);
+
+  // ADDED: Help alert handlers
+  const handleCloseHelpAlert = useCallback(() => {
+    setShowHelpAlert(false);
+  }, []);
+
+  const handleDontShowAgain = useCallback(async () => {
+    setShowHelpAlert(false);
+    
+    if (user?.uid) {
+      // Declare userDocRef outside try block so it's accessible in catch
+      const userDocRef = doc(db, 'users', user.uid);
+      
+      try {
+        // Update user preferences in Firestore
+        await updateDoc(userDocRef, {
+          hideCreateTournamentHelp: true
+        });
+        console.log('User preferences updated successfully');
+      } catch (error) {
+        console.error('Error updating user preferences:', error);
+        // If document doesn't exist, create it
+        if (error.code === 'not-found') {
+          try {
+            await setDoc(userDocRef, {
+              hideCreateTournamentHelp: true
+            });
+            console.log('Created user preferences document');
+          } catch (createError) {
+            console.error('Error creating user preferences:', createError);
+          }
+        }
+      }
+    }
+  }, [user?.uid]);
 
   // Mobile detection effect
   useEffect(() => {
@@ -924,6 +1003,8 @@ const TournamentForm = ({
             </div>
           </div>
         )}
+
+        
         
         {errors.divisionSave && (
           <div className="form-section">
@@ -964,7 +1045,84 @@ const TournamentForm = ({
           </div>
         )}
 
-        <form id="tournament-form" onSubmit={handleSubmit}>
+        {/* Help Alert for New Tournaments */}
+        {showHelpAlert && (
+            <div className="mb-4">
+              {/* Mobile: Compact alert */}
+              <div className="block sm:hidden">
+                <Alert 
+                  type="info" 
+                  title="Tournament Tips"
+                  message={
+                    <div className="text-sm">
+                      <p className="mb-2">
+                        Tournaments can have multiple divisions (e.g., Men's Doubles + Mixed Doubles).
+                      </p>
+                      <p className="text-xs text-blue-600">
+                        💡 Flow: Basic info → Add divisions → Assign participants
+                      </p>
+                    </div>
+                  }
+                  actions={
+                    <div className="flex gap-2 mt-3">
+                      <button
+                        onClick={handleCloseHelpAlert}
+                        className="flex-1 px-3 py-2 text-xs border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
+                      >
+                        Close
+                      </button>
+                      <button
+                        onClick={handleDontShowAgain}
+                        className="flex-1 px-3 py-2 text-xs bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+                      >
+                        Don't show again
+                      </button>
+                    </div>
+                  }
+                />
+              </div>
+
+              {/* Desktop: Full alert */}
+              <div className="hidden sm:block">
+                <Alert 
+                  type="info" 
+                  title="Creating a Tournament"
+                  message={
+                    <div className="space-y-3">
+                      <p>
+                        While many tournaments might only have a single division, and that's okay, the division component is built to handle multiple divisions within a tournament.
+                      </p>
+                      <p>
+                        <strong>Example:</strong> Chris is playing Men's Doubles with Ryan - that's a single division. He's also playing Mixed Doubles with Michelle - that's another division, same tournament.
+                      </p>
+                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mt-3">
+                        <p className="font-medium mb-1 text-blue-900">💡 Typical Workflow:</p>
+                        <p className="text-sm text-blue-800">Start with basic info → Add divisions → Assign participants → Track results</p>
+                      </div>
+                    </div>
+                  }
+                  actions={
+                    <div className="flex flex-col sm:flex-row gap-2 mt-4">
+                      <button
+                        onClick={handleCloseHelpAlert}
+                        className="px-4 py-2 text-sm border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
+                      >
+                        Close
+                      </button>
+                      <button
+                        onClick={handleDontShowAgain}
+                        className="px-4 py-2 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+                      >
+                        Don't show this again
+                      </button>
+                    </div>
+                  }
+                />
+              </div>
+            </div>
+          )}
+
+        <form id="tournament-form" onSubmit={handleSubmit}>         
           {/* Basic Information Section */}
           <div className="form-section">
             <div 
