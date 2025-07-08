@@ -740,7 +740,7 @@ const TournamentRow = React.memo(({ tournament, onView, onEdit, onEnterResults, 
               onClick={handleViewResultsClick}
               type="button"
             >
-              View
+              Results
             </button>
           )}
         </div>
@@ -1098,7 +1098,7 @@ const LeagueRow = React.memo(({ league, onView, onEdit, onEnterResults, onViewRe
               onClick={handleViewResultsClick}
               type="button"
             >
-              View
+              Results
             </button>
           )}
         </div>
@@ -1417,10 +1417,9 @@ const ResultsDashboard = ({ results, tournaments, leagues, members, onViewTourna
 
 const Dashboard = () => {
   const { user, signIn, signUpWithProfile, logout, isAuthenticated, loading: authLoading } = useAuth();
-  const { members, loading: membersLoading, addMember, updateMember, deleteMember } = useMembers({ realTime: false });
-  const { leagues, loading: leaguesLoading, addLeague, updateLeague, deleteLeague, archiveLeague, unarchiveLeague } = useLeagues({ realTime: false });
-  const { tournaments, loading: tournamentsLoading, addTournament, updateTournament, deleteTournament, archiveTournament, unarchiveTournament } = useTournaments({ realTime: false });
-  
+  const { members, loading: membersLoading, addMember, updateMember, deleteMember } = useMembers({ realTime: true });
+  const { leagues, loading: leaguesLoading, addLeague, updateLeague, deleteLeague, archiveLeague, unarchiveLeague } = useLeagues({ realTime: true });
+  const { tournaments, loading: tournamentsLoading, addTournament, updateTournament, deleteTournament, archiveTournament, unarchiveTournament } = useTournaments({ realTime: true });
   // ADDED: Results and performance hooks
   const { 
   results, 
@@ -2179,9 +2178,7 @@ console.log('completed leagues:', completedLeagues.length);
         participants: selectedLeagueMembers
       });
       
-      setShowLeagueModal(false);
-      setEditingLeague(null);
-      setSelectedLeagueMembers([]);
+      closeModal();
       showAlert('success', 'League updated!', `${leagueData.name} has been updated successfully`);
     } catch (err) {
       showAlert('error', 'Failed to update league', err.message);
@@ -2747,7 +2744,7 @@ console.log('completed leagues:', completedLeagues.length);
             isOpen={true}
             onClose={closeModal}
             title={editingLeague ? 'Edit League' : 'Create New League'}
-            size="lg"
+            size="xl"
             headerAction={editingLeague ? (
               <>
                 {editingLeague.status === LEAGUE_STATUS.COMPLETED && (
@@ -2865,7 +2862,7 @@ console.log('completed leagues:', completedLeagues.length);
             isOpen={true}
             onClose={closeModal}
             title={editingMember ? 'Edit Member' : 'Add New Member'}
-            size="lg"
+            size="xl"
             headerAction={editingMember ? (
               <>
                 <ModalHeaderButton
@@ -2975,7 +2972,7 @@ console.log('completed leagues:', completedLeagues.length);
             isOpen={true}
             onClose={closeModal}
             title={`Results: ${modalData.event?.name || 'Event'}`}
-            size="lg"
+            size="xl"
           >
             <div className="text-center py-8">
               {modalData.type === 'tournament' ? (
