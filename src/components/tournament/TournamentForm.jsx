@@ -1,5 +1,5 @@
 // src/components/tournament/TournamentForm.jsx (UPDATED - Added Results Integration)
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { 
   Trash2, 
   ExternalLink, 
@@ -23,6 +23,7 @@ import {
   Activity
 } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
+import { useMembers } from '../../hooks/useMembers';
 import { updateDoc, doc, setDoc, getDoc } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 import { Input, Select, Button, Alert, ConfirmDialog, Card, Modal, ModalHeaderButton } from '../ui';
@@ -440,43 +441,60 @@ const TournamentForm = ({
 
   // ADDED: Auth hook for user preferences
   const { user } = useAuth();
+  const { members: allMembers, updateMember } = useMembers();
+
+  // ADDED: Get current member using the established pattern
+  const currentMember = useMemo(() => 
+    allMembers.find(m => m.authUid === user?.uid), 
+    [allMembers, user?.uid]
+  );
 
   // ADDED: Help alert state management
   const [showHelpAlert, setShowHelpAlert] = useState(false);
 
-  // ADDED: Show help alert when user loads (for new tournaments only)
+  // ADDED: Show help alert when user loads (for new tournaments only) - now uses member collection
   useEffect(() => {
-    const checkUserPreferences = async () => {
-      if (!tournament && user?.uid) {
+    const checkMemberPreferences = async () => {
+      console.log('🚨 TournamentForm Alert Check:', {
+        tournament: !!tournament,
+        tournamentId: tournament?.id,
+        currentMember: !!currentMember,
+        memberId: currentMember?.id,
+        memberData: currentMember
+      });
+      
+      if (!tournament && currentMember) {
         try {
-          // Check if user has dismissed the help alert
-          const userDocRef = doc(db, 'users', user.uid);
-          const userDoc = await getDoc(userDocRef);
-          
-          const hideCreateTournamentHelp = userDoc.exists() ? userDoc.data()?.hideCreateTournamentHelp : false;
+          // Check if member has dismissed the help alert
+          const hideCreateTournamentHelp = currentMember.hideCreateTournamentHelp || false;
           const shouldShow = !hideCreateTournamentHelp;
           
-          console.log('🚨 Debug showHelpAlert useEffect:', {
+          console.log('🚨 Debug showHelpAlert useEffect (member-based):', {
             tournament: !!tournament,
-            user: !!user,
-            userDocExists: userDoc.exists(),
+            currentMember: !!currentMember,
+            memberId: currentMember.id,
             hideCreateTournamentHelp,
             shouldShow
           });
           
           setShowHelpAlert(shouldShow);
         } catch (error) {
-          console.error('Error checking user preferences:', error);
+          console.error('Error checking member preferences:', error);
           // Default to showing the alert if there's an error
           setShowHelpAlert(true);
         }
       } else {
+        console.log('🚨 Alert NOT showing because:', {
+          reason: tournament ? 'Editing existing tournament' : 'No current member found',
+          tournament: !!tournament,
+          currentMember: !!currentMember
+        });
         setShowHelpAlert(false);
       }
     };
 
-    checkUserPreferences();
-  }, [tournament, user]);
+    checkMemberPreferences();
+  }, [tournament, currentMember]);
 
   // Helper function to check if tournament has results
   const hasResults = useCallback(() => {
@@ -617,32 +635,19 @@ const TournamentForm = ({
   const handleDontShowAgain = useCallback(async () => {
     setShowHelpAlert(false);
     
-    if (user?.uid) {
-      // Declare userDocRef outside try block so it's accessible in catch
-      const userDocRef = doc(db, 'users', user.uid);
-      
+    if (currentMember?.id) {
       try {
-        // Update user preferences in Firestore
-        await updateDoc(userDocRef, {
+        // Update member document with preference
+        await updateMember(currentMember.id, {
           hideCreateTournamentHelp: true
         });
-        console.log('User preferences updated successfully');
+        console.log('Member preferences updated successfully');
       } catch (error) {
-        console.error('Error updating user preferences:', error);
-        // If document doesn't exist, create it
-        if (error.code === 'not-found') {
-          try {
-            await setDoc(userDocRef, {
-              hideCreateTournamentHelp: true
-            });
-            console.log('Created user preferences document');
-          } catch (createError) {
-            console.error('Error creating user preferences:', createError);
-          }
-        }
+        console.error('Error updating member preferences:', error);
+        // You could show an error message to the user here if desired
       }
     }
-  }, [user?.uid]);
+  }, [currentMember, updateMember]);
 
   // Mobile detection effect
   useEffect(() => {
