@@ -451,6 +451,7 @@ const TournamentForm = ({
 
   // ADDED: Help alert state management
   const [showHelpAlert, setShowHelpAlert] = useState(false);
+  const [showDivisionHelpAlert, setShowDivisionHelpAlert] = useState(false);
 
   // ADDED: Show help alert when user loads (for new tournaments only) - now uses member collection
   useEffect(() => {
@@ -645,6 +646,27 @@ const TournamentForm = ({
       } catch (error) {
         console.error('Error updating member preferences:', error);
         // You could show an error message to the user here if desired
+      }
+    }
+  }, [currentMember, updateMember]);
+
+  // ADDED: Division help alert handlers
+  const handleCloseDivisionHelpAlert = useCallback(() => {
+    setShowDivisionHelpAlert(false);
+  }, []);
+
+  const handleDivisionDontShowAgain = useCallback(async () => {
+    setShowDivisionHelpAlert(false);
+    
+    if (currentMember?.id) {
+      try {
+        // Update member document with division preference
+        await updateMember(currentMember.id, {
+          hideDivisionCreationHelp: true
+        });
+        console.log('Division help preferences updated successfully');
+      } catch (error) {
+        console.error('Error updating division help preferences:', error);
       }
     }
   }, [currentMember, updateMember]);
@@ -1594,6 +1616,8 @@ const TournamentForm = ({
         title={editingDivisionIndex !== null ? 'Edit Division' : 'Add Division'}
         isSaving={divisionSaving}
         isEditing={tournament && tournament.id}
+        currentMember={currentMember}
+        updateMember={updateMember}
       />
 
       {/* ADDED: Results Entry Modal */}
@@ -1710,8 +1734,12 @@ const DivisionFormModal = ({
   division, 
   title, 
   isSaving = false, 
-  isEditing = false 
+  isEditing = false,
+  currentMember: divisionCurrentMember,
+  updateMember
 }) => {
+  // ADDED: Division help alert state
+  const [showDivisionHelpAlert, setShowDivisionHelpAlert] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -1781,6 +1809,70 @@ const DivisionFormModal = ({
       setExpandedSections(newSectionState);
     }
   }, [isOpen, getInitialSectionState]);
+
+  // ADDED: Check division help preferences when modal opens for new divisions
+  useEffect(() => {
+    const checkDivisionHelpPreferences = async () => {
+      console.log('🚨 DivisionModal Alert Check:', {
+        isOpen,
+        division: !!division,
+        divisionId: division?.id,
+        currentMember: !!divisionCurrentMember,
+        memberId: divisionCurrentMember?.id
+      });
+      
+      if (isOpen && !division && divisionCurrentMember) {
+        try {
+          // Check if member has dismissed the division help alert
+          const hideDivisionCreationHelp = divisionCurrentMember.hideDivisionCreationHelp || false;
+          const shouldShow = !hideDivisionCreationHelp;
+          
+          console.log('🚨 Debug division help alert:', {
+            division: !!division,
+            currentMember: !!divisionCurrentMember,
+            memberId: divisionCurrentMember.id,
+            hideDivisionCreationHelp,
+            shouldShow
+          });
+          
+          setShowDivisionHelpAlert(shouldShow);
+        } catch (error) {
+          console.error('Error checking division help preferences:', error);
+          setShowDivisionHelpAlert(true);
+        }
+      } else {
+        console.log('🚨 Division alert NOT showing because:', {
+          reason: !isOpen ? 'Modal closed' : division ? 'Editing existing division' : 'No current member found',
+          isOpen,
+          division: !!division,
+          currentMember: !!divisionCurrentMember
+        });
+        setShowDivisionHelpAlert(false);
+      }
+    };
+
+    checkDivisionHelpPreferences();
+  }, [isOpen, division, divisionCurrentMember]);
+
+  // ADDED: Division help alert handlers
+  const handleCloseDivisionHelpAlert = useCallback(() => {
+    setShowDivisionHelpAlert(false);
+  }, []);
+
+  const handleDivisionDontShowAgain = useCallback(async () => {
+    setShowDivisionHelpAlert(false);
+    
+    if (divisionCurrentMember?.id) {
+      try {
+        await updateMember(divisionCurrentMember.id, {
+          hideDivisionCreationHelp: true
+        });
+        console.log('Division help preferences updated successfully');
+      } catch (error) {
+        console.error('Error updating division help preferences:', error);
+      }
+    }
+  }, [divisionCurrentMember]);
 
   // Section toggle handler
   const toggleSection = useCallback((section) => {
@@ -1906,6 +1998,83 @@ const DivisionFormModal = ({
           <div className="form-section">
             <div className="form-section-content">
               <Alert type="error" title="Save Error" message={errors.submit} />
+            </div>
+          </div>
+        )}
+
+        {/* ADDED: Division Creation Help Alert */}
+        {showDivisionHelpAlert && (
+          <div className="mb-4">
+            {/* Mobile: Compact alert */}
+            <div className="block sm:hidden">
+              <Alert 
+                type="info" 
+                title="Division Tips"
+                message={
+                  <div className="text-sm">
+                    <p className="mb-2">
+                      Divisions separate different skill levels and event types within a tournament.
+                    </p>
+                    <p className="text-xs text-blue-600">
+                      💡 Example: Men's Doubles 4.0 + Mixed Doubles 3.5
+                    </p>
+                  </div>
+                }
+                actions={
+                  <div className="flex gap-2 mt-3">
+                    <button
+                      onClick={handleCloseDivisionHelpAlert}
+                      className="flex-1 px-3 py-2 text-xs border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
+                    >
+                      Close
+                    </button>
+                    <button
+                      onClick={handleDivisionDontShowAgain}
+                      className="flex-1 px-3 py-2 text-xs bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+                    >
+                      Don't show again
+                    </button>
+                  </div>
+                }
+              />
+            </div>
+
+            {/* Desktop: Full alert */}
+            <div className="hidden sm:block">
+              <Alert 
+                type="info" 
+                title="Creating a Division"
+                message={
+                  <div className="space-y-3">
+                    <p>
+                      Divisions organize participants by skill level and event type within your tournament. Most tournaments have multiple divisions to accommodate different player abilities.
+                    </p>
+                    <p>
+                      <strong>Example:</strong> A tournament might have "Men's Doubles 4.0", "Women's Doubles 3.5", and "Mixed Doubles Open" as separate divisions.
+                    </p>
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mt-3">
+                      <p className="font-medium mb-1 text-blue-900">💡 Division Setup:</p>
+                      <p className="text-sm text-blue-800">Choose event type → Set skill level → Configure entry fee → Add participants</p>
+                    </div>
+                  </div>
+                }
+                actions={
+                  <div className="flex flex-col sm:flex-row gap-2 mt-4">
+                    <button
+                      onClick={handleCloseDivisionHelpAlert}
+                      className="px-4 py-2 text-sm border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
+                    >
+                      Close
+                    </button>
+                    <button
+                      onClick={handleDivisionDontShowAgain}
+                      className="px-4 py-2 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+                    >
+                      Don't show this again
+                    </button>
+                  </div>
+                }
+              />
             </div>
           </div>
         )}
