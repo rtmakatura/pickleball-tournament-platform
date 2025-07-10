@@ -1,5 +1,5 @@
 // src/components/member/MemberForm.jsx (ENHANCED - Added Venmo Handle)
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { 
   Trash2, 
   User, 
@@ -11,8 +11,8 @@ import {
   CheckCircle, 
   Calendar 
 } from 'lucide-react';
-import { Input, Select, Button, ConfirmDialog } from '../ui';
-import { useCallback } from 'react';
+import { Input, Select, Button, ConfirmDialog, Alert } from '../ui';
+
 import { SKILL_LEVELS, MEMBER_ROLES } from '../../services/models';
 import { useAuth } from '../../hooks/useAuth';
 import { useMembers } from '../../hooks/useMembers';
@@ -300,6 +300,35 @@ const MemberForm = ({
 
   const [expandedSections, setExpandedSections] = useState(() => getInitialSectionState());
 
+  // Form state - initialize with existing member data or defaults
+  const [formData, setFormData] = useState({
+    firstName: member?.firstName || '',
+    lastName: member?.lastName || '',
+    email: member?.email || '',
+    phoneNumber: member?.phoneNumber || '',
+    venmoHandle: member?.venmoHandle || '', // NEW: Venmo handle
+    skillLevel: member?.skillLevel || '',
+    role: member?.role || MEMBER_ROLES.PLAYER,
+    isActive: member?.isActive !== false
+  });
+
+  const [errors, setErrors] = useState({});
+  
+  // ADDED: Help alert state management
+  const [showHelpAlert, setShowHelpAlert] = useState(false);
+  
+  // Permission checking
+  const { user } = useAuth();
+  const { members, updateMember } = useMembers();
+  
+  // Get current member using the established pattern (moved up before useEffect)
+  const currentMember = useMemo(() => 
+    members.find(m => m.authUid === user?.uid), 
+    [members, user?.uid]
+  );
+  
+  const canEditRoles = canEditUserRoles(user?.uid, member, members);
+
   // ADDED: Show help alert when user loads (for new members only)
   useEffect(() => {
     const checkMemberPreferences = async () => {
@@ -361,28 +390,6 @@ const MemberForm = ({
     const newSectionState = getInitialSectionState();
     setExpandedSections(newSectionState);
   }, [getInitialSectionState]);
-
-  // Form state - initialize with existing member data or defaults
-  const [formData, setFormData] = useState({
-    firstName: member?.firstName || '',
-    lastName: member?.lastName || '',
-    email: member?.email || '',
-    phoneNumber: member?.phoneNumber || '',
-    venmoHandle: member?.venmoHandle || '', // NEW: Venmo handle
-    skillLevel: member?.skillLevel || '',
-    role: member?.role || MEMBER_ROLES.PLAYER,
-    isActive: member?.isActive !== false
-  });
-
-  const [errors, setErrors] = useState({});
-  
-  // ADDED: Help alert state management
-  const [showHelpAlert, setShowHelpAlert] = useState(false);
-  
-  // Permission checking
-  const { user } = useAuth();
-  const { members } = useMembers();
-  const canEditRoles = canEditUserRoles(user?.uid, member, members);
 
   // Section toggle
   const toggleSection = useCallback((section) => {
