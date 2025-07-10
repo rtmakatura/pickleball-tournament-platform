@@ -627,6 +627,10 @@ const TournamentForm = ({
   // ADDED: Results modal state
   const [showResultsModal, setShowResultsModal] = useState(false);
   const [resultsSubmitLoading, setResultsSubmitLoading] = useState(false);
+  
+  // ADDED: Protection against real-time subscription overwrites
+  const [userIsEditing, setUserIsEditing] = useState(false);
+  const userEditingTimeoutRef = useRef(null);
 
   // ADDED: Help alert handlers
   const handleCloseHelpAlert = useCallback(() => {
@@ -689,9 +693,16 @@ const TournamentForm = ({
     setExpandedSections(newSectionState);
   }, [getInitialSectionState]);
 
-  // State synchronization
+  // State synchronization with user editing protection
   useEffect(() => {
+    // Don't sync if user is actively editing to prevent overwrites
+    if (userIsEditing) {
+      console.log('Skipping form sync - user is editing');
+      return;
+    }
+    
     if (tournament && tournament.id !== tournamentIdRef.current) {
+      console.log('Syncing form data with tournament:', tournament.id);
       const newFormData = {
         name: tournament.name || '',
         description: tournament.description || '',
@@ -706,7 +717,12 @@ const TournamentForm = ({
       const newDivisions = initializeDivisions(tournament);
       setDivisions(newDivisions);
       tournamentIdRef.current = tournament.id;
+      
+      // Clear any field-level errors when loading new tournament
+      setErrors({});
+      setIsSubmitting(false);
     } else if (!tournament) {
+      console.log('Clearing form data - no tournament');
       setFormData({
         name: '',
         description: '',
@@ -718,12 +734,12 @@ const TournamentForm = ({
       });
       setDivisions(initializeDivisions(null));
       tournamentIdRef.current = null;
+      setErrors({});
+      setIsSubmitting(false);
     }
     
-    setErrors({});
-    setIsSubmitting(false);
     isInitialMount.current = false;
-  }, [tournament, formatDateForInput, initializeDivisions]);
+  }, [tournament, formatDateForInput, initializeDivisions, userIsEditing]);
 
   // Section toggle
   const toggleSection = useCallback((section) => {
@@ -733,14 +749,35 @@ const TournamentForm = ({
     }));
   }, []);
 
-  // Input change handler
+  // Input change handler with editing protection and debugging
   const handleChange = useCallback((field) => (e) => {
+    console.log('🔥 handleChange called for field:', field, 'with event:', e);
+    console.log('🔥 Event target value:', e?.target?.value);
+    console.log('🔥 Event type:', typeof e);
+    
     const value = e.target.value;
     
-    setFormData(prev => ({
-      ...prev,
-      [field]: value
-    }));
+    console.log('🔥 Extracted value:', value);
+    console.log('🔥 Current formData.status:', formData.status);
+    
+    // Set user editing flag to prevent real-time overwrites
+    setUserIsEditing(true);
+    
+    // Clear any existing timeout
+    if (userEditingTimeoutRef.current) {
+      clearTimeout(userEditingTimeoutRef.current);
+    }
+    
+    // Set timeout to clear editing flag after user stops editing
+    userEditingTimeoutRef.current = setTimeout(() => {
+      setUserIsEditing(false);
+    }, 2000); // 2 seconds after last edit
+    
+    setFormData(prev => {
+      const newData = { ...prev, [field]: value };
+      console.log('🔥 Setting new formData:', newData);
+      return newData;
+    });
     
     if (errors[field]) {
       setErrors(prev => ({
@@ -748,7 +785,31 @@ const TournamentForm = ({
         [field]: null
       }));
     }
-  }, [errors]);
+    
+    // Immediately persist changes if we're editing an existing tournament
+    if (tournament && tournament.id && onUpdateTournament) {
+      const updateData = { [field]: value };
+      
+      // Handle date fields - convert to Date objects
+      if (field === 'eventDate' || field === 'registrationDeadline') {
+        updateData[field] = value ? new Date(value + 'T00:00:00') : null;
+      }
+      
+      // Handle website formatting
+      if (field === 'website') {
+        updateData[field] = value ? formatWebsiteUrl(value) : '';
+      }
+      
+      console.log('🔥 About to call onUpdateTournament with:', updateData);
+      onUpdateTournament(tournament.id, updateData).catch(error => {
+        console.error('Error updating tournament field:', error);
+        setErrors(prev => ({
+          ...prev,
+          [field]: `Failed to update ${field}: ${error.message}`
+        }));
+      });
+    }
+  }, [errors, tournament, onUpdateTournament, formData.status]);
 
   // Division management
   const addDivision = useCallback(() => {
@@ -1017,6 +1078,15 @@ const TournamentForm = ({
     tournament.status === TOURNAMENT_STATUS.IN_PROGRESS && 
     !hasResults();
 
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (userEditingTimeoutRef.current) {
+        clearTimeout(userEditingTimeoutRef.current);
+      }
+    };
+  }, []);
+
   return (
     <div className="tournament-form">
       <StyleSheet />
@@ -1196,14 +1266,25 @@ const TournamentForm = ({
                 </div>
 
                 <div className="form-input-group">
-                  <Select
-                    label="Tournament Status"
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Tournament Status
+                  </label>
+                  <select
                     value={formData.status}
                     onChange={handleChange('status')}
-                    options={statusOptions}
-                    helperText="Current tournament status"
                     disabled={isSubmitting}
-                  />
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    {statusOptions.map(option => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-sm text-gray-500 mt-1">Current tournament status</p>
+                  <div style={{ fontSize: '12px', color: '#666', marginTop: '4px' }}>
+                    Debug: Current status = "{formData.status}", Handler = {typeof handleChange('status')}
+                  </div>
                 </div>
               </div>
             </div>
