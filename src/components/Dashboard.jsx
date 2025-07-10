@@ -276,18 +276,6 @@ const dashboardStyles = `
     box-shadow: 0 4px 12px rgba(5, 150, 105, 0.4);
   }
   
-  .results-indicator {
-    display: inline-flex;
-    align-items: center;
-    padding: 4px 8px;
-    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-    color: white;
-    font-size: 0.75rem;
-    font-weight: 500;
-    border-radius: 12px;
-    box-shadow: 0 2px 4px rgba(16, 185, 129, 0.3);
-  }
-  
 `;
 
 const DashboardStyles = () => {
@@ -369,12 +357,7 @@ const TournamentCard = React.memo(({ tournament, onView, onEdit, onEnterResults,
                   {divisionCount} division{divisionCount !== 1 ? 's' : ''}
                 </span>
               )}
-              {hasResults && (
-                <span className="results-indicator">
-                  <Award className="h-3 w-3 mr-1" />
-                  Results
-                </span>
-              )}
+              
             </div>
           </div>
         </div>
@@ -575,13 +558,7 @@ const TournamentRow = React.memo(({ tournament, onView, onEdit, onEnterResults, 
             <div className="font-medium text-gray-900 leading-5 break-words flex-1">
               {tournament.name}
             </div>
-            {/* Results indicator positioned next to name */}
-            {hasResults && (
-              <div className="results-indicator flex-shrink-0">
-                <Award className="h-3 w-3 mr-1" />
-                Results
-              </div>
-            )}
+            
           </div>
           
           {/* Quick indicators - now with more space */}
@@ -795,13 +772,7 @@ const LeagueCard = React.memo(({ league, onView, onEdit, onEnterResults, onViewR
               <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700 capitalize">
                 {league.skillLevel}
               </span>
-              {/* ADDED: Results indicator */}
-              {hasResults && (
-                <span className="results-indicator">
-                  <Award className="h-3 w-3 mr-1" />
-                  Results
-                </span>
-              )}
+              
             </div>
           </div>
         </div>
@@ -965,13 +936,7 @@ const LeagueRow = React.memo(({ league, onView, onEdit, onEnterResults, onViewRe
                 <span>{league.commentCount}</span>
               </div>
             )}
-            {/* ADDED: Results indicator */}
-            {hasResults && (
-              <div className="results-indicator">
-                <Award className="h-3 w-3 mr-1" />
-                Results
-              </div>
-            )}
+            
           </div>
         </div>
       </td>
