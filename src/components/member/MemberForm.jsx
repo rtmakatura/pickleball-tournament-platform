@@ -12,6 +12,7 @@ import {
   Calendar 
 } from 'lucide-react';
 import { Input, Select, Button, ConfirmDialog } from '../ui';
+import { useCallback } from 'react';
 import { SKILL_LEVELS, MEMBER_ROLES } from '../../services/models';
 import { useAuth } from '../../hooks/useAuth';
 import { useMembers } from '../../hooks/useMembers';
@@ -31,8 +32,26 @@ const memberFormStyles = `
     border-radius: 16px;
     border: 1px solid #e5e7eb;
     margin-bottom: 24px;
-    overflow: hidden;
+    overflow: visible;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  }
+  
+  /* ADDED: Special handling for form sections with dropdowns */
+  .form-section-with-dropdown {
+    background: white;
+    border-radius: 16px;
+    border: 1px solid #e5e7eb;
+    margin-bottom: 24px;
+    overflow: visible;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    position: relative;
+    z-index: 10;
+  }
+  
+  .form-section-with-dropdown .form-section-content {
+    overflow: visible;
+    position: relative;
+    z-index: 10;
   }
   
   .form-section:last-child {
@@ -54,6 +73,7 @@ const memberFormStyles = `
   /* Consistent content padding - exactly 24px always */
   .form-section-content {
     padding: 24px;
+    overflow: visible;
   }
   
   /* Standardized input group spacing - exactly 24px always */
@@ -213,6 +233,8 @@ const memberFormStyles = `
     line-height: 1.4;
   }
   
+  
+
   /* Responsive adjustments */
   @media (min-width: 640px) {
     .form-actions-container {
@@ -278,6 +300,50 @@ const MemberForm = ({
 
   const [expandedSections, setExpandedSections] = useState(() => getInitialSectionState());
 
+  // ADDED: Show help alert when user loads (for new members only)
+  useEffect(() => {
+    const checkMemberPreferences = async () => {
+      console.log('🚨 MemberForm Alert Check:', {
+        member: !!member,
+        memberId: member?.id,
+        currentMember: !!currentMember,
+        currentMemberId: currentMember?.id,
+        memberData: currentMember
+      });
+      
+      if (!member && currentMember) {
+        try {
+          // Check if member has dismissed the help alert
+          const hideCreateMemberHelp = currentMember.hideCreateMemberHelp || false;
+          const shouldShow = !hideCreateMemberHelp;
+          
+          console.log('🚨 Debug showHelpAlert useEffect (member-based):', {
+            member: !!member,
+            currentMember: !!currentMember,
+            memberId: currentMember.id,
+            hideCreateMemberHelp,
+            shouldShow
+          });
+          
+          setShowHelpAlert(shouldShow);
+        } catch (error) {
+          console.error('Error checking member preferences:', error);
+          // Default to showing the alert if there's an error
+          setShowHelpAlert(true);
+        }
+      } else {
+        console.log('🚨 Alert NOT showing because:', {
+          reason: member ? 'Editing existing member' : 'No current member found',
+          member: !!member,
+          currentMember: !!currentMember
+        });
+        setShowHelpAlert(false);
+      }
+    };
+
+    checkMemberPreferences();
+  }, [member, currentMember]);
+
   // Mobile detection effect
   useEffect(() => {
     const checkMobile = () => {
@@ -310,6 +376,9 @@ const MemberForm = ({
 
   const [errors, setErrors] = useState({});
   
+  // ADDED: Help alert state management
+  const [showHelpAlert, setShowHelpAlert] = useState(false);
+  
   // Permission checking
   const { user } = useAuth();
   const { members } = useMembers();
@@ -322,6 +391,28 @@ const MemberForm = ({
       [section]: !prev[section]
     }));
   }, []);
+
+  // ADDED: Help alert handlers for member creation
+  const handleCloseHelpAlert = useCallback(() => {
+    setShowHelpAlert(false);
+  }, []);
+
+  const handleDontShowAgain = useCallback(async () => {
+    setShowHelpAlert(false);
+    
+    if (currentMember?.id) {
+      try {
+        // Update member document with preference
+        await updateMember(currentMember.id, {
+          hideCreateMemberHelp: true
+        });
+        console.log('Member preferences updated successfully');
+      } catch (error) {
+        console.error('Error updating member preferences:', error);
+        // You could show an error message to the user here if desired
+      }
+    }
+  }, [currentMember, updateMember]);
 
   // Handle input changes
   const handleChange = (field) => (e) => {
@@ -418,6 +509,83 @@ const MemberForm = ({
       <StyleSheet />
       
       <div className="p-6">
+        {/* Help Alert for New Members */}
+        {showHelpAlert && (
+          <div className="mb-4">
+            {/* Mobile: Compact alert */}
+            <div className="block sm:hidden">
+              <Alert 
+                type="info" 
+                title="Member Creation Tips"
+                message={
+                  <div className="text-sm">
+                    <p className="mb-2">
+                      Add contact details, skill level, and role assignments for new members.
+                    </p>
+                    <p className="text-xs text-blue-600">
+                      💡 Flow: Personal info → Skill level → Save member
+                    </p>
+                  </div>
+                }
+                actions={
+                  <div className="flex gap-2 mt-3">
+                    <button
+                      onClick={handleCloseHelpAlert}
+                      className="flex-1 px-3 py-2 text-xs border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
+                    >
+                      Close
+                    </button>
+                    <button
+                      onClick={handleDontShowAgain}
+                      className="flex-1 px-3 py-2 text-xs bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+                    >
+                      Don't show again
+                    </button>
+                  </div>
+                }
+              />
+            </div>
+
+            {/* Desktop: Full alert */}
+            <div className="hidden sm:block">
+              <Alert 
+                type="info" 
+                title="Creating a New Member"
+                message={
+                  <div className="space-y-3">
+                    <p>
+                      Adding a new member creates their profile with contact information, skill level, and role assignments. This profile will be used for tournament and league participation.
+                    </p>
+                    <p>
+                      <strong>Example:</strong> Sarah joins as an Intermediate player. Once added, she can be assigned to tournament divisions, league teams, and receive notifications.
+                    </p>
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mt-3">
+                      <p className="font-medium mb-1 text-blue-900">💡 Typical Workflow:</p>
+                      <p className="text-sm text-blue-800">Personal details → Skill level → Role assignment → Save member</p>
+                    </div>
+                  </div>
+                }
+                actions={
+                  <div className="flex flex-col sm:flex-row gap-2 mt-4">
+                    <button
+                      onClick={handleCloseHelpAlert}
+                      className="px-4 py-2 text-sm border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
+                    >
+                      Close
+                    </button>
+                    <button
+                      onClick={handleDontShowAgain}
+                      className="px-4 py-2 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+                    >
+                      Don't show this again
+                    </button>
+                  </div>
+                }
+              />
+            </div>
+          </div>
+        )}
+
         <form id="member-form" onSubmit={handleFormSubmit}>
           {/* Personal Information Section */}
           <div className="form-section">
@@ -535,22 +703,22 @@ const MemberForm = ({
             <div className={`form-expandable ${expandedSections.pickleball ? 'expanded' : 'collapsed'}`}>
               <div className="form-section-content">
                 <div className={`form-input-group form-grid ${isMobile ? '' : 'form-grid-sm'}`}>
-                  <div>
-                    <Select
-                      label="Skill Level"
-                      value={formData.skillLevel}
-                      onChange={handleChange('skillLevel')}
-                      options={skillLevelOptions}
-                      error={errors.skillLevel}
-                      required
-                      helperText="Your current playing level"
-                      disabled={loading}
-                    />
-                  </div>
+                    <div className="dropdown-container">
+                      <Select
+                        label="Skill Level"
+                        value={formData.skillLevel}
+                        onChange={handleChange('skillLevel')}
+                        options={skillLevelOptions}
+                        error={errors.skillLevel}
+                        required
+                        helperText="Your current playing level"
+                        disabled={loading}
+                      />
+                    </div>
 
                   {/* Role selection - Only visible to admins */}
                   {canEditRoles && (
-                    <div>
+                    <div className="dropdown-container">
                       <Select
                         label="Role"
                         value={formData.role}
