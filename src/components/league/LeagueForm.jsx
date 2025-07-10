@@ -1,5 +1,5 @@
 // src/components/league/LeagueForm.jsx (UPDATED - Added Results Integration)
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { 
   ExternalLink, 
   MapPin,
@@ -24,6 +24,10 @@ import { formatWebsiteUrl, isValidUrl, generateGoogleMapsLink, openLinkSafely } 
 // ADDED: Import results components
 import { LeagueResultsForm } from '../result';
 import { useResults } from '../../hooks';
+
+// ADDED: Import hooks for help alert pattern
+import { useAuth } from '../../hooks/useAuth';
+import { useMembers } from '../../hooks/useMembers';
 
 // UPDATED: League form styles with results section styling
 const mobileLeagueFormStyles = `
@@ -342,6 +346,19 @@ const LeagueForm = ({
     updateLeagueResults 
   } = useResults();
 
+  // ADDED: Auth hook for help alert pattern
+  const { user } = useAuth();
+  const { members: allMembers, updateMember } = useMembers();
+
+  // ADDED: Get current member using the established pattern
+  const currentMember = useMemo(() => 
+    allMembers.find(m => m.authUid === user?.uid), 
+    [allMembers, user?.uid]
+  );
+
+  // ADDED: Help alert state management
+  const [showHelpAlert, setShowHelpAlert] = useState(false);
+
   // Helper function to check if league has results
   const hasResults = useCallback(() => {
     if (!league?.id) return false;
@@ -446,6 +463,50 @@ const LeagueForm = ({
   // ADDED: Results modal state
   const [showResultsModal, setShowResultsModal] = useState(false);
   const [resultsSubmitLoading, setResultsSubmitLoading] = useState(false);
+
+  // ADDED: Show help alert when user loads (for new leagues only)
+  useEffect(() => {
+    const checkMemberPreferences = async () => {
+      console.log('🚨 LeagueForm Alert Check:', {
+        league: !!league,
+        leagueId: league?.id,
+        currentMember: !!currentMember,
+        currentMemberId: currentMember?.id,
+        memberData: currentMember
+      });
+      
+      if (!league && currentMember) {
+        try {
+          // Check if member has dismissed the help alert
+          const hideCreateLeagueHelp = currentMember.hideCreateLeagueHelp || false;
+          const shouldShow = !hideCreateLeagueHelp;
+          
+          console.log('🚨 Debug showHelpAlert useEffect (member-based):', {
+            league: !!league,
+            currentMember: !!currentMember,
+            memberId: currentMember.id,
+            hideCreateLeagueHelp,
+            shouldShow
+          });
+          
+          setShowHelpAlert(shouldShow);
+        } catch (error) {
+          console.error('Error checking member preferences:', error);
+          // Default to showing the alert if there's an error
+          setShowHelpAlert(true);
+        }
+      } else {
+        console.log('🚨 Alert NOT showing because:', {
+          reason: league ? 'Editing existing league' : 'No current member found',
+          league: !!league,
+          currentMember: !!currentMember
+        });
+        setShowHelpAlert(false);
+      }
+    };
+
+    checkMemberPreferences();
+  }, [league, currentMember]);
 
   // Mobile detection with proper cleanup
   useEffect(() => {
@@ -573,6 +634,28 @@ const LeagueForm = ({
       setIsSubmitting(false);
     }
   }, [formData, isSubmitting, validateForm, onSubmit]);
+
+  // ADDED: Help alert handlers for league creation
+  const handleCloseHelpAlert = useCallback(() => {
+    setShowHelpAlert(false);
+  }, []);
+
+  const handleDontShowAgain = useCallback(async () => {
+    setShowHelpAlert(false);
+    
+    if (currentMember?.id) {
+      try {
+        // Update member document with preference
+        await updateMember(currentMember.id, {
+          hideCreateLeagueHelp: true
+        });
+        console.log('Member preferences updated successfully');
+      } catch (error) {
+        console.error('Error updating member preferences:', error);
+        // You could show an error message to the user here if desired
+      }
+    }
+  }, [currentMember, updateMember]);
 
   // ADDED: Results handling functions
   const handleMarkCompleteAndEnterResults = useCallback(async () => {
@@ -768,6 +851,83 @@ const LeagueForm = ({
                 message={errors.resultsSubmit}
                 onClose={() => setErrors(prev => ({ ...prev, resultsSubmit: null }))}
               />
+            </div>
+          )}
+
+              {/* Help Alert for New Leagues */}
+          {showHelpAlert && (
+            <div className="mobile-league-alert">
+              {/* Mobile: Compact alert */}
+              <div className="block sm:hidden">
+                <Alert 
+                  type="info" 
+                  title="League Creation Tips"
+                  message={
+                    <div className="text-sm">
+                      <p className="mb-2">
+                        Leagues track final standings and placements of competing teams over a season.
+                      </p>
+                      <p className="text-xs text-blue-600">
+                        💡 Flow: Basic info → Schedule → Settings → Add teams → Record final standings
+                      </p>
+                    </div>
+                  }
+                  actions={
+                    <div className="flex gap-2 mt-3">
+                      <button
+                        onClick={handleCloseHelpAlert}
+                        className="flex-1 px-3 py-2 text-xs border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
+                      >
+                        Close
+                      </button>
+                      <button
+                        onClick={handleDontShowAgain}
+                        className="flex-1 px-3 py-2 text-xs bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+                      >
+                        Don't show again
+                      </button>
+                    </div>
+                  }
+                />
+              </div>
+
+              {/* Desktop: Full alert */}
+              <div className="hidden sm:block">
+                <Alert 
+                  type="info" 
+                  title="Creating a League"
+                  message={
+                    <div className="space-y-3">
+                      <p>
+                        Leagues are season-long competitions where teams compete for final standings and placements. At the end of the season, you'll record the final team rankings and positions.
+                      </p>
+                      <p>
+                        <strong>Example:</strong> A 10-week Mixed Doubles league with 8 teams competing. At season end, you'll record which team placed 1st, 2nd, 3rd, etc.
+                      </p>
+                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mt-3">
+                        <p className="font-medium mb-1 text-blue-900">💡 Typical Workflow:</p>
+                        <p className="text-sm text-blue-800">League details → Season dates → Registration fee → Add teams → Record final standings</p>
+                      </div>
+                    </div>
+                  }
+                  actions={
+                    <div className="flex flex-col sm:flex-row gap-2 mt-4">
+                      <button
+                        onClick={handleCloseHelpAlert}
+                        className="px-4 py-2 text-sm border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
+                      >
+                        Close
+                      </button>
+                      <button
+                        onClick={handleDontShowAgain}
+                        className="px-4 py-2 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+                      >
+                        Don't show this again
+                      </button>
+                    </div>
+                  }
+                />
+              </div>
             </div>
           )}
           
