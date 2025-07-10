@@ -46,23 +46,9 @@ const Select = ({
 
   // Detect if we should use native select (mobile devices) - DEBUGGING
   const shouldUseNative = useNativeSelect || false; // Temporarily force custom dropdown
-  console.log('Select Debug:', { isOpen, shouldUseNative, useNativeSelect, windowWidth: typeof window !== 'undefined' ? window.innerWidth : 'undefined' });
+  
 
-  // Debug dropdown positioning
-  useEffect(() => {
-    if (isOpen && selectRef.current) {
-      const rect = selectRef.current.getBoundingClientRect();
-      console.log('Dropdown positioning debug:', {
-        isOpen,
-        selectRect: rect,
-        calculatedTop: rect.bottom + 4,
-        calculatedLeft: rect.left,
-        windowWidth: window.innerWidth,
-        windowHeight: window.innerHeight,
-        shouldRender: isOpen && !shouldUseNative
-      });
-    }
-  }, [isOpen, shouldUseNative]);
+  
 
   // Find selected option
   const selectedOption = options.find(opt => opt.value === value);
@@ -126,7 +112,17 @@ const Select = ({
   // Handle option selection
   const handleOptionSelect = (optionValue) => {
     const syntheticEvent = {
-      target: { value: optionValue }
+      target: { 
+        value: optionValue,
+        name: props.name || selectId 
+      },
+      currentTarget: { 
+        value: optionValue,
+        name: props.name || selectId 
+      },
+      type: 'change',
+      preventDefault: () => {},
+      stopPropagation: () => {}
     };
     onChange(syntheticEvent);
     setIsOpen(false);
@@ -140,7 +136,6 @@ const Select = ({
 
   // Toggle dropdown
   const toggleDropdown = () => {
-    console.log('Toggle clicked:', { disabled, currentIsOpen: isOpen, shouldUseNative });
     if (disabled) return;
     setIsOpen(!isOpen);
     if (!isOpen) {

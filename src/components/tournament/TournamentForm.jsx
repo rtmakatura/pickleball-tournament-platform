@@ -427,7 +427,7 @@ const TournamentForm = ({
   deleteLoading = false,
   members = []
 }) => {
-  console.log('🔥 TournamentForm loaded with:', { tournament: !!tournament });
+  
   const isInitialMount = useRef(true);
   const tournamentIdRef = useRef(null);
 
@@ -697,12 +697,10 @@ const TournamentForm = ({
   useEffect(() => {
     // Don't sync if user is actively editing to prevent overwrites
     if (userIsEditing) {
-      console.log('Skipping form sync - user is editing');
       return;
     }
     
     if (tournament && tournament.id !== tournamentIdRef.current) {
-      console.log('Syncing form data with tournament:', tournament.id);
       const newFormData = {
         name: tournament.name || '',
         description: tournament.description || '',
@@ -722,7 +720,6 @@ const TournamentForm = ({
       setErrors({});
       setIsSubmitting(false);
     } else if (!tournament) {
-      console.log('Clearing form data - no tournament');
       setFormData({
         name: '',
         description: '',
@@ -749,16 +746,9 @@ const TournamentForm = ({
     }));
   }, []);
 
-  // Input change handler with editing protection and debugging
+  // Input change handler with editing protection
   const handleChange = useCallback((field) => (e) => {
-    console.log('🔥 handleChange called for field:', field, 'with event:', e);
-    console.log('🔥 Event target value:', e?.target?.value);
-    console.log('🔥 Event type:', typeof e);
-    
     const value = e.target.value;
-    
-    console.log('🔥 Extracted value:', value);
-    console.log('🔥 Current formData.status:', formData.status);
     
     // Set user editing flag to prevent real-time overwrites
     setUserIsEditing(true);
@@ -773,11 +763,7 @@ const TournamentForm = ({
       setUserIsEditing(false);
     }, 2000); // 2 seconds after last edit
     
-    setFormData(prev => {
-      const newData = { ...prev, [field]: value };
-      console.log('🔥 Setting new formData:', newData);
-      return newData;
-    });
+    setFormData(prev => ({ ...prev, [field]: value }));
     
     if (errors[field]) {
       setErrors(prev => ({
@@ -800,9 +786,7 @@ const TournamentForm = ({
         updateData[field] = value ? formatWebsiteUrl(value) : '';
       }
       
-      console.log('🔥 About to call onUpdateTournament with:', updateData);
       onUpdateTournament(tournament.id, updateData).catch(error => {
-        console.error('Error updating tournament field:', error);
         setErrors(prev => ({
           ...prev,
           [field]: `Failed to update ${field}: ${error.message}`
@@ -1282,9 +1266,7 @@ const TournamentForm = ({
                     ))}
                   </select>
                   <p className="text-sm text-gray-500 mt-1">Current tournament status</p>
-                  <div style={{ fontSize: '12px', color: '#666', marginTop: '4px' }}>
-                    Debug: Current status = "{formData.status}", Handler = {typeof handleChange('status')}
-                  </div>
+                  
                 </div>
               </div>
             </div>

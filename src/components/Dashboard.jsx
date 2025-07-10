@@ -346,8 +346,8 @@ const TournamentCard = React.memo(({ tournament, onView, onEdit, onEnterResults,
   };
 
   // Check if tournament is ready for results entry
-  const canEnterResults = tournament.status === TOURNAMENT_STATUS.IN_PROGRESS || 
-                         (tournament.status === TOURNAMENT_STATUS.COMPLETED && !hasResults);
+  const canEnterResults = (tournament.status === TOURNAMENT_STATUS.IN_PROGRESS || 
+                          tournament.status === TOURNAMENT_STATUS.COMPLETED) && !hasResults;
 
   return (
     <div className="mobile-card bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden">
@@ -460,8 +460,7 @@ const TournamentCard = React.memo(({ tournament, onView, onEdit, onEnterResults,
                   e.stopPropagation();
                   onViewResults(tournament);
                 }}
-                variant="outline"
-                className="mobile-action-button flex-1 border-green-300 text-green-700 hover:bg-green-50 text-xs sm:text-sm"
+                className="mobile-action-button flex-1 bg-green-600 hover:bg-green-700 text-white text-xs sm:text-sm"
                 size="sm"
               >
                 <Award className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
@@ -564,8 +563,8 @@ const TournamentRow = React.memo(({ tournament, onView, onEdit, onEnterResults, 
   }, [tournament, onViewResults]);
 
   // ADDED: Check if tournament is ready for results entry
-  const canEnterResults = tournament.status === TOURNAMENT_STATUS.IN_PROGRESS || 
-                         (tournament.status === TOURNAMENT_STATUS.COMPLETED && !hasResults);
+  const canEnterResults = (tournament.status === TOURNAMENT_STATUS.IN_PROGRESS || 
+                          tournament.status === TOURNAMENT_STATUS.COMPLETED) && !hasResults;
 
   return (
     <tr key={tournament.id} className="tournament-row">
@@ -736,7 +735,7 @@ const TournamentRow = React.memo(({ tournament, onView, onEdit, onEnterResults, 
           )}
           {hasResults && (
             <button 
-              className="inline-flex items-center justify-center px-3 py-1.5 text-sm border border-green-300 text-green-700 rounded-md hover:bg-green-50 transition-colors w-20"
+              className="inline-flex items-center justify-center px-3 py-1.5 text-sm bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors w-20"
               onClick={handleViewResultsClick}
               type="button"
             >
@@ -777,7 +776,7 @@ const LeagueCard = React.memo(({ league, onView, onEdit, onEnterResults, onViewR
     }
   };
 
-  // ADDED: Check if league can have results entered
+  // ADDED: Check if league can have results entered  
   const canEnterResults = league.status === LEAGUE_STATUS.COMPLETED && !hasResults;
 
   return (
@@ -893,8 +892,7 @@ const LeagueCard = React.memo(({ league, onView, onEdit, onEnterResults, onViewR
                   e.stopPropagation();
                   onViewResults(league);
                 }}
-                variant="outline"
-                className="mobile-action-button flex-1 border-green-300 text-green-700 hover:bg-green-50"
+                className="mobile-action-button flex-1 bg-green-600 hover:bg-green-700 text-white"
                 size="md"
               >
                 <Award className="h-4 w-4 mr-2" />
@@ -940,7 +938,7 @@ const LeagueRow = React.memo(({ league, onView, onEdit, onEnterResults, onViewRe
     onViewResults(league);
   }, [league, onViewResults]);
 
-  // ADDED: Check if league can have results entered
+  // ADDED: Check if league can have results entered  
   const canEnterResults = league.status === LEAGUE_STATUS.COMPLETED && !hasResults;
 
   return (
@@ -1094,7 +1092,7 @@ const LeagueRow = React.memo(({ league, onView, onEdit, onEnterResults, onViewRe
           )}
           {hasResults && (
             <button 
-              className="inline-flex items-center justify-center px-3 py-1.5 text-sm border border-green-300 text-green-700 rounded-md hover:bg-green-50 transition-colors"
+              className="inline-flex items-center justify-center px-3 py-1.5 text-sm bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors"
               onClick={handleViewResultsClick}
               type="button"
             >
@@ -1182,23 +1180,12 @@ const MemberCard = React.memo(({ member, onEdit }) => {
 
 // FIXED: Results Dashboard Component with proper data handling
 const ResultsDashboard = ({ results, tournaments, leagues, members, onViewTournamentResults, onViewLeagueResults }) => {
-  // FIXED: Simplified and standardized results processing
+  // Simplified and standardized results processing
   const allResults = useMemo(() => {
-    console.log('🔍 Processing results for dashboard');
-    console.log('📊 Available results:', {
-      tournament: results.tournament?.length || 0,
-      league: results.league?.length || 0
-    });
-
     // Process tournament results with proper error handling
     const tournamentResults = (results.tournament || []).map(result => {
-      console.log('🏆 Processing tournament result:', result.id);
-      
       // Find associated tournament
       const tournament = tournaments.find(t => t.id === result.tournamentId);
-      if (!tournament) {
-        console.warn('⚠️ Tournament not found for result:', result.tournamentId);
-      }
       
       return {
         ...result,
@@ -1215,13 +1202,8 @@ const ResultsDashboard = ({ results, tournaments, leagues, members, onViewTourna
 
     // Process league results with proper error handling
     const leagueResults = (results.league || []).map(result => {
-      console.log('🏐 Processing league result:', result.id);
-      
       // Find associated league
       const league = leagues.find(l => l.id === result.leagueId);
-      if (!league) {
-        console.warn('⚠️ League not found for result:', result.leagueId);
-      }
       
       return {
         ...result,
@@ -1247,30 +1229,18 @@ const ResultsDashboard = ({ results, tournaments, leagues, members, onViewTourna
       return getDate(b) - getDate(a); // Most recent first
     });
 
-    console.log('✅ Final processed results:', sorted.length);
     return sorted;
   }, [results, tournaments, leagues]);
 
-  // FIXED: Simplified empty state handling
+  // Simplified empty state handling
   if (allResults.length === 0) {
-    console.log('📭 No results to display');
     return (
       <div className="text-center py-12 text-gray-500">
         <BarChart3 className="h-12 w-12 mx-auto mb-4 text-gray-300" />
         <p className="text-lg font-medium">No results yet</p>
         <p className="text-sm mt-1">Tournament and league results will appear here when entered</p>
         
-        {/* Debug info for development */}
-        {process.env.NODE_ENV === 'development' && (
-          <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg text-left max-w-md mx-auto">
-            <h4 className="text-sm font-medium text-yellow-800 mb-2">Debug Info:</h4>
-            <p className="text-xs text-yellow-700">Raw tournament results: {results.tournament?.length || 0}</p>
-            <p className="text-xs text-yellow-700">Raw league results: {results.league?.length || 0}</p>
-            <p className="text-xs text-yellow-700">Available tournaments: {tournaments?.length || 0}</p>
-            <p className="text-xs text-yellow-700">Available leagues: {leagues?.length || 0}</p>
-            <p className="text-xs text-yellow-700">Check browser console for detailed logs</p>
-          </div>
-        )}
+        
       </div>
     );
   }
@@ -1310,25 +1280,19 @@ const ResultsDashboard = ({ results, tournaments, leagues, members, onViewTourna
 
   const handleResultClick = (result) => {
     try {
-      console.log('🖱️ Clicked on result:', result.type, result.id);
-      
       if (result.type === 'tournament') {
         const tournament = tournaments.find(t => t.id === result.tournamentId);
         if (tournament) {
           onViewTournamentResults(tournament);
-        } else {
-          console.error('Tournament not found for result:', result.tournamentId);
         }
       } else if (result.type === 'league') {
         const league = leagues.find(l => l.id === result.leagueId);
         if (league) {
           onViewLeagueResults(league);
-        } else {
-          console.error('League not found for result:', result.leagueId);
         }
       }
     } catch (error) {
-      console.error('Error handling result click:', error);
+      // Silently handle errors
     }
   };
 
@@ -1430,22 +1394,7 @@ const Dashboard = () => {
   updateLeagueResults 
 } = useResults();
 
-// DEBUG: Enhanced logging for results troubleshooting
-console.log('=== RESULTS DEBUG ===');
-console.log('results object:', results);
-console.log('results.tournament:', results.tournament);
-console.log('results.league:', results.league);
-console.log('resultsLoading:', resultsLoading);
-console.log('tournaments count:', tournaments.length);
-console.log('leagues count:', leagues.length);
-console.log('results.tournament length:', results.tournament?.length || 0);
-console.log('results.league length:', results.league?.length || 0);
 
-// Check if we have any completed events that should have results
-const completedTournaments = tournaments.filter(t => t.status === 'completed');
-const completedLeagues = leagues.filter(l => l.status === 'completed');
-console.log('completed tournaments:', completedTournaments.length);
-console.log('completed leagues:', completedLeagues.length);
   
   const { 
     playerPerformance, 
@@ -1619,20 +1568,13 @@ console.log('completed leagues:', completedLeagues.length);
   }, []);
 
   const handleViewTournamentResults = useCallback((tournament) => {
-  console.log('=== VIEWING TOURNAMENT RESULTS ===');
-  console.log('Tournament:', tournament);
-  
   if (!tournament) {
-    console.error('No tournament provided to view results');
     return;
   }
   
   const tournamentResults = results.tournament?.find(result => {
-    console.log('Checking result tournamentId:', result.tournamentId, 'against tournament.id:', tournament.id);
     return result.tournamentId === tournament.id;
   });
-    
-    console.log('Found tournament results:', tournamentResults);
     
     // FIXED: Ensure only one modal opens
     setModalData({ 
@@ -1644,10 +1586,7 @@ console.log('completed leagues:', completedLeagues.length);
   }, [results.tournament]);
 
   const handleViewLeagueResults = useCallback((league) => {
-  console.log('Viewing results for league:', league);
-  
   if (!league) {
-    console.error('No league provided to view results');
     return;
   }
   
@@ -2109,8 +2048,7 @@ console.log('completed leagues:', completedLeagues.length);
     setFormLoading(true);
     try {
       const tournamentId = await addTournament(tournamentData);
-      setShowTournamentModal(false);
-      setEditingTournament(null);
+      closeModal(); // Use unified modal close function
       showAlert('success', 'Tournament created!', `${tournamentData.name} has been created successfully`);
     } catch (err) {
       showAlert('error', 'Failed to create tournament', err.message);
@@ -2124,8 +2062,7 @@ console.log('completed leagues:', completedLeagues.length);
     setFormLoading(true);
     try {
       await updateTournament(editingTournament.id, tournamentData);
-      setShowTournamentModal(false);
-      setEditingTournament(null);
+      closeModal(); // Use unified modal close function
       showAlert('success', 'Tournament updated!', `${tournamentData.name} has been updated successfully`);
     } catch (err) {
       showAlert('error', 'Failed to update tournament', err.message);
