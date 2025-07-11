@@ -465,7 +465,7 @@ const TournamentCard = React.memo(({ tournament, onView, onEdit, onEnterResults,
                   e.stopPropagation();
                   openLinkSafely(generateGoogleMapsLink(tournament.location));
                 }}
-                className="touch-target p-1.5 sm:p-2 rounded-md hover:bg-gray-200 transition-colors"
+                className="touch-target p-1.5 sm:p-2 rounded-md hover:bg-gray-200 transition-colors flex items-center justify-center"
                 title="View on Maps"
               >
                 <MapPin className="h-3 w-3 sm:h-4 sm:w-4 text-gray-500" />
@@ -475,7 +475,7 @@ const TournamentCard = React.memo(({ tournament, onView, onEdit, onEnterResults,
                   e.stopPropagation();
                   openLinkSafely(generateDirectionsLink(tournament.location));
                 }}
-                className="touch-target p-1.5 sm:p-2 rounded-md hover:bg-gray-200 transition-colors"
+                className="touch-target p-1.5 sm:p-2 rounded-md hover:bg-gray-200 transition-colors flex items-center justify-center"
                 title="Directions"
               >
                 <Navigation className="h-3 w-3 sm:h-4 sm:w-4 text-gray-500" />
@@ -486,7 +486,7 @@ const TournamentCard = React.memo(({ tournament, onView, onEdit, onEnterResults,
                     e.stopPropagation();
                     openLinkSafely(tournament.website);
                   }}
-                  className="touch-target p-1.5 sm:p-2 rounded-md hover:bg-gray-200 transition-colors"
+                  className="touch-target p-1.5 sm:p-2 rounded-md hover:bg-gray-200 transition-colors flex items-center justify-center"
                   title="Website"
                 >
                   <ExternalLink className="h-3 w-3 sm:h-4 sm:w-4 text-gray-500" />
