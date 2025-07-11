@@ -1352,7 +1352,8 @@ const Dashboard = () => {
   addTournamentResults, 
   addLeagueResults, 
   updateTournamentResults,
-  updateLeagueResults 
+  updateLeagueResults,
+  deleteResult
 } = useResults();
 
 
@@ -1404,6 +1405,7 @@ const Dashboard = () => {
     DELETE_CONFIRM: 'delete_confirm',
     LEAGUE_DELETE_CONFIRM: 'league_delete_confirm',
     MEMBER_DELETE_CONFIRM: 'member_delete_confirm',
+    RESULT_DELETE_CONFIRM: 'result_delete_confirm',
     ARCHIVE_TOURNAMENT_CONFIRM: 'archive_tournament_confirm',
     UNARCHIVE_TOURNAMENT_CONFIRM: 'unarchive_tournament_confirm',
     ARCHIVE_LEAGUE_CONFIRM: 'archive_league_confirm',
@@ -1561,6 +1563,8 @@ const Dashboard = () => {
     setActiveModal(MODAL_TYPES.RESULTS_VIEW);
   }, [results.league]);
 
+  
+
   // Sorting functions
   const getSortedTournaments = useCallback(() => {
     return [...activeTournaments].sort((a, b) => {
@@ -1605,6 +1609,36 @@ const Dashboard = () => {
     setAlert({ type, title, message });
     setTimeout(() => setAlert(null), 5000);
   }, []);
+
+  // ADDED: Result deletion handlers (placed after showAlert is defined)
+  const handleDeleteResult = useCallback(async (result) => {
+    setDeleteLoading(true);
+    try {
+      await deleteResult(result.id);
+      closeModal();
+      showAlert('success', 'Result deleted!', 'The result has been successfully deleted');
+    } catch (err) {
+      showAlert('error', 'Failed to delete result', err.message);
+    } finally {
+      setDeleteLoading(false);
+    }
+  }, [deleteResult, closeModal, showAlert]);
+
+  const handleDeleteTournamentResult = useCallback((tournament) => {
+    const tournamentResult = results.tournament?.find(result => result.tournamentId === tournament.id);
+    if (tournamentResult) {
+      setModalData({ result: tournamentResult, tournament });
+      setActiveModal(MODAL_TYPES.RESULT_DELETE_CONFIRM);
+    }
+  }, [results.tournament]);
+
+  const handleDeleteLeagueResult = useCallback((league) => {
+    const leagueResult = results.league?.find(result => result.leagueId === league.id);
+    if (leagueResult) {
+      setModalData({ result: leagueResult, league });
+      setActiveModal(MODAL_TYPES.RESULT_DELETE_CONFIRM);
+    }
+  }, [results.league]);
 
   // UPDATED: RESPONSIVE COMPONENTS - Show cards on mobile, tables on desktop with results support
   const ResponsiveTournamentList = ({ data, visibleCount, onLoadMore, hasMore }) => {
@@ -2860,7 +2894,11 @@ const Dashboard = () => {
             result={modalData.results}
             onClose={closeModal}
             showPlayerPerformance={true}
-            allowEdit={false}
+            allowEdit={true}
+            onDelete={modalData.type === 'tournament' ? 
+              () => handleDeleteTournamentResult(modalData.event) : 
+              () => handleDeleteLeagueResult(modalData.event)
+            }
           />
         )}
 
@@ -2938,6 +2976,23 @@ const Dashboard = () => {
             message={`Are you sure you want to delete "${modalData.member.firstName} ${modalData.member.lastName}"? This action cannot be undone and will remove all their data including tournament registrations and payment information.`}
             confirmText="Delete Member"
             cancelText="Keep Member"
+            type="danger"
+            loading={deleteLoading}
+          />
+        )}
+
+        {/* Result Delete Confirmation */}
+        {activeModal === MODAL_TYPES.RESULT_DELETE_CONFIRM && modalData?.result && (
+          <ConfirmDialog
+            isOpen={true}
+            onClose={() => setActiveModal(MODAL_TYPES.RESULTS_VIEW)}
+            onConfirm={() => {
+              handleDeleteResult(modalData.result);
+            }}
+            title="Delete Result"
+            message={`Are you sure you want to delete the results for "${modalData.tournament?.name || modalData.league?.name}"? This action cannot be undone and will permanently remove all standings and performance data.`}
+            confirmText="Delete Result"
+            cancelText="Keep Result"
             type="danger"
             loading={deleteLoading}
           />
