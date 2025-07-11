@@ -1293,10 +1293,6 @@ const ResultsDashboard = ({ results, tournaments, leagues, members, onViewTourna
                       {result.type} • {formatDate(result.eventDate)}
                     </p>
                   </div>
-                  <span className="results-indicator flex-shrink-0">
-                    <Award className="h-3 w-3 mr-1" />
-                    Complete
-                  </span>
                 </div>
               </div>
             </div>
