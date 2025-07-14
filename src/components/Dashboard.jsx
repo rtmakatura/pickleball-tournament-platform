@@ -53,7 +53,7 @@ import {
 } from './ui';
 import TournamentForm from './tournament/TournamentForm';
 import DivisionMemberSelector from './tournament/DivisionMemberSelector';
-import PaymentStatus from './tournament/PaymentStatus';
+import PaymentTracker from './payment/PaymentTracker';
 import { MemberForm } from './member';
 import { LeagueForm, LeagueMemberSelector } from './league';
 import { SignUpForm } from './auth';
@@ -3245,147 +3245,16 @@ const Dashboard = () => {
 
         {/* Payment Modal */}
         {activeModal === MODAL_TYPES.PAYMENT_TRACKER && (
-          <Modal
+          <PaymentTracker
             isOpen={true}
             onClose={closeModal}
-            title="Payment Tracking Overview"
-            size="xl"
-          >
-            <div className="space-y-8">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="bg-blue-50 p-4 rounded-lg border-2 border-blue-200">
-                  <h4 className="font-medium text-blue-900">Total Expected</h4>
-                  <p className="text-2xl font-bold text-blue-600">${paymentSummary.totalExpected}</p>
-                  <p className="text-xs text-blue-700 mt-1">
-                    {paymentSummary.paidTournaments} tournaments • {paymentSummary.paidDivisions} divisions • {paymentSummary.paidLeagues} leagues
-                  </p>
-                </div>
-                <div className="bg-green-50 p-4 rounded-lg border-2 border-green-200">
-                  <h4 className="font-medium text-green-900">Total Collected</h4>
-                  <p className="text-2xl font-bold text-green-600">${paymentSummary.totalCollected}</p>
-                  <p className="text-xs text-green-700 mt-1">
-                    {paymentSummary.participantsPaid} of {paymentSummary.participantsWithPayments} paid
-                  </p>
-                </div>
-                <div className="bg-red-50 p-4 rounded-lg border-2 border-red-200">
-                  <h4 className="font-medium text-red-900">Outstanding</h4>
-                  <p className="text-2xl font-bold text-red-600">${paymentSummary.totalOwed}</p>
-                  <p className="text-xs text-red-700 mt-1">
-                    {paymentSummary.paymentRate}% payment rate
-                  </p>
-                </div>
-              </div>
-
-              {/* Tournament Payment Section */}
-              <div className="bg-white border-2 border-gray-200 rounded-lg p-6">
-                <div className="border-b border-gray-200 pb-4 mb-6">
-                  <h3 className="text-xl font-semibold text-gray-900 flex items-center">
-                    <Trophy className="h-6 w-6 text-green-600 mr-2" />
-                    Tournament Division Payments
-                  </h3>
-                  <p className="text-sm text-gray-600 mt-1">Track entry fee payments by division</p>
-                </div>
-                
-                <div className="space-y-6">
-                  {tournaments.filter(t => 
-                    t.divisions && t.divisions.some(div => div.entryFee > 0)
-                  ).map(tournament => {
-                    const paidDivisions = tournament.divisions.filter(div => div.entryFee > 0);
-                    
-                    return (
-                      <div key={tournament.id} className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-                        <div className="mb-4">
-                          <h4 className="font-medium text-gray-900">{tournament.name}</h4>
-                          <p className="text-sm text-gray-600">
-                            {paidDivisions.length} paid division{paidDivisions.length !== 1 ? 's' : ''}
-                          </p>
-                        </div>
-                        
-                        <div className="space-y-4">
-                          {paidDivisions.map(division => (
-                            <div key={division.id} className="bg-white border border-gray-200 rounded-lg p-4">
-                              <div className="flex justify-between items-center mb-4">
-                                <h5 className="font-medium text-gray-800 text-lg">{division.name}</h5>
-                                <span className="text-sm text-gray-500 bg-gray-100 px-3 py-1.5 rounded-full font-medium">
-                                  ${division.entryFee} per person
-                                </span>
-                              </div>
-                              <PaymentStatus
-                                event={{ ...tournament, ...division, participants: division.participants, paymentData: division.paymentData }}
-                                eventType="tournament"
-                                members={members}
-                                onPaymentUpdate={(eventId, updates) => {
-                                  const updatedDivisions = tournament.divisions.map(div => 
-                                    div.id === division.id ? { ...div, ...updates } : div
-                                  );
-                                  updateTournament(tournament.id, { divisions: updatedDivisions });
-                                }}
-                                currentUserId={user?.uid}
-                              />
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    );
-                  })}
-                  
-                  {tournaments.filter(t => 
-                    t.divisions && t.divisions.some(div => div.entryFee > 0)
-                  ).length === 0 && (
-                    <p className="text-gray-500 text-center py-8 bg-gray-50 rounded-lg">
-                      No tournament divisions with entry fees found.
-                    </p>
-                  )}
-                </div>
-              </div>
-
-              {/* League Payment Section */}
-              <div className="bg-white border-2 border-gray-200 rounded-lg p-6">
-                <div className="border-b border-gray-200 pb-4 mb-6">
-                  <h3 className="text-xl font-semibold text-gray-900 flex items-center">
-                    <Activity className="h-6 w-6 text-blue-600 mr-2" />
-                    League Payments
-                  </h3>
-                  <p className="text-sm text-gray-600 mt-1">Track registration fee payments for leagues</p>
-                </div>
-                
-                <div className="space-y-6">
-                  {leagues.filter(l => l.registrationFee > 0).map(league => (
-                    <div key={league.id} className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-                      <div className="flex justify-between items-center mb-4">
-                        <h4 className="font-medium text-gray-900 text-lg">{league.name}</h4>
-                        <span className="text-sm text-gray-500 bg-white px-3 py-1.5 rounded-full font-medium">
-                          ${league.registrationFee} per person
-                        </span>
-                      </div>
-                      <PaymentStatus
-                        event={league}
-                        eventType="league"
-                        members={members}
-                        onPaymentUpdate={updateLeague}
-                        currentUserId={user?.uid}
-                      />
-                    </div>
-                  ))}
-                  
-                  {leagues.filter(l => l.registrationFee > 0).length === 0 && (
-                    <p className="text-gray-500 text-center py-8 bg-gray-50 rounded-lg">
-                      No leagues with registration fees found.
-                    </p>
-                  )}
-                </div>
-              </div>
-
-              {paymentSummary.paidEvents === 0 && (
-                <div className="text-center py-12 bg-gray-50 rounded-lg border-2 border-gray-200">
-                  <DollarSign className="h-16 w-16 mx-auto text-gray-300 mb-4" />
-                  <h3 className="text-lg font-medium text-gray-700 mb-2">No Payment Tracking Needed</h3>
-                  <p className="text-gray-500 mb-4">No tournaments, divisions, or leagues with fees found.</p>
-                  <p className="text-sm text-gray-400">Create a tournament division or league with fees to start tracking payments.</p>
-                </div>
-              )}
-            </div>
-          </Modal>
+            tournaments={tournaments}
+            leagues={leagues}
+            members={members}
+            onUpdateTournament={updateTournament}
+            onUpdateLeague={updateLeague}
+            currentUserId={user?.uid}
+          />
         )}
       </div>
     </div>

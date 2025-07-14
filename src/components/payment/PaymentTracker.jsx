@@ -63,43 +63,231 @@ const paymentTrackerStyles = `
     max-height: 2000px;
     opacity: 1;
   }
+  
+  /* Mobile optimizations - Aggressive text reduction */
+  @media (max-width: 768px) {
+    .payment-tracker-header {
+      padding: 12px;
+    }
+    
+    .payment-tracker-content {
+      padding: 12px;
+    }
+    
+    .payment-mobile-card {
+      margin-bottom: 12px;
+    }
+    
+    .payment-mobile-summary {
+      padding: 8px !important;
+    }
+    
+    .payment-mobile-summary h4 {
+      font-size: 0.75rem !important;
+      margin-bottom: 2px !important;
+    }
+    
+    .payment-mobile-summary .text-2xl,
+    .payment-mobile-summary .text-xl {
+      font-size: 1.125rem !important;
+      line-height: 1.2 !important;
+    }
+    
+    .payment-mobile-summary .text-xs {
+      font-size: 0.625rem !important;
+      margin-top: 2px !important;
+    }
+    
+    .payment-mobile-button {
+      min-height: 44px !important;
+      min-width: 44px !important;
+      font-size: 12px !important;
+    }
+    
+    .payment-participant-card {
+      padding: 8px !important;
+    }
+    
+    .payment-participant-card .text-sm {
+      font-size: 0.75rem !important;
+    }
+    
+    .payment-participant-card h4 {
+      font-size: 0.8rem !important;
+    }
+    
+    .payment-participant-card .text-xs {
+      font-size: 0.625rem !important;
+    }
+    
+    .payment-section-title {
+      font-size: 0.9rem !important;
+      line-height: 1.2 !important;
+    }
+    
+    .payment-section-subtitle {
+      font-size: 0.65rem !important;
+      margin-top: 1px !important;
+    }
+  }
+  
+  @media (max-width: 480px) {
+    .payment-tracker-header {
+      padding: 8px;
+    }
+    
+    .payment-tracker-content {
+      padding: 8px;
+    }
+    
+    .payment-mobile-summary {
+      padding: 6px !important;
+    }
+    
+    .payment-mobile-summary h4 {
+      font-size: 0.6875rem !important;
+      margin-bottom: 1px !important;
+    }
+    
+    .payment-mobile-summary .text-2xl,
+    .payment-mobile-summary .text-xl {
+      font-size: 1rem !important;
+      line-height: 1.1 !important;
+    }
+    
+    .payment-mobile-summary .text-xs {
+      font-size: 0.5625rem !important;
+      margin-top: 1px !important;
+    }
+    
+    .payment-section-title {
+      font-size: 0.8rem !important;
+      line-height: 1.1 !important;
+    }
+    
+    .payment-section-subtitle {
+      font-size: 0.6rem !important;
+      margin-top: 0px !important;
+    }
+    
+    .payment-participant-card {
+      padding: 6px !important;
+    }
+    
+    .payment-participant-card h4 {
+      font-size: 0.75rem !important;
+    }
+    
+    .payment-participant-card .text-xs {
+      font-size: 0.5625rem !important;
+    }
+    
+    /* Mobile participant card fixes */
+    .mobile-participant-card {
+      margin: 0 !important;
+      padding: 8px !important;
+      border-radius: 8px !important;
+    }
+    
+    .mobile-participant-info {
+      min-width: 0 !important;
+      flex: 1 !important;
+    }
+    
+    .mobile-participant-name {
+      font-size: 0.75rem !important;
+      line-height: 1.1 !important;
+      font-weight: 500 !important;
+    }
+    
+    .mobile-participant-status {
+      font-size: 0.625rem !important;
+      line-height: 1.1 !important;
+      margin-top: 2px !important;
+    }
+    
+    .mobile-participant-actions {
+      flex-shrink: 0 !important;
+      margin-left: 8px !important;
+    }
+    
+    .mobile-payment-input {
+      width: 50px !important;
+      height: 32px !important;
+      font-size: 0.75rem !important;
+      padding: 2px 4px !important;
+    }
+    
+    .mobile-payment-button {
+      width: 32px !important;
+      height: 32px !important;
+      padding: 0 !important;
+      min-width: 32px !important;
+    }
+    
+    .mobile-status-badge {
+      padding: 2px 6px !important;
+      font-size: 0.625rem !important;
+      border-radius: 4px !important;
+    }
+  }
 `;
-
-const StyleSheet = () => (
-  <style dangerouslySetInnerHTML={{ __html: paymentTrackerStyles }} />
-);
 
 const PaymentTracker = ({
   isOpen,
   onClose,
-  tournaments,
-  leagues,
-  members,
+  tournaments = [],
+  leagues = [],
+  members = [],
   onUpdateTournament,
   onUpdateLeague,
   currentUserId
 }) => {
+  // Add styles to document head
+  React.useEffect(() => {
+    const styleId = 'payment-tracker-styles';
+    if (!document.getElementById(styleId)) {
+      const style = document.createElement('style');
+      style.id = styleId;
+      style.textContent = paymentTrackerStyles;
+      document.head.appendChild(style);
+    }
+    
+    return () => {
+      const existingStyle = document.getElementById(styleId);
+      if (existingStyle) {
+        document.head.removeChild(existingStyle);
+      }
+    };
+  }, []);
   const [expandedSections, setExpandedSections] = useState({
     tournaments: true,
     leagues: true
   });
 
-  // Calculate overall payment summary
-  const paymentSummary = useMemo(() => {
-    return calculateOverallPaymentSummary(tournaments, leagues);
-  }, [tournaments, leagues]);
-
-  // Get tournaments with paid divisions
+  // Get tournaments with paid divisions (excluding archived/deleted)
   const tournamentsWithPaidDivisions = useMemo(() => {
     return tournaments.filter(t => 
-      t.divisions && t.divisions.some(div => div.entryFee > 0)
+      t.status !== 'archived' && 
+      t.status !== 'deleted' &&
+      t.divisions && 
+      t.divisions.some(div => div.entryFee > 0)
     );
   }, [tournaments]);
 
-  // Get leagues with registration fees
+  // Get leagues with registration fees (excluding archived/deleted)
   const paidLeagues = useMemo(() => {
-    return leagues.filter(l => l.registrationFee > 0);
+    return leagues.filter(l => 
+      l.status !== 'archived' && 
+      l.status !== 'deleted' &&
+      l.registrationFee > 0
+    );
   }, [leagues]);
+
+  // Calculate overall payment summary with real-time updates
+  const paymentSummary = useMemo(() => {
+    return calculateOverallPaymentSummary(tournamentsWithPaidDivisions, paidLeagues);
+  }, [tournamentsWithPaidDivisions, paidLeagues]);
 
   const toggleSection = (section) => {
     setExpandedSections(prev => ({
@@ -112,43 +300,39 @@ const PaymentTracker = ({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="Payment Tracking Overview"
+      title="Payment Tracker"
       size="xl"
     >
-      <StyleSheet />
       
-      <div className="p-6">
+      <div className="p-3 sm:p-6">
         <div className="max-w-4xl mx-auto">
           
-          {/* DEBUG: Test if component is rendering */}
-          <div className="bg-red-100 border border-red-300 p-4 rounded mb-4">
-            <h2 className="text-red-800 font-bold">PaymentTracker Component is Working!</h2>
-            <p className="text-red-700">Tournaments: {tournaments?.length || 0}</p>
-            <p className="text-red-700">Leagues: {leagues?.length || 0}</p>
-            <p className="text-red-700">Members: {members?.length || 0}</p>
-          </div>
+          {/* Debug section removed to save mobile space */}
           
           {/* Payment Summary Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-            <div className="bg-blue-50 p-4 rounded-lg border-2 border-blue-200">
-              <h4 className="font-medium text-blue-900">Total Expected</h4>
-              <p className="text-2xl font-bold text-blue-600">${paymentSummary.totalExpected}</p>
-              <p className="text-xs text-blue-700 mt-1">
-                {paymentSummary.paidTournaments} tournaments • {paymentSummary.paidDivisions} divisions • {paymentSummary.paidLeagues} leagues
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-4 mb-4 sm:mb-8">
+            <div className="bg-blue-50 payment-mobile-summary p-2 sm:p-4 rounded-lg border-2 border-blue-200">
+              <h4 className="font-medium text-blue-900">Expected</h4>
+              <p className="text-xl sm:text-2xl font-bold text-blue-600">${paymentSummary.totalExpected}</p>
+              <p className="text-xs text-blue-700">
+                <span className="hidden sm:inline">{paymentSummary.paidTournaments} tournaments • {paymentSummary.paidDivisions} divisions • {paymentSummary.paidLeagues} leagues</span>
+                <span className="sm:hidden">{paymentSummary.paidTournaments}T•{paymentSummary.paidDivisions}D•{paymentSummary.paidLeagues}L</span>
               </p>
             </div>
-            <div className="bg-green-50 p-4 rounded-lg border-2 border-green-200">
-              <h4 className="font-medium text-green-900">Total Collected</h4>
-              <p className="text-2xl font-bold text-green-600">${paymentSummary.totalCollected}</p>
-              <p className="text-xs text-green-700 mt-1">
-                {paymentSummary.participantsPaid} of {paymentSummary.participantsWithPayments} paid
+            <div className="bg-green-50 payment-mobile-summary p-2 sm:p-4 rounded-lg border-2 border-green-200">
+              <h4 className="font-medium text-green-900">Collected</h4>
+              <p className="text-xl sm:text-2xl font-bold text-green-600">${paymentSummary.totalCollected}</p>
+              <p className="text-xs text-green-700">
+                <span className="hidden sm:inline">{paymentSummary.participantsPaid} of {paymentSummary.participantsWithPayments} paid</span>
+                <span className="sm:hidden">{paymentSummary.participantsPaid}/{paymentSummary.participantsWithPayments}</span>
               </p>
             </div>
-            <div className="bg-red-50 p-4 rounded-lg border-2 border-red-200">
+            <div className="bg-red-50 payment-mobile-summary p-2 sm:p-4 rounded-lg border-2 border-red-200 sm:col-span-2 lg:col-span-1">
               <h4 className="font-medium text-red-900">Outstanding</h4>
-              <p className="text-2xl font-bold text-red-600">${paymentSummary.totalOwed}</p>
-              <p className="text-xs text-red-700 mt-1">
-                {paymentSummary.paymentRate}% payment rate
+              <p className="text-xl sm:text-2xl font-bold text-red-600">${paymentSummary.totalOwed}</p>
+              <p className="text-xs text-red-700">
+                <span className="hidden sm:inline">{paymentSummary.paymentRate}% payment rate</span>
+                <span className="sm:hidden">{paymentSummary.paymentRate}%</span>
               </p>
             </div>
           </div>
@@ -162,13 +346,19 @@ const PaymentTracker = ({
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center">
-                    <Trophy className="h-6 w-6 text-green-600 mr-3" />
+                    <Trophy className="h-4 w-4 sm:h-6 sm:w-6 text-green-600 mr-2 sm:mr-3" />
                     <div>
-                      <h3 className="text-xl font-semibold text-gray-900">Tournament Division Payments</h3>
-                      <p className="text-sm text-gray-600 mt-1">Track entry fee payments by division</p>
+                      <h3 className="payment-section-title text-base sm:text-xl font-semibold text-gray-900">
+                        <span className="hidden sm:inline">Tournament Division Payments</span>
+                        <span className="sm:hidden">Tournaments</span>
+                      </h3>
+                      <p className="payment-section-subtitle text-xs sm:text-sm text-gray-600">
+                        <span className="hidden sm:inline">Track entry fee payments by division</span>
+                        <span className="sm:hidden">Entry fees</span>
+                      </p>
                     </div>
                   </div>
-                  <ChevronDown className={`h-5 w-5 text-gray-400 transition-transform ${expandedSections.tournaments ? 'rotate-180' : ''}`} />
+                  <ChevronDown className={`h-4 w-4 sm:h-5 sm:w-5 text-gray-400 transition-transform ${expandedSections.tournaments ? 'rotate-180' : ''}`} />
                 </div>
               </div>
               
@@ -204,13 +394,19 @@ const PaymentTracker = ({
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center">
-                    <Activity className="h-6 w-6 text-blue-600 mr-3" />
+                    <Activity className="h-4 w-4 sm:h-6 sm:w-6 text-blue-600 mr-2 sm:mr-3" />
                     <div>
-                      <h3 className="text-xl font-semibold text-gray-900">League Payments</h3>
-                      <p className="text-sm text-gray-600 mt-1">Track registration fee payments for leagues</p>
+                      <h3 className="payment-section-title text-base sm:text-xl font-semibold text-gray-900">
+                        <span className="hidden sm:inline">League Payments</span>
+                        <span className="sm:hidden">Leagues</span>
+                      </h3>
+                      <p className="payment-section-subtitle text-xs sm:text-sm text-gray-600">
+                        <span className="hidden sm:inline">Track registration fee payments for leagues</span>
+                        <span className="sm:hidden">Registration fees</span>
+                      </p>
                     </div>
                   </div>
-                  <ChevronDown className={`h-5 w-5 text-gray-400 transition-transform ${expandedSections.leagues ? 'rotate-180' : ''}`} />
+                  <ChevronDown className={`h-4 w-4 sm:h-5 sm:w-5 text-gray-400 transition-transform ${expandedSections.leagues ? 'rotate-180' : ''}`} />
                 </div>
               </div>
               
@@ -234,11 +430,11 @@ const PaymentTracker = ({
 
           {/* Empty State */}
           {paymentSummary.paidEvents === 0 && (
-            <div className="text-center py-12 bg-gray-50 rounded-lg border-2 border-gray-200">
-              <DollarSign className="h-16 w-16 mx-auto text-gray-300 mb-4" />
-              <h3 className="text-lg font-medium text-gray-700 mb-2">No Payment Tracking Needed</h3>
-              <p className="text-gray-500 mb-4">No tournaments, divisions, or leagues with fees found.</p>
-              <p className="text-sm text-gray-400">Create a tournament division or league with fees to start tracking payments.</p>
+            <div className="text-center py-8 sm:py-12 bg-gray-50 rounded-lg border-2 border-gray-200 mx-2 sm:mx-0">
+              <DollarSign className="h-12 w-12 sm:h-16 sm:w-16 mx-auto text-gray-300 mb-3 sm:mb-4" />
+              <h3 className="text-base sm:text-lg font-medium text-gray-700 mb-2 px-4">No Payment Tracking Needed</h3>
+              <p className="text-sm sm:text-base text-gray-500 mb-3 sm:mb-4 px-4">No tournaments, divisions, or leagues with fees found.</p>
+              <p className="text-xs sm:text-sm text-gray-400 px-4">Create a tournament division or league with fees to start tracking payments.</p>
             </div>
           )}
         </div>
@@ -577,7 +773,7 @@ const LeaguePaymentCard = ({ league, members, onUpdateLeague, currentUserId }) =
   );
 };
 
-// Participant Payment Card Component
+// Mobile-Responsive Participant Payment Card Component
 const ParticipantPaymentCard = ({ participant, fee, onPayment, onRemovePayment, processing }) => {
   const [customAmount, setCustomAmount] = useState(fee.toString());
 
@@ -615,9 +811,83 @@ const ParticipantPaymentCard = ({ participant, fee, onPayment, onRemovePayment, 
   const StatusIcon = statusConfig.icon;
 
   return (
-    <div className={`border-2 rounded-lg p-3 ${statusConfig.bgColor}`}>
-      <div className="flex items-center justify-between">
-        {/* Participant Info */}
+    <div className={`border rounded-lg p-2 sm:p-3 ${statusConfig.bgColor} mx-0 mb-2`}>
+      {/* Mobile: Stack vertically */}
+      <div className="block sm:hidden">
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center space-x-2 flex-1 min-w-0">
+            <div className="h-6 w-6 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center flex-shrink-0">
+              <span className="text-white font-semibold text-xs">
+                {participant.member.firstName.charAt(0)}{participant.member.lastName.charAt(0)}
+              </span>
+            </div>
+            <h4 className="font-medium text-gray-900 text-xs truncate">
+              {participant.member.firstName} {participant.member.lastName}
+            </h4>
+          </div>
+          <span className={`inline-flex items-center px-1 py-0.5 rounded text-xs font-medium ${statusConfig.textColor} bg-white`}>
+            <StatusIcon className="h-2 w-2 mr-1" />
+            {statusConfig.label}
+          </span>
+        </div>
+        
+        <div className="flex items-center justify-between">
+          <div className="text-xs flex-1">
+            {participant.status === 'paid' && (
+              <span className={statusConfig.textColor}>✓ ${participant.amountPaid}</span>
+            )}
+            {participant.status === 'partial' && (
+              <span className={statusConfig.textColor}>⚠ ${participant.amountPaid}, owes ${participant.amountOwed}</span>
+            )}
+            {participant.status === 'overpaid' && (
+              <span className={statusConfig.textColor}>↗ ${participant.amountPaid}</span>
+            )}
+            {participant.status === 'unpaid' && (
+              <span className={statusConfig.textColor}>✗ ${fee}</span>
+            )}
+          </div>
+          
+          <div className="flex items-center space-x-1 ml-2">
+            {participant.status === 'unpaid' && (
+              <>
+                <input
+                  type="number"
+                  value={customAmount}
+                  onChange={(e) => setCustomAmount(e.target.value)}
+                  className="w-12 px-1 py-1 text-xs border border-gray-300 rounded text-center"
+                  step="0.01"
+                  min="0"
+                />
+                <Button
+                  onClick={() => onPayment(customAmount)}
+                  loading={processing}
+                  disabled={processing || !customAmount || parseFloat(customAmount) <= 0}
+                  size="sm"
+                  className="bg-green-600 hover:bg-green-700 text-white w-8 h-8 p-0"
+                >
+                  <Check className="h-3 w-3" />
+                </Button>
+              </>
+            )}
+            
+            {participant.status !== 'unpaid' && (
+              <Button
+                onClick={onRemovePayment}
+                loading={processing}
+                disabled={processing}
+                size="sm"
+                variant="outline"
+                className="text-red-600 border-red-300 hover:bg-red-50 w-8 h-8 p-0"
+              >
+                <X className="h-3 w-3" />
+              </Button>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Desktop: Original horizontal layout */}
+      <div className="hidden sm:flex items-center justify-between">
         <div className="flex items-center space-x-3 flex-1">
           <div className="relative">
             <div className="h-8 w-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
@@ -642,7 +912,6 @@ const ParticipantPaymentCard = ({ participant, fee, onPayment, onRemovePayment, 
               )}
             </div>
             
-            {/* Payment Status */}
             <div className="mt-1 text-xs">
               {participant.status === 'paid' && (
                 <span className={statusConfig.textColor}>✓ Paid ${participant.amountPaid}</span>
@@ -660,15 +929,12 @@ const ParticipantPaymentCard = ({ participant, fee, onPayment, onRemovePayment, 
           </div>
         </div>
 
-        {/* Status & Actions */}
         <div className="flex items-center space-x-3">
-          {/* Status Badge */}
           <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${statusConfig.textColor} bg-white bg-opacity-50`}>
             <StatusIcon className="h-3 w-3 mr-1" />
             {statusConfig.label}
           </span>
 
-          {/* Action Buttons */}
           <div className="flex items-center space-x-2">
             {participant.status === 'unpaid' && (
               <div className="flex items-center space-x-2">
