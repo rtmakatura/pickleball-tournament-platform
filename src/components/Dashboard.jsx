@@ -334,8 +334,7 @@ const TournamentCard = React.memo(({ tournament, onView, onEdit, onEnterResults,
   };
 
   // Check if tournament is ready for results entry
-  const canEnterResults = (tournament.status === TOURNAMENT_STATUS.IN_PROGRESS || 
-                          tournament.status === TOURNAMENT_STATUS.COMPLETED) && !hasResults;
+  const canEnterResults = tournament.status === TOURNAMENT_STATUS.COMPLETED && !hasResults;
 
   return (
     <div className="mobile-card bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden">
@@ -546,8 +545,7 @@ const TournamentRow = React.memo(({ tournament, onView, onEdit, onEnterResults, 
   }, [tournament, onViewResults]);
 
   // ADDED: Check if tournament is ready for results entry
-  const canEnterResults = (tournament.status === TOURNAMENT_STATUS.IN_PROGRESS || 
-                          tournament.status === TOURNAMENT_STATUS.COMPLETED) && !hasResults;
+  const canEnterResults = tournament.status === TOURNAMENT_STATUS.COMPLETED && !hasResults;
 
   return (
     <tr key={tournament.id} className="tournament-row">
@@ -3248,8 +3246,8 @@ const Dashboard = () => {
           <PaymentTracker
             isOpen={true}
             onClose={closeModal}
-            tournaments={tournaments}
-            leagues={leagues}
+            tournaments={activeTournaments}
+            leagues={activeLeagues}
             members={members}
             onUpdateTournament={updateTournament}
             onUpdateLeague={updateLeague}
