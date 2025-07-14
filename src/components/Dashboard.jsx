@@ -3303,10 +3303,10 @@ const Dashboard = () => {
                         
                         <div className="space-y-4">
                           {paidDivisions.map(division => (
-                            <div key={division.id} className="bg-white border border-gray-200 rounded p-3">
-                              <div className="flex justify-between items-center mb-3">
-                                <h5 className="font-medium text-gray-800">{division.name}</h5>
-                                <span className="text-sm text-gray-500 bg-gray-100 px-2 py-1 rounded">
+                            <div key={division.id} className="bg-white border border-gray-200 rounded-lg p-4">
+                              <div className="flex justify-between items-center mb-4">
+                                <h5 className="font-medium text-gray-800 text-lg">{division.name}</h5>
+                                <span className="text-sm text-gray-500 bg-gray-100 px-3 py-1.5 rounded-full font-medium">
                                   ${division.entryFee} per person
                                 </span>
                               </div>
@@ -3353,8 +3353,8 @@ const Dashboard = () => {
                   {leagues.filter(l => l.registrationFee > 0).map(league => (
                     <div key={league.id} className="bg-gray-50 border border-gray-200 rounded-lg p-4">
                       <div className="flex justify-between items-center mb-4">
-                        <h4 className="font-medium text-gray-900">{league.name}</h4>
-                        <span className="text-sm text-gray-500 bg-white px-2 py-1 rounded">
+                        <h4 className="font-medium text-gray-900 text-lg">{league.name}</h4>
+                        <span className="text-sm text-gray-500 bg-white px-3 py-1.5 rounded-full font-medium">
                           ${league.registrationFee} per person
                         </span>
                       </div>
