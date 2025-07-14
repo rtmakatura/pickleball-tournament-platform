@@ -2070,8 +2070,7 @@ const Dashboard = () => {
     setDeleteLoading(true);
     try {
       await deleteTournament(tournamentId);
-      setShowTournamentModal(false);
-      setEditingTournament(null);
+      closeModal();
       showAlert('success', 'Tournament deleted!', 'Tournament has been successfully deleted');
     } catch (err) {
       showAlert('error', 'Failed to delete tournament', err.message);
@@ -2123,9 +2122,7 @@ const Dashboard = () => {
     setDeleteLoading(true);
     try {
       await deleteLeague(leagueId);
-      setShowLeagueModal(false);
-      setEditingLeague(null);
-      setSelectedLeagueMembers([]);
+      closeModal();
       showAlert('success', 'League deleted!', 'League has been successfully deleted');
     } catch (err) {
       showAlert('error', 'Failed to delete league', err.message);
