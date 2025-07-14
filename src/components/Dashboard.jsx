@@ -2997,7 +2997,7 @@ const Dashboard = () => {
         {activeModal === MODAL_TYPES.ARCHIVE_TOURNAMENT_CONFIRM && modalData?.tournament && (
           <ConfirmDialog
             isOpen={true}
-            onClose={() => setActiveModal(MODAL_TYPES.TOURNAMENT_FORM)}
+            onClose={closeModal}
             onConfirm={() => {
               handleArchiveTournament(modalData.tournament.id);
             }}
@@ -3031,7 +3031,7 @@ const Dashboard = () => {
         {activeModal === MODAL_TYPES.ARCHIVE_LEAGUE_CONFIRM && modalData?.league && (
           <ConfirmDialog
             isOpen={true}
-            onClose={() => setActiveModal(MODAL_TYPES.LEAGUE_FORM)}
+            onClose={closeModal}
             onConfirm={() => {
               handleArchiveLeague(modalData.league.id);
             }}
