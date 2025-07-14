@@ -38,15 +38,29 @@ const Modal = ({
     }
   };
 
-  // Handle scroll and escape key management
+  // Global modal counter to track multiple modals
+  const modalCountRef = React.useRef(0);
+
+  // Handle scroll and escape key management with robust cleanup
   React.useEffect(() => {
     if (!isOpen) return;
 
-    // Store original overflow style
-    const originalOverflow = document.body.style.overflow;
+    // Increment modal counter
+    modalCountRef.current += 1;
     
-    // Prevent body scroll when modal is open
-    document.body.style.overflow = 'hidden';
+    // Store original overflow style only for the first modal
+    if (modalCountRef.current === 1) {
+      const currentOverflow = document.body.style.overflow;
+      const originalOverflow = currentOverflow || 'auto';
+      
+      // Store in a more persistent way
+      if (!document.body.dataset.originalOverflow) {
+        document.body.dataset.originalOverflow = originalOverflow;
+      }
+      
+      // Prevent body scroll when modal is open
+      document.body.style.overflow = 'hidden';
+    }
 
     // Handle escape key
     const handleEscape = (e) => {
@@ -57,13 +71,36 @@ const Modal = ({
     
     document.addEventListener('keydown', handleEscape);
 
-    // Cleanup function
+    // Cleanup function with robust restoration
     return () => {
       document.removeEventListener('keydown', handleEscape);
-      // Restore original overflow style
-      document.body.style.overflow = originalOverflow;
+      
+      // Decrement modal counter
+      modalCountRef.current = Math.max(0, modalCountRef.current - 1);
+      
+      // Only restore scroll when all modals are closed
+      if (modalCountRef.current === 0) {
+        const originalOverflow = document.body.dataset.originalOverflow || 'auto';
+        document.body.style.overflow = originalOverflow;
+        delete document.body.dataset.originalOverflow;
+      }
     };
   }, [isOpen, onClose]);
+
+  // Failsafe cleanup effect - runs when component unmounts
+  React.useEffect(() => {
+    return () => {
+      // Emergency cleanup if component unmounts with open modal
+      if (isOpen) {
+        modalCountRef.current = Math.max(0, modalCountRef.current - 1);
+        if (modalCountRef.current === 0) {
+          const originalOverflow = document.body.dataset.originalOverflow || 'auto';
+          document.body.style.overflow = originalOverflow;
+          delete document.body.dataset.originalOverflow;
+        }
+      }
+    };
+  }, []);
 
   // Don't render anything if modal is closed
   if (!isOpen) return null;

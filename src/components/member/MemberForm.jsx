@@ -511,6 +511,20 @@ const MemberForm = ({
     label: key.charAt(0) + key.slice(1).toLowerCase()
   }));
 
+  // Cleanup effect to ensure scroll restoration
+  useEffect(() => {
+    return () => {
+      // Failsafe: Ensure body scroll is restored if component unmounts
+      setTimeout(() => {
+        if (document.body.style.overflow === 'hidden') {
+          const originalOverflow = document.body.dataset.originalOverflow || 'auto';
+          document.body.style.overflow = originalOverflow;
+          delete document.body.dataset.originalOverflow;
+        }
+      }, 50);
+    };
+  }, []);
+
   return (
     <div className="member-form">
       <StyleSheet />

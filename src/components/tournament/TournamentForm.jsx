@@ -1063,12 +1063,21 @@ const TournamentForm = ({
     tournament.status === TOURNAMENT_STATUS.IN_PROGRESS && 
     !hasResults();
 
-  // Cleanup timeout on unmount
+  // Cleanup timeout and ensure scroll restoration on unmount
   useEffect(() => {
     return () => {
       if (userEditingTimeoutRef.current) {
         clearTimeout(userEditingTimeoutRef.current);
       }
+      
+      // Failsafe: Ensure body scroll is restored if component unmounts
+      setTimeout(() => {
+        if (document.body.style.overflow === 'hidden') {
+          const originalOverflow = document.body.dataset.originalOverflow || 'auto';
+          document.body.style.overflow = originalOverflow;
+          delete document.body.dataset.originalOverflow;
+        }
+      }, 50);
     };
   }, []);
 

@@ -1431,7 +1431,7 @@ const Dashboard = () => {
   const [viewingTournament, setViewingTournament] = useState(null);
   const [viewingLeague, setViewingLeague] = useState(null);
   
-  // FIXED: Single modal close handler
+  // FIXED: Single modal close handler with overflow cleanup failsafe
   const closeModal = useCallback(() => {
     if (!formLoading && !deleteLoading) {
       setActiveModal(null);
@@ -1442,6 +1442,15 @@ const Dashboard = () => {
       setEditingLeague(null);
       setEditingMember(null);
       setSelectedLeagueMembers([]);
+      
+      // Failsafe: Ensure body scroll is restored after a short delay
+      setTimeout(() => {
+        if (document.body.style.overflow === 'hidden') {
+          const originalOverflow = document.body.dataset.originalOverflow || 'auto';
+          document.body.style.overflow = originalOverflow;
+          delete document.body.dataset.originalOverflow;
+        }
+      }, 100);
     }
   }, [formLoading, deleteLoading]);
   
