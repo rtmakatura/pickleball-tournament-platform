@@ -1,37 +1,24 @@
-// src/components/tournament/PaymentStatus.jsx (MOBILE-FIRST REDESIGN)
-import React, { useState, useEffect } from 'react';
+// src/components/tournament/PaymentStatus.jsx - REDESIGNED WITH BEAUTIFUL STYLING
+import React, { useState, useMemo, useCallback } from 'react';
 import { 
   DollarSign, 
   Check, 
-  Clock, 
-  AlertCircle, 
-  User,
-  CreditCard,
+  X,
   Users,
-  UserCheck,
-  Receipt,
   CheckCircle2,
   AlertTriangle,
-  ExternalLink,
-  Layers,
-  Trophy,
-  Phone,
-  Mail,
-  ChevronDown,
-  ChevronRight,
-  Search,
-  Filter,
-  MoreVertical,
-  TrendingUp,
-  Target,
-  Zap,
-  RefreshCw,
-  Bell,
-  CheckCircle,
   XCircle,
-  Info
+  User,
+  ChevronDown,
+  CreditCard,
+  Receipt,
+  TrendingUp,
+  AlertCircle,
+  Info,
+  Trophy,
+  Activity
 } from 'lucide-react';
-import { Button, Alert, Select, Card, Modal } from '../ui';
+import { Button, Alert, Select, Card } from '../ui';
 import { PAYMENT_MODES } from '../../services/models';
 import { 
   calculateDivisionPaymentSummary, 
@@ -40,108 +27,390 @@ import {
   getParticipantPaymentStatus
 } from '../../utils/paymentUtils';
 
-// Mobile-optimized styles
-const mobilePaymentStyles = `
-  /* Touch-optimized payment interfaces */
-  .payment-card {
-    transition: all 0.2s ease;
+// Beautiful payment status styles matching TournamentForm aesthetic
+const paymentStatusStyles = `
+  /* Base payment container */
+  .payment-status {
+    -webkit-overflow-scrolling: touch;
+    scroll-behavior: smooth;
   }
   
-  .payment-card:active {
-    transform: scale(0.98);
-  }
-  
-  .payment-action-button {
-    min-height: 52px;
-    min-width: 120px;
-    transition: all 0.2s ease;
-  }
-  
-  .payment-action-button:active {
-    transform: scale(0.95);
-  }
-  
-  /* Status indicators optimized for mobile */
-  .payment-status-indicator {
+  /* Consistent section spacing system - exactly 24px everywhere */
+  .payment-section {
+    background: white;
+    border-radius: 16px;
+    border: 1px solid #e5e7eb;
+    margin-bottom: 24px;
+    overflow: hidden;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
     position: relative;
+    z-index: 1;
+  }
+  
+  .payment-section:last-child {
+    margin-bottom: 0;
+  }
+  
+  .payment-section-content {
+    padding: 24px;
+    position: relative;
+    z-index: 15;
+  }
+  
+  .payment-section-header {
+    padding: 20px;
+    border-bottom: 1px solid #e5e7eb;
+    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+  }
+  
+  .payment-section-header:hover {
+    background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+  }
+  
+  .payment-section-header:active {
+    background: linear-gradient(135deg, #e2e8f0 0%, #cbd5e1 100%);
+  }
+  
+  /* Standardized input group spacing - exactly 24px always */
+  .payment-input-group {
+    margin-bottom: 24px;
+  }
+  
+  .payment-input-group:last-child {
+    margin-bottom: 0;
+  }
+  
+  /* Touch-optimized buttons */
+  .payment-touch-button {
+    min-height: 52px;
+    min-width: 52px;
+    transition: all 0.2s ease;
+    -webkit-tap-highlight-color: transparent;
+    border-radius: 12px;
+  }
+  
+  .payment-touch-button:active {
+    transform: scale(0.96);
+  }
+  
+  /* Progressive disclosure animations */
+  .payment-expandable {
+    transition: max-height 0.3s ease-out, opacity 0.2s ease-out;
     overflow: hidden;
   }
   
-  .payment-status-indicator::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 4px;
-    height: 100%;
-    transition: background-color 0.3s ease;
+  .payment-expandable.collapsed {
+    max-height: 0;
+    opacity: 0;
   }
   
-  .status-unpaid::before { background-color: #ef4444; }
-  .status-partial::before { background-color: #f59e0b; }
-  .status-paid::before { background-color: #10b981; }
-  .status-overpaid::before { background-color: #3b82f6; }
-  
-  /* Pull-to-refresh feel */
-  .payment-list {
-    overscroll-behavior: contain;
-    -webkit-overflow-scrolling: touch;
+  .payment-expandable.expanded {
+    max-height: 2000px;
+    opacity: 1;
   }
   
-  /* Mobile payment amount input */
-  .payment-input {
-    font-size: 18px;
-    font-weight: 600;
+  /* Payment mode cards */
+  .payment-mode-card {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    color: white;
+    border-radius: 16px;
+    padding: 24px;
+    margin-bottom: 24px;
+  }
+  
+  .payment-mode-card.group-mode {
+    background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+  }
+  
+  /* Payment summary cards */
+  .payment-summary-card {
+    background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+    color: white;
+    border-radius: 16px;
+    padding: 24px;
+    margin-bottom: 24px;
+  }
+  
+  .payment-stats {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
     text-align: center;
   }
   
-  /* Venmo link styling */
-  .venmo-link {
-    background: linear-gradient(135deg, #3D95CE 0%, #008CFF 100%);
+  @media (min-width: 640px) {
+    .payment-stats {
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+    }
+  }
+  
+  .payment-stat-item {
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 12px;
+    padding: 16px 12px;
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+  }
+  
+  .payment-stat-number {
+    font-size: 1.5rem;
+    font-weight: bold;
+    line-height: 1.2;
+    margin-bottom: 4px;
+  }
+  
+  @media (min-width: 640px) {
+    .payment-stat-number {
+      font-size: 1.75rem;
+    }
+  }
+  
+  .payment-stat-label {
+    font-size: 0.75rem;
+    opacity: 0.9;
+    line-height: 1.2;
+    font-weight: 500;
+  }
+  
+  /* Progress bar styling */
+  .payment-progress-container {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    padding: 16px;
+    margin-top: 16px;
+  }
+  
+  .payment-progress-bar {
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 12px;
+    height: 8px;
+    overflow: hidden;
+  }
+  
+  .payment-progress-fill {
+    background: white;
+    height: 100%;
+    border-radius: 12px;
+    transition: width 0.5s ease;
+  }
+  
+  /* Participant cards */
+  .participant-card {
+    background: white;
+    border: 2px solid #e5e7eb;
+    border-radius: 16px;
+    padding: 20px;
+    margin-bottom: 16px;
+    transition: all 0.2s ease;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  }
+  
+  .participant-card:last-child {
+    margin-bottom: 0;
+  }
+  
+  .participant-card:hover {
+    border-color: #d1d5db;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  }
+  
+  .participant-card.status-paid {
+    border-color: #10b981;
+    background: linear-gradient(135deg, #ecfdf5 0%, #f0fdf4 100%);
+  }
+  
+  .participant-card.status-unpaid {
+    border-color: #ef4444;
+    background: linear-gradient(135deg, #fef2f2 0%, #fef7f7 100%);
+  }
+  
+  .participant-card.status-partial {
+    border-color: #f59e0b;
+    background: linear-gradient(135deg, #fffbeb 0%, #fefce8 100%);
+  }
+  
+  .participant-card.status-overpaid {
+    border-color: #3b82f6;
+    background: linear-gradient(135deg, #eff6ff 0%, #f0f9ff 100%);
+  }
+  
+  /* Status badges */
+  .status-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 6px 12px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.025em;
+  }
+  
+  .status-badge.paid {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    color: white;
+  }
+  
+  .status-badge.unpaid {
+    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+    color: white;
+  }
+  
+  .status-badge.partial {
+    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+    color: white;
+  }
+  
+  .status-badge.overpaid {
+    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+    color: white;
+  }
+  
+  /* Action buttons */
+  .payment-action-button {
+    min-height: 44px;
+    border-radius: 12px;
+    font-weight: 500;
     transition: all 0.2s ease;
   }
   
-  .venmo-link:active {
-    transform: scale(0.98);
+  .payment-action-button.primary {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    color: white;
+    border: none;
   }
   
-  /* Swipe actions hint */
-  .swipe-hint {
-    background: linear-gradient(90deg, transparent 0%, rgba(0,0,0,0.05) 50%, transparent 100%);
-    animation: swipeHint 2s ease-in-out infinite;
+  .payment-action-button.primary:hover {
+    background: linear-gradient(135deg, #059669 0%, #047857 100%);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
   }
   
-  @keyframes swipeHint {
-    0%, 100% { transform: translateX(-10px); opacity: 0.3; }
-    50% { transform: translateX(10px); opacity: 0.7; }
+  .payment-action-button.danger {
+    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+    color: white;
+    border: none;
   }
   
-  /* Success animations */
-  .payment-success {
-    animation: paymentSuccess 0.5s ease-out;
+  .payment-action-button.danger:hover {
+    background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
   }
   
-  @keyframes paymentSuccess {
-    0% { transform: scale(1); }
-    50% { transform: scale(1.05); }
-    100% { transform: scale(1); }
+  /* Payment input styling */
+  .payment-amount-input {
+    background: white;
+    border: 2px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 12px 16px;
+    font-size: 16px;
+    font-weight: 600;
+    text-align: center;
+    transition: all 0.2s ease;
+    width: 100px;
+  }
+  
+  .payment-amount-input:focus {
+    outline: none;
+    border-color: #10b981;
+    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+  }
+  
+  /* Completion celebration */
+  .payment-completion-card {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    color: white;
+    border-radius: 16px;
+    padding: 24px;
+    margin-bottom: 24px;
+    text-align: center;
+  }
+  
+  .payment-completion-icon {
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 50%;
+    width: 64px;
+    height: 64px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 16px;
+  }
+  
+  /* Responsive grid system */
+  .payment-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+  
+  @media (min-width: 640px) {
+    .payment-grid-sm {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+  
+  @media (min-width: 1024px) {
+    .payment-grid-lg {
+      grid-template-columns: repeat(3, 1fr);
+    }
+  }
+  
+  /* Group payment special styling */
+  .group-payment-selector {
+    background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+    color: white;
+    border-radius: 16px;
+    padding: 24px;
+    margin-bottom: 24px;
+  }
+  
+  .group-payment-options {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 12px;
+    margin-top: 16px;
+  }
+  
+  .group-payment-option {
+    background: rgba(255, 255, 255, 0.15);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 12px;
+    padding: 16px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    backdrop-filter: blur(10px);
+  }
+  
+  .group-payment-option:hover {
+    background: rgba(255, 255, 255, 0.25);
+    transform: translateY(-2px);
+  }
+  
+  .group-payment-option:active {
+    transform: translateY(0);
   }
 `;
 
 const StyleSheet = () => (
-  <style dangerouslySetInnerHTML={{ __html: mobilePaymentStyles }} />
+  <style dangerouslySetInnerHTML={{ __html: paymentStatusStyles }} />
 );
 
 /**
- * Mobile-First Payment Status Component
+ * REDESIGNED Payment Status Component with Beautiful Styling
  * 
- * Features:
- * - Card-based participant layouts
- * - Touch-optimized payment actions
- * - Progressive disclosure for payment details
- * - Quick payment workflows
- * - Venmo integration
- * - Visual payment status indicators
+ * Now matches TournamentForm aesthetic with:
+ * - Collapsible sections with smooth animations
+ * - Beautiful gradient cards and summary displays
+ * - Touch-optimized interactions
+ * - Consistent 24px spacing system
+ * - Progressive disclosure
+ * - Modern visual design
  */
 const PaymentStatus = ({ 
   event, 
@@ -155,22 +424,59 @@ const PaymentStatus = ({
   const [selectedDivision, setSelectedDivision] = useState(
     divisionId || (event.divisions?.[0]?.id || '')
   );
-  
-  // Mobile-specific state
-  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [expandedPayments, setExpandedPayments] = useState(new Set());
-  const [showQuickPay, setShowQuickPay] = useState(null);
-  const [showGroupPayModal, setShowGroupPayModal] = useState(false);
   const [processing, setProcessing] = useState(null);
-  const [lastUpdated, setLastUpdated] = useState(new Date());
+  
+  // Mobile detection
+  const [isMobile, setIsMobile] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return window.innerWidth < 768;
+    }
+    return false;
+  });
 
-  // Responsive detection
-  useEffect(() => {
-    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+  // Section expansion logic
+  const getInitialSectionState = useCallback(() => {
+    if (!isMobile) {
+      return {
+        overview: true,
+        participants: true,
+        actions: true
+      };
+    }
+    
+    return {
+      overview: true,
+      participants: true,
+      actions: false
+    };
+  }, [isMobile]);
+
+  const [expandedSections, setExpandedSections] = useState(() => getInitialSectionState());
+
+  // Mobile detection effect
+  React.useEffect(() => {
+    const checkMobile = () => {
+      const mobile = window.innerWidth < 768;
+      setIsMobile(mobile);
+    };
+    
+    checkMobile();
     window.addEventListener('resize', checkMobile);
     return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  // Section state updates
+  React.useEffect(() => {
+    const newSectionState = getInitialSectionState();
+    setExpandedSections(newSectionState);
+  }, [getInitialSectionState]);
+
+  // Section toggle
+  const toggleSection = useCallback((section) => {
+    setExpandedSections(prev => ({
+      ...prev,
+      [section]: !prev[section]
+    }));
   }, []);
 
   // Determine event structure and payment context
@@ -226,7 +532,7 @@ const PaymentStatus = ({
   const isGroupPayment = paymentMode === PAYMENT_MODES.GROUP;
 
   // Get participants with payment info
-  const getParticipantsWithPaymentInfo = () => {
+  const participantsWithPayment = useMemo(() => {
     if (participants.length === 0) return [];
 
     return participants.map(participantId => {
@@ -235,19 +541,29 @@ const PaymentStatus = ({
       
       return {
         id: participantId,
-        member: member || { firstName: 'Unknown', lastName: 'Member', email: '', venmoHandle: '', phoneNumber: '' },
+        member: member || { firstName: 'Unknown', lastName: 'Member', email: '' },
         ...paymentStatus,
         paymentDate: paymentData[participantId]?.date || null,
         notes: paymentData[participantId]?.notes || '',
         isCurrentUser: participantId === currentUserId
       };
+    }).sort((a, b) => {
+      // Sort: current user first, then by payment status, then by name
+      if (a.isCurrentUser && !b.isCurrentUser) return -1;
+      if (!a.isCurrentUser && b.isCurrentUser) return 1;
+      
+      const statusOrder = { unpaid: 0, partial: 1, overpaid: 2, paid: 3 };
+      const statusDiff = statusOrder[a.status] - statusOrder[b.status];
+      if (statusDiff !== 0) return statusDiff;
+      
+      return `${a.member.firstName} ${a.member.lastName}`.localeCompare(
+        `${b.member.firstName} ${b.member.lastName}`
+      );
     });
-  };
-
-  const participantsWithPayment = getParticipantsWithPaymentInfo();
+  }, [participants, members, paymentData, fee, currentUserId]);
 
   // Calculate payment summary
-  const getPaymentSummary = () => {
+  const summary = useMemo(() => {
     if (isDivisionBased && currentDivision) {
       return calculateDivisionPaymentSummary(currentDivision);
     } else if (isLegacyTournament) {
@@ -261,56 +577,15 @@ const PaymentStatus = ({
       totalExpected: 0,
       totalPaid: 0,
       totalOwed: 0,
-      totalOverpaid: 0,
       paidCount: 0,
-      partialCount: 0,
       unpaidCount: 0,
-      overpaidCount: 0,
       isFullyPaid: true,
-      paymentRate: 100,
-      hasPaymentIssues: false
+      paymentRate: 100
     };
-  };
-
-  const summary = getPaymentSummary();
-
-  // Filter participants
-  const getFilteredParticipants = () => {
-    let filtered = participantsWithPayment;
-
-    // Search filter
-    if (searchTerm) {
-      filtered = filtered.filter(p => {
-        const name = `${p.member.firstName} ${p.member.lastName}`.toLowerCase();
-        const email = p.member.email.toLowerCase();
-        return name.includes(searchTerm.toLowerCase()) || email.includes(searchTerm.toLowerCase());
-      });
-    }
-
-    // Status filter
-    if (statusFilter !== 'all') {
-      filtered = filtered.filter(p => p.status === statusFilter);
-    }
-
-    // Sort: current user first, then by payment status, then by name
-    return filtered.sort((a, b) => {
-      if (a.isCurrentUser && !b.isCurrentUser) return -1;
-      if (!a.isCurrentUser && b.isCurrentUser) return 1;
-      
-      const statusOrder = { unpaid: 0, partial: 1, overpaid: 2, paid: 3 };
-      const statusDiff = statusOrder[a.status] - statusOrder[b.status];
-      if (statusDiff !== 0) return statusDiff;
-      
-      return `${a.member.firstName} ${a.member.lastName}`.localeCompare(
-        `${b.member.firstName} ${b.member.lastName}`
-      );
-    });
-  };
-
-  const filteredParticipants = getFilteredParticipants();
+  }, [isDivisionBased, currentDivision, isLegacyTournament, isLeague, event]);
 
   // Payment handlers
-  const handlePayment = async (participantId, amount, notes = '') => {
+  const handlePayment = async (participantId, amount) => {
     setProcessing(participantId);
     try {
       const paymentAmount = parseFloat(amount);
@@ -318,7 +593,7 @@ const PaymentStatus = ({
         amount: paymentAmount,
         date: new Date().toISOString(),
         method: isGroupPayment ? 'group' : 'individual',
-        notes: notes || `Payment of $${paymentAmount}`,
+        notes: `Payment of $${paymentAmount}`,
         recordedBy: currentUserId
       };
 
@@ -344,11 +619,38 @@ const PaymentStatus = ({
         await onPaymentUpdate(event.id, { paymentData: newPaymentData });
       }
       
-      setLastUpdated(new Date());
-      setShowQuickPay(null);
       setErrors([]);
     } catch (error) {
       setErrors([`Payment failed: ${error.message}`]);
+    } finally {
+      setProcessing(null);
+    }
+  };
+
+  const removePayment = async (participantId) => {
+    setProcessing(participantId);
+    try {
+      if (isDivisionBased && currentDivision) {
+        const updatedPaymentData = { ...currentDivision.paymentData };
+        delete updatedPaymentData[participantId];
+        
+        const updatedDivisions = event.divisions.map(div => 
+          div.id === selectedDivision 
+            ? { ...div, paymentData: updatedPaymentData }
+            : div
+        );
+        
+        await onPaymentUpdate(event.id, { divisions: updatedDivisions });
+      } else {
+        const newPaymentData = { ...paymentData };
+        delete newPaymentData[participantId];
+        
+        await onPaymentUpdate(event.id, { paymentData: newPaymentData });
+      }
+      
+      setErrors([]);
+    } catch (error) {
+      setErrors([`Failed to remove payment: ${error.message}`]);
     } finally {
       setProcessing(null);
     }
@@ -380,8 +682,6 @@ const PaymentStatus = ({
         await onPaymentUpdate(event.id, { paymentData: newPaymentData });
       }
       
-      setShowGroupPayModal(false);
-      setLastUpdated(new Date());
       setErrors([]);
     } catch (error) {
       setErrors([`Group payment failed: ${error.message}`]);
@@ -390,435 +690,321 @@ const PaymentStatus = ({
     }
   };
 
-  const removePayment = async (participantId) => {
-    setProcessing(participantId);
-    try {
-      if (isDivisionBased && currentDivision) {
-        const updatedPaymentData = { ...currentDivision.paymentData };
-        delete updatedPaymentData[participantId];
-        
-        const updatedDivisions = event.divisions.map(div => 
-          div.id === selectedDivision 
-            ? { ...div, paymentData: updatedPaymentData }
-            : div
-        );
-        
-        await onPaymentUpdate(event.id, { divisions: updatedDivisions });
-      } else {
-        const newPaymentData = { ...paymentData };
-        delete newPaymentData[participantId];
-        
-        await onPaymentUpdate(event.id, { paymentData: newPaymentData });
-      }
-      
-      setLastUpdated(new Date());
-      setErrors([]);
-    } catch (error) {
-      setErrors([`Failed to remove payment: ${error.message}`]);
-    } finally {
-      setProcessing(null);
-    }
-  };
-
-  // Venmo link generation
-  const getVenmoLink = (venmoHandle, amount) => {
-    if (!venmoHandle) return null;
-    const note = encodeURIComponent(`${eventLabel} ${feeLabel} - ${event.name}${currentDivision ? ` (${currentDivision.name})` : ''}`);
-    return `https://venmo.com/${venmoHandle}?txn=pay&amount=${amount}&note=${note}`;
-  };
-
-  // Toggle expanded payment details
-  const togglePaymentDetails = (participantId) => {
-    const newExpanded = new Set(expandedPayments);
-    if (newExpanded.has(participantId)) {
-      newExpanded.delete(participantId);
-    } else {
-      newExpanded.add(participantId);
-    }
-    setExpandedPayments(newExpanded);
+  const formatPaymentDate = (dateString) => {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', { 
+      month: 'short', 
+      day: 'numeric'
+    });
   };
 
   if (fee <= 0) {
     return (
-      <div className="p-4">
+      <div className="payment-status">
         <StyleSheet />
-        <Alert 
-          type="info" 
-          title={`Free ${eventLabel}`} 
-          message={`This ${eventType} has no ${feeLabel.toLowerCase()}.`} 
-        />
+        <div className="p-6">
+          <Alert 
+            type="info" 
+            title={`Free ${eventLabel}`} 
+            message={`This ${eventType} has no ${feeLabel.toLowerCase()}.`} 
+          />
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="payment-status">
       <StyleSheet />
       
-      {/* Error Messages */}
-      {errors.length > 0 && (
-        <div className="sticky top-0 z-40 p-4">
-          <Alert
-            type="error"
-            title="Payment Error"
-            message={errors.join(', ')}
-            onClose={() => setErrors([])}
-          />
-        </div>
-      )}
-
-      {/* Mobile Header */}
-      <div className="sticky top-0 z-30 bg-white border-b shadow-sm">
-        <div className="p-4">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex-1 min-w-0">
-              <h1 className={`font-bold text-gray-900 flex items-center ${isMobile ? 'text-lg' : 'text-2xl'}`}>
-                <DollarSign className={`text-green-600 mr-2 ${isMobile ? 'h-5 w-5' : 'h-8 w-8'}`} />
-                Payment Tracking
-              </h1>
-              <p className="text-gray-600 text-sm truncate">
-                {event.name} • ${fee} per person
-              </p>
+      <div className="p-6">
+        <div className="max-w-4xl mx-auto">
+          {/* Error Messages */}
+          {errors.length > 0 && (
+            <div className="payment-section">
+              <div className="payment-section-content">
+                <Alert
+                  type="error"
+                  title="Payment Error"
+                  message={errors.join(', ')}
+                  onClose={() => setErrors([])}
+                />
+              </div>
             </div>
+          )}
 
-            <div className="flex items-center space-x-2">
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => setLastUpdated(new Date())}
-                className="touch-target"
-                title="Refresh"
-              >
-                <RefreshCw className="h-4 w-4" />
-              </Button>
-              
-              {isGroupPayment && summary.totalPaid === 0 && (
-                <Button
-                  size="sm"
-                  onClick={() => setShowGroupPayModal(true)}
-                  className="touch-target"
-                >
-                  <Users className="h-4 w-4 mr-1" />
-                  Group Pay
-                </Button>
-              )}
+          {/* Header */}
+          <div className="payment-input-group">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h2 className="text-xl font-bold text-gray-900 flex items-center">
+                  <DollarSign className="h-6 w-6 text-green-600 mr-2" />
+                  Payment Tracking
+                </h2>
+                <p className="text-gray-600 text-sm">
+                  {event.name} • ${fee} per person
+                </p>
+              </div>
             </div>
           </div>
 
           {/* Division Selector */}
           {isDivisionBased && event.divisions.length > 1 && (
-            <div className="mb-4">
-              <Select
-                value={selectedDivision}
-                onChange={(e) => setSelectedDivision(e.target.value)}
-                options={event.divisions
-                  .filter(div => div.entryFee > 0)
-                  .map(div => ({
-                    value: div.id,
-                    label: `${div.name} - $${div.entryFee}`
-                  }))
-                }
-                className="w-full"
-              />
-            </div>
-          )}
-
-          {/* Payment Mode Info */}
-          <div className={`rounded-lg p-3 mb-4 ${isGroupPayment ? 'bg-blue-50 border border-blue-200' : 'bg-green-50 border border-green-200'}`}>
-            <div className="flex items-center justify-between">
-              <div>
-                <h4 className={`font-medium ${isGroupPayment ? 'text-blue-900' : 'text-green-900'}`}>
-                  {isGroupPayment ? 'Group Payment Mode' : 'Individual Payment Mode'}
-                </h4>
-                <p className={`text-sm ${isGroupPayment ? 'text-blue-700' : 'text-green-700'}`}>
-                  {isGroupPayment 
-                    ? 'One person pays for everyone' 
-                    : 'Each participant pays their own fee'
-                  }
-                </p>
-              </div>
-              <div className="text-right">
-                <p className={`text-lg font-bold ${isGroupPayment ? 'text-blue-900' : 'text-green-900'}`}>
-                  ${isGroupPayment ? (fee * participants.length) : fee}
-                </p>
-                <p className={`text-sm ${isGroupPayment ? 'text-blue-700' : 'text-green-700'}`}>
-                  {isGroupPayment ? 'total' : 'per person'}
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Payment Summary Cards */}
-      <div className="p-4">
-        <div className={`grid gap-4 mb-6 ${isMobile ? 'grid-cols-2' : 'grid-cols-4'}`}>
-          <div className="bg-white rounded-xl p-4 border shadow-sm text-center">
-            <Users className="h-6 w-6 text-gray-600 mx-auto mb-2" />
-            <p className="text-2xl font-bold text-gray-900">{summary.totalParticipants}</p>
-            <p className="text-sm text-gray-600">Participants</p>
-          </div>
-
-          <div className="bg-white rounded-xl p-4 border shadow-sm text-center">
-            <Receipt className="h-6 w-6 text-blue-600 mx-auto mb-2" />
-            <p className="text-2xl font-bold text-blue-900">${summary.totalExpected}</p>
-            <p className="text-sm text-blue-600">Expected</p>
-          </div>
-
-          <div className="bg-white rounded-xl p-4 border shadow-sm text-center">
-            <CheckCircle2 className="h-6 w-6 text-green-600 mx-auto mb-2" />
-            <p className="text-2xl font-bold text-green-900">${summary.totalPaid}</p>
-            <p className="text-sm text-green-600">Collected</p>
-          </div>
-
-          <div className="bg-white rounded-xl p-4 border shadow-sm text-center">
-            <div className="h-6 w-6 mx-auto mb-2">
-              {summary.totalOwed === 0 ? (
-                summary.totalOverpaid > 0 ? (
-                  <AlertTriangle className="h-6 w-6 text-yellow-600" />
-                ) : (
-                  <CheckCircle2 className="h-6 w-6 text-green-600" />
-                )
-              ) : (
-                <AlertCircle className="h-6 w-6 text-red-600" />
-              )}
-            </div>
-            <p className={`text-2xl font-bold ${
-              summary.totalOwed === 0 
-                ? summary.totalOverpaid > 0 
-                  ? 'text-yellow-900' 
-                  : 'text-green-900'
-                : 'text-red-900'
-            }`}>
-              ${summary.totalOwed > 0 ? summary.totalOwed : summary.totalOverpaid}
-            </p>
-            <p className={`text-sm ${
-              summary.totalOwed === 0 
-                ? summary.totalOverpaid > 0 
-                  ? 'text-yellow-600' 
-                  : 'text-green-600'
-                : 'text-red-600'
-            }`}>
-              {summary.totalOwed === 0 
-                ? summary.totalOverpaid > 0 
-                  ? 'Overpaid' 
-                  : 'Complete'
-                : 'Outstanding'
-              }
-            </p>
-          </div>
-        </div>
-
-        {/* Progress Bar */}
-        <div className="bg-white rounded-xl p-4 border shadow-sm mb-6">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-medium text-gray-700">Payment Progress</span>
-            <span className="text-sm text-gray-600">{summary.paidCount}/{summary.totalParticipants} paid</span>
-          </div>
-          <div className="w-full bg-gray-200 rounded-full h-3">
-            <div 
-              className="bg-green-600 h-3 rounded-full transition-all duration-500 ease-out"
-              style={{ width: `${summary.paymentRate}%` }}
-            ></div>
-          </div>
-          <div className="text-center mt-2">
-            <span className="text-lg font-bold text-green-600">{summary.paymentRate}%</span>
-            <span className="text-sm text-gray-600 ml-1">complete</span>
-          </div>
-        </div>
-
-        {/* Search and Filter */}
-        <Card className="mb-6">
-          <div className="space-y-4">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Search participants..."
-                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
-            </div>
-
-            <Select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              options={[
-                { value: 'all', label: 'All Participants' },
-                { value: 'unpaid', label: 'Unpaid Only' },
-                { value: 'partial', label: 'Partial Payments' },
-                { value: 'paid', label: 'Paid Only' },
-                { value: 'overpaid', label: 'Overpaid Only' }
-              ]}
-              className="w-full"
-            />
-
-            <div className="text-sm text-gray-600 text-center">
-              Showing {filteredParticipants.length} of {participantsWithPayment.length} participants
-            </div>
-          </div>
-        </Card>
-
-        {/* Participant Payment Cards */}
-        <div className="space-y-4 payment-list">
-          {filteredParticipants.map((participant) => (
-            <MobilePaymentCard
-              key={participant.id}
-              participant={participant}
-              fee={fee}
-              isGroupPayment={isGroupPayment}
-              isExpanded={expandedPayments.has(participant.id)}
-              onToggle={() => togglePaymentDetails(participant.id)}
-              onPayment={(amount, notes) => handlePayment(participant.id, amount, notes)}
-              onRemovePayment={() => removePayment(participant.id)}
-              processing={processing === participant.id}
-              venmoLink={participant.member.venmoHandle ? getVenmoLink(participant.member.venmoHandle, fee) : null}
-              isMobile={isMobile}
-              showQuickPay={showQuickPay === participant.id}
-              onShowQuickPay={() => setShowQuickPay(participant.id)}
-              onHideQuickPay={() => setShowQuickPay(null)}
-            />
-          ))}
-        </div>
-
-        {filteredParticipants.length === 0 && (
-          <div className="text-center py-12 text-gray-500">
-            <DollarSign className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-            <p className="text-lg font-medium">No participants found</p>
-            <p className="text-sm mt-1">Try adjusting your search or filters</p>
-          </div>
-        )}
-
-        {/* Completion Message */}
-        {summary.isFullyPaid && (
-          <div className="bg-green-50 border border-green-200 rounded-xl p-6 mt-6">
-            <div className="flex items-center">
-              <CheckCircle2 className="h-8 w-8 text-green-600 mr-3" />
-              <div>
-                <h4 className="font-medium text-green-900">Payment Complete! 🎉</h4>
-                <p className="text-sm text-green-700 mt-1">
-                  All participants have paid their {feeLabel.toLowerCase()}.
-                  {summary.totalOverpaid > 0 && ` Note: $${summary.totalOverpaid} in overpayments may need to be refunded.`}
-                </p>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Bottom padding for mobile */}
-        <div className="h-20"></div>
-      </div>
-
-      {/* Group Payment Modal */}
-      <Modal
-        isOpen={showGroupPayModal}
-        onClose={() => setShowGroupPayModal(false)}
-        title="Group Payment Setup"
-        size="md"
-      >
-        <div className="space-y-6">
-          <div className="bg-blue-50 p-4 rounded-lg">
-            <h4 className="font-medium text-blue-900 mb-2">Group Payment</h4>
-            <p className="text-sm text-blue-800">
-              Select who will pay the <strong>${fee * participants.length}</strong> total for all {participants.length} participants:
-            </p>
-          </div>
-
-          <div className="space-y-3">
-            {participantsWithPayment.map(p => (
-              <div 
-                key={p.id}
-                className="border rounded-lg p-4 cursor-pointer hover:bg-gray-50 transition-colors"
-                onClick={() => handleGroupPayment(p.id)}
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-3">
-                    <div className="h-10 w-10 bg-blue-100 rounded-full flex items-center justify-center">
-                      <span className="text-blue-700 font-semibold">
-                        {p.member.firstName.charAt(0)}{p.member.lastName.charAt(0)}
-                      </span>
-                    </div>
-                    <div>
-                      <p className="font-medium text-gray-900">
-                        {p.member.firstName} {p.member.lastName}
-                      </p>
-                      <p className="text-sm text-gray-600">{p.member.email}</p>
-                      {p.member.venmoHandle && (
-                        <p className="text-xs text-green-600">@{p.member.venmoHandle}</p>
-                      )}
-                    </div>
-                  </div>
-                  <ChevronRight className="h-5 w-5 text-gray-400" />
+            <div className="payment-section">
+              <div className="payment-section-content">
+                <div className="payment-input-group">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Select Division
+                  </label>
+                  <Select
+                    value={selectedDivision}
+                    onChange={(e) => setSelectedDivision(e.target.value)}
+                    options={event.divisions
+                      .filter(div => div.entryFee > 0)
+                      .map(div => ({
+                        value: div.id,
+                        label: `${div.name} - ${div.entryFee}`
+                      }))
+                    }
+                    className="w-full max-w-md"
+                  />
                 </div>
               </div>
-            ))}
-          </div>
-
-          {processing === 'group' && (
-            <div className="text-center py-4">
-              <div className="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
-              <p className="text-sm text-gray-600 mt-2">Setting up group payment...</p>
             </div>
           )}
+
+        {/* Payment Overview Section */}
+        <div className="payment-section">
+          <div 
+            className="payment-section-header"
+            onClick={() => toggleSection('overview')}
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center">
+                <Receipt className="h-5 w-5 text-blue-600 mr-3" />
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900">Payment Overview</h3>
+                  <p className="text-sm text-gray-600 mt-1">Summary and payment mode details</p>
+                </div>
+              </div>
+              <ChevronDown className={`h-5 w-5 text-gray-400 transition-transform ${expandedSections.overview ? 'rotate-180' : ''}`} />
+            </div>
+          </div>
+          
+          <div className={`payment-expandable ${expandedSections.overview ? 'expanded' : 'collapsed'}`}>
+            <div className="payment-section-content">
+              {/* Payment Mode Card */}
+              <div className={`payment-mode-card ${isGroupPayment ? 'group-mode' : ''}`}>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="text-lg font-semibold mb-2">
+                      {isGroupPayment ? 'Group Payment Mode' : 'Individual Payment Mode'}
+                    </h4>
+                    <p className="text-sm opacity-90">
+                      {isGroupPayment 
+                        ? 'One person pays for everyone' 
+                        : 'Each participant pays their own fee'
+                      }
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-2xl font-bold">
+                      ${isGroupPayment ? (fee * participants.length) : fee}
+                    </p>
+                    <p className="text-sm opacity-90">
+                      {isGroupPayment ? 'total' : 'per person'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Payment Summary */}
+              <div className="payment-summary-card">
+                <h4 className="text-lg font-semibold mb-4 flex items-center">
+                  <TrendingUp className="h-5 w-5 mr-2" />
+                  Payment Summary
+                </h4>
+                <div className="payment-stats">
+                  <div className="payment-stat-item">
+                    <div className="payment-stat-number">{summary.totalParticipants}</div>
+                    <div className="payment-stat-label">Participants</div>
+                  </div>
+                  <div className="payment-stat-item">
+                    <div className="payment-stat-number">${summary.totalExpected}</div>
+                    <div className="payment-stat-label">Expected</div>
+                  </div>
+                  <div className="payment-stat-item">
+                    <div className="payment-stat-number">${summary.totalPaid}</div>
+                    <div className="payment-stat-label">Collected</div>
+                  </div>
+                  <div className="payment-stat-item">
+                    <div className="payment-stat-number">${summary.totalOwed}</div>
+                    <div className="payment-stat-label">Outstanding</div>
+                  </div>
+                </div>
+                
+                {/* Progress Bar */}
+                <div className="payment-progress-container">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-medium">Payment Progress</span>
+                    <span className="text-sm">{summary.paidCount}/{summary.totalParticipants} paid</span>
+                  </div>
+                  <div className="payment-progress-bar">
+                    <div 
+                      className="payment-progress-fill"
+                      style={{ width: `${summary.paymentRate}%` }}
+                    ></div>
+                  </div>
+                  <div className="text-center mt-2">
+                    <span className="text-lg font-bold">{summary.paymentRate}%</span>
+                    <span className="text-sm ml-1">complete</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
-      </Modal>
+
+        {/* Group Payment Selector */}
+        {isGroupPayment && summary.totalPaid === 0 && (
+          <div className="payment-section">
+            <div 
+              className="payment-section-header"
+              onClick={() => toggleSection('actions')}
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center">
+                  <CreditCard className="h-5 w-5 text-blue-600 mr-3" />
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900">Group Payment</h3>
+                    <p className="text-sm text-gray-600 mt-1">Select who will pay for everyone</p>
+                  </div>
+                </div>
+                <ChevronDown className={`h-5 w-5 text-gray-400 transition-transform ${expandedSections.actions ? 'rotate-180' : ''}`} />
+              </div>
+            </div>
+            
+            <div className={`payment-expandable ${expandedSections.actions ? 'expanded' : 'collapsed'}`}>
+              <div className="payment-section-content">
+                <div className="group-payment-selector">
+                  <h4 className="text-lg font-semibold mb-2">Select Group Payer</h4>
+                  <p className="text-sm opacity-90 mb-4">
+                    Choose who will pay ${fee * participants.length} for all {participants.length} participants
+                  </p>
+                  
+                  <div className="group-payment-options">
+                    {participantsWithPayment.slice(0, 6).map(p => (
+                      <div
+                        key={p.id}
+                        className="group-payment-option"
+                        onClick={() => handleGroupPayment(p.id)}
+                      >
+                        <div className="font-medium">{p.member.firstName}</div>
+                        <div className="text-xs opacity-75 mt-1">{p.member.lastName}</div>
+                      </div>
+                    ))}
+                  </div>
+                  
+                  {processing === 'group' && (
+                    <div className="text-center mt-4">
+                      <div className="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-white"></div>
+                      <p className="text-sm mt-2">Processing group payment...</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Participants List */}
+        <div className="payment-section">
+          <div 
+            className="payment-section-header"
+            onClick={() => toggleSection('participants')}
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center">
+                <Users className="h-5 w-5 text-green-600 mr-3" />
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900">Participants ({participantsWithPayment.length})</h3>
+                  <p className="text-sm text-gray-600 mt-1">Manage individual payments</p>
+                </div>
+              </div>
+              <ChevronDown className={`h-5 w-5 text-gray-400 transition-transform ${expandedSections.participants ? 'rotate-180' : ''}`} />
+            </div>
+          </div>
+          
+          <div className={`payment-expandable ${expandedSections.participants ? 'expanded' : 'collapsed'}`}>
+            <div className="payment-section-content">
+              <div>
+                {participantsWithPayment.map((participant) => (
+                  <ParticipantCard
+                    key={participant.id}
+                    participant={participant}
+                    fee={fee}
+                    isGroupPayment={isGroupPayment}
+                    onPayment={(amount) => handlePayment(participant.id, amount)}
+                    onRemovePayment={() => removePayment(participant.id)}
+                    processing={processing === participant.id}
+                    formatPaymentDate={formatPaymentDate}
+                  />
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Completion Celebration */}
+        {summary.isFullyPaid && (
+          <div className="payment-completion-card">
+            <div className="payment-completion-icon">
+              <CheckCircle2 className="h-8 w-8" />
+            </div>
+            <h4 className="text-xl font-bold mb-2">Payment Complete! 🎉</h4>
+            <p className="opacity-90">
+              All participants have paid their {feeLabel.toLowerCase()}.
+            </p>
+          </div>
+        )}
+        </div>
+      </div>
     </div>
   );
 };
 
 /**
- * Mobile Payment Card Component
- * 
- * Features:
- * - Touch-optimized payment actions
- * - Visual payment status indicators
- * - Quick payment workflows
- * - Venmo integration
- * - Progressive disclosure for details
+ * Beautiful Participant Card Component
  */
-const MobilePaymentCard = ({ 
+const ParticipantCard = ({ 
   participant,
   fee,
   isGroupPayment,
-  isExpanded,
-  onToggle,
   onPayment,
   onRemovePayment,
   processing,
-  venmoLink,
-  isMobile,
-  showQuickPay,
-  onShowQuickPay,
-  onHideQuickPay
+  formatPaymentDate
 }) => {
   const [customAmount, setCustomAmount] = useState(fee.toString());
 
   const getStatusConfig = (status) => {
     const configs = {
       unpaid: { 
-        color: 'bg-red-50 border-red-200 text-red-800', 
         icon: XCircle, 
-        label: 'Unpaid',
-        statusClass: 'status-unpaid'
+        label: 'Unpaid'
       },
       partial: { 
-        color: 'bg-yellow-50 border-yellow-200 text-yellow-800', 
         icon: AlertTriangle, 
-        label: 'Partial',
-        statusClass: 'status-partial'
+        label: 'Partial'
       },
       paid: { 
-        color: 'bg-green-50 border-green-200 text-green-800', 
         icon: CheckCircle2, 
-        label: 'Paid',
-        statusClass: 'status-paid'
+        label: 'Paid'
       },
       overpaid: { 
-        color: 'bg-blue-50 border-blue-200 text-blue-800', 
         icon: TrendingUp, 
-        label: 'Overpaid',
-        statusClass: 'status-overpaid'
+        label: 'Overpaid'
       }
     };
     return configs[status] || configs.unpaid;
@@ -827,261 +1013,104 @@ const MobilePaymentCard = ({
   const statusConfig = getStatusConfig(participant.status);
   const StatusIcon = statusConfig.icon;
 
-  const handleQuickPayment = () => {
-    onPayment(customAmount);
-  };
-
-  const formatPaymentDate = (dateString) => {
-    if (!dateString) return '';
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', { 
-      month: 'short', 
-      day: 'numeric',
-      year: date.getFullYear() !== new Date().getFullYear() ? 'numeric' : undefined
-    });
-  };
-
   return (
-    <div className={`payment-card payment-status-indicator ${statusConfig.statusClass} bg-white rounded-xl border shadow-sm overflow-hidden`}>
-      {/* Card Header */}
-      <div 
-        className="p-4 cursor-pointer"
-        onClick={onToggle}
-      >
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-3 flex-1 min-w-0">
-            {/* Avatar */}
-            <div className={`
-              h-12 w-12 rounded-full flex items-center justify-center flex-shrink-0 relative
-              ${participant.status === 'paid' ? 'bg-green-100' : 
-                participant.status === 'overpaid' ? 'bg-blue-100' :
-                participant.status === 'partial' ? 'bg-yellow-100' : 'bg-red-100'}
-            `}>
-              <span className={`text-lg font-semibold ${
-                participant.status === 'paid' ? 'text-green-700' : 
-                participant.status === 'overpaid' ? 'text-blue-700' :
-                participant.status === 'partial' ? 'text-yellow-700' : 'text-red-700'
-              }`}>
+    <div className={`participant-card status-${participant.status}`}>
+      <div className="flex items-center justify-between">
+        {/* Participant Info */}
+        <div className="flex items-center space-x-3">
+          <div className="relative">
+            <div className="h-12 w-12 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
+              <span className="text-white font-semibold">
                 {participant.member.firstName.charAt(0)}{participant.member.lastName.charAt(0)}
               </span>
-              
+            </div>
+            {participant.isCurrentUser && (
+              <div className="absolute -top-1 -right-1 bg-blue-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                <User className="h-3 w-3" />
+              </div>
+            )}
+          </div>
+          
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center space-x-2">
+              <h4 className="font-semibold text-gray-900">
+                {participant.member.firstName} {participant.member.lastName}
+              </h4>
               {participant.isCurrentUser && (
-                <div className="absolute -top-1 -right-1 bg-blue-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
-                  <User className="h-3 w-3" />
-                </div>
+                <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full font-medium">You</span>
               )}
             </div>
-
-            {/* Name and Details */}
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center space-x-2">
-                <h3 className="font-semibold text-gray-900 truncate">
-                  {participant.member.firstName} {participant.member.lastName}
-                </h3>
-                {participant.isCurrentUser && (
-                  <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
-                    You
-                  </span>
-                )}
-              </div>
-              
-              <div className="flex items-center space-x-2 mt-1">
-                <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${statusConfig.color}`}>
-                  <StatusIcon className="h-3 w-3 mr-1" />
-                  {statusConfig.label}
-                </span>
-                
-                {participant.status === 'paid' && participant.paymentDate && (
-                  <span className="text-xs text-gray-500">
-                    {formatPaymentDate(participant.paymentDate)}
-                  </span>
-                )}
-              </div>
-
-              {/* Payment Amount */}
-              <div className="mt-2">
-                {participant.status === 'paid' && (
-                  <p className="text-sm text-green-600 font-medium">
-                    ✓ Paid ${participant.amountPaid}
-                  </p>
-                )}
-                {participant.status === 'partial' && (
-                  <p className="text-sm text-yellow-600 font-medium">
-                    ⚠ Paid ${participant.amountPaid}, owes ${participant.amountOwed}
-                  </p>
-                )}
-                {participant.status === 'overpaid' && (
-                  <p className="text-sm text-blue-600 font-medium">
-                    ↗ Overpaid ${participant.amountPaid} (excess: ${participant.overpaidAmount})
-                  </p>
-                )}
-                {participant.status === 'unpaid' && (
-                  <p className="text-sm text-red-600 font-medium">
-                    ✗ Owes ${fee}
-                  </p>
-                )}
-              </div>
+            <p className="text-sm text-gray-600">{participant.member.email}</p>
+            
+            {/* Payment Details */}
+            <div className="mt-2 text-sm">
+              {participant.status === 'paid' && (
+                <span className="text-green-600 font-medium">✓ Paid ${participant.amountPaid}</span>
+              )}
+              {participant.status === 'partial' && (
+                <span className="text-yellow-600 font-medium">⚠ Paid ${participant.amountPaid}, owes ${participant.amountOwed}</span>
+              )}
+              {participant.status === 'overpaid' && (
+                <span className="text-blue-600 font-medium">↗ Overpaid ${participant.amountPaid}</span>
+              )}
+              {participant.status === 'unpaid' && (
+                <span className="text-red-600 font-medium">✗ Owes ${fee}</span>
+              )}
+              {participant.paymentDate && (
+                <span className="text-gray-500 ml-2">• {formatPaymentDate(participant.paymentDate)}</span>
+              )}
             </div>
-          </div>
-
-          {/* Status and Expand Icon */}
-          <div className="flex items-center space-x-2">
-            <ChevronDown 
-              className={`h-5 w-5 text-gray-400 transition-transform ${
-                isExpanded ? 'transform rotate-180' : ''
-              }`} 
-            />
           </div>
         </div>
 
-        {/* Quick Actions Bar */}
-        {!isGroupPayment && (
-          <div className="mt-4 flex space-x-2">
-            {participant.status === 'unpaid' && (
-              <>
-                <Button
-                  size="sm"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onPayment(fee);
-                  }}
-                  loading={processing}
-                  disabled={processing}
-                  className="payment-action-button flex-1"
-                >
-                  <Check className="h-4 w-4 mr-1" />
-                  Mark Paid (${fee})
-                </Button>
-                
-                {venmoLink && (
-                  <Button
-                    size="sm"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      window.open(venmoLink, '_blank');
-                    }}
-                    className="venmo-link text-white payment-action-button"
-                  >
-                    <DollarSign className="h-4 w-4 mr-1" />
-                    Venmo
-                  </Button>
-                )}
-              </>
-            )}
-            
-            {participant.status !== 'unpaid' && (
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onRemovePayment();
-                }}
-                loading={processing}
-                disabled={processing}
-                className="payment-action-button flex-1"
-              >
-                <XCircle className="h-4 w-4 mr-1" />
-                Remove Payment
-              </Button>
-            )}
-          </div>
-        )}
-      </div>
+        {/* Status & Actions */}
+        <div className="flex items-center space-x-3">
+          {/* Status Badge */}
+          <span className={`status-badge ${participant.status}`}>
+            <StatusIcon className="h-3 w-3 mr-1" />
+            {statusConfig.label}
+          </span>
 
-      {/* Expanded Details */}
-      {isExpanded && (
-        <div className="border-t border-gray-100 p-4 bg-gray-50">
-          <div className="space-y-4">
-            {/* Contact Info */}
-            <div>
-              <h4 className="font-medium text-gray-900 mb-2">Contact Information</h4>
-              <div className="space-y-2 text-sm">
-                <div className="flex items-center text-gray-600">
-                  <Mail className="h-4 w-4 mr-2" />
-                  <span>{participant.member.email}</span>
-                </div>
-                {participant.member.phoneNumber && (
-                  <div className="flex items-center text-gray-600">
-                    <Phone className="h-4 w-4 mr-2" />
-                    <span>{participant.member.phoneNumber}</span>
-                  </div>
-                )}
-                {participant.member.venmoHandle && (
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center text-green-600">
-                      <DollarSign className="h-4 w-4 mr-2" />
-                      <span>@{participant.member.venmoHandle}</span>
-                    </div>
-                    {venmoLink && (
-                      <Button
-                        size="sm"
-                        onClick={() => window.open(venmoLink, '_blank')}
-                        className="venmo-link text-white"
-                      >
-                        <ExternalLink className="h-3 w-3 mr-1" />
-                        Pay
-                      </Button>
-                    )}
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Payment Details */}
-            {participant.status !== 'unpaid' && (
-              <div>
-                <h4 className="font-medium text-gray-900 mb-2">Payment Details</h4>
-                <div className="bg-white rounded-lg p-3 border">
-                  <div className="space-y-2 text-sm">
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Amount Paid:</span>
-                      <span className="font-medium">${participant.amountPaid}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Payment Date:</span>
-                      <span>{formatPaymentDate(participant.paymentDate) || 'Unknown'}</span>
-                    </div>
-                    {participant.notes && (
-                      <div className="pt-2 border-t">
-                        <span className="text-gray-600 text-xs">Notes:</span>
-                        <p className="text-gray-800 text-sm mt-1">{participant.notes}</p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Custom Payment Amount */}
-            {!isGroupPayment && participant.status === 'unpaid' && (
-              <div>
-                <h4 className="font-medium text-gray-900 mb-2">Custom Payment Amount</h4>
-                <div className="flex space-x-2">
+          {/* Action Buttons */}
+          {!isGroupPayment && (
+            <div className="flex items-center space-x-2">
+              {participant.status === 'unpaid' && (
+                <div className="flex items-center space-x-2">
                   <input
                     type="number"
                     value={customAmount}
                     onChange={(e) => setCustomAmount(e.target.value)}
-                    className="flex-1 payment-input p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                    placeholder="Amount"
+                    className="payment-amount-input"
                     step="0.01"
                     min="0"
                   />
                   <Button
-                    onClick={handleQuickPayment}
+                    onClick={() => onPayment(customAmount)}
                     loading={processing}
                     disabled={processing || !customAmount || parseFloat(customAmount) <= 0}
-                    className="payment-action-button"
+                    className="payment-action-button primary"
                   >
                     <Check className="h-4 w-4 mr-1" />
-                    Pay
+                    Mark Paid
                   </Button>
                 </div>
-              </div>
-            )}
-          </div>
+              )}
+              
+              {participant.status !== 'unpaid' && (
+                <Button
+                  onClick={onRemovePayment}
+                  loading={processing}
+                  disabled={processing}
+                  className="payment-action-button danger"
+                >
+                  <X className="h-4 w-4 mr-1" />
+                  Remove
+                </Button>
+              )}
+            </div>
+          )}
         </div>
-      )}
+      </div>
     </div>
   );
 };
