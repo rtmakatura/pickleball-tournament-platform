@@ -41,7 +41,8 @@ export const PAYMENT_MODES = {
 export const EVENT_TYPES = {
   SINGLES: 'singles',
   DOUBLES: 'doubles',
-  MIXED_DOUBLES: 'mixed_doubles'
+  MIXED_DOUBLES: 'mixed_doubles',
+  TEAM: 'team'
 };
 
 // Payment statuses (for tracking payments)
@@ -263,6 +264,7 @@ export const createTournament = (tournamentData) => {
       paymentData: tournamentData.paymentData || {}
     })];
   }
+  // Note: For new tournaments, divisions array will be empty and populated via UI
   
   return {
     name: tournamentData.name || '',
@@ -781,21 +783,18 @@ export const validateTournament = (tournamentData) => {
     errors.push('Invalid tournament status');
   }
   
-  // Validate divisions
-  if (!tournamentData.divisions || !Array.isArray(tournamentData.divisions)) {
-    errors.push('Tournament must have at least one division');
-  } else {
-    if (tournamentData.divisions.length === 0) {
-      errors.push('Tournament must have at least one division');
-    } else {
-      tournamentData.divisions.forEach((division, index) => {
-        const divisionValidation = validateDivision(division);
-        if (!divisionValidation.isValid) {
-          errors.push(`Division ${index + 1}: ${divisionValidation.errors.join(', ')}`);
-        }
-      });
-    }
+  // Validate divisions - allow empty for initial creation, validate existing divisions
+  if (tournamentData.divisions && !Array.isArray(tournamentData.divisions)) {
+    errors.push('Divisions must be an array');
+  } else if (tournamentData.divisions && tournamentData.divisions.length > 0) {
+    tournamentData.divisions.forEach((division, index) => {
+      const divisionValidation = validateDivision(division);
+      if (!divisionValidation.isValid) {
+        errors.push(`Division ${index + 1}: ${divisionValidation.errors.join(', ')}`);
+      }
+    });
   }
+  // Note: Empty divisions array is allowed for new tournaments in draft status
   
   return {
     isValid: errors.length === 0,
