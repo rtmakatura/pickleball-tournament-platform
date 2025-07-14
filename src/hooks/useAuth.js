@@ -110,7 +110,7 @@ export const useAuth = () => {
         });
         
         setMemberCheckComplete(true);
-        
+       
         return result;
       } catch (memberError) {
         // If member creation fails, we need to clean up the auth account
@@ -120,6 +120,8 @@ export const useAuth = () => {
         } catch (deleteError) {
           console.error('Failed to clean up auth account:', deleteError);
         }
+        setLoading(false); // CRITICAL FIX: Reset loading state
+        setError('Failed to complete account setup. Please try again.');
         throw new Error('Failed to complete account setup. Please try again.');
       }
     } catch (err) {
