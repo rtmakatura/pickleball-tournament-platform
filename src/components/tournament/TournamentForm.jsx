@@ -719,7 +719,8 @@ const TournamentForm = ({
       // Clear any field-level errors when loading new tournament
       setErrors({});
       setIsSubmitting(false);
-    } else if (!tournament) {
+    } else if (!tournament && isInitialMount.current) {
+      // Only reset form data on initial mount, not when userIsEditing becomes false
       setFormData({
         name: '',
         description: '',
@@ -761,7 +762,7 @@ const TournamentForm = ({
     // Set timeout to clear editing flag after user stops editing
     userEditingTimeoutRef.current = setTimeout(() => {
       setUserIsEditing(false);
-    }, 2000); // 2 seconds after last edit
+    }, 30000); // 30 seconds after last edit - prevents data loss during brief focus changes
     
     setFormData(prev => ({ ...prev, [field]: value }));
     
