@@ -310,27 +310,36 @@ const PaymentTracker = ({
           {/* Debug section removed to save mobile space */}
           
           {/* Payment Summary Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-4 mb-4 sm:mb-8">
-            <div className="bg-blue-50 payment-mobile-summary p-2 sm:p-4 rounded-lg border-2 border-blue-200">
-              <h4 className="font-medium text-blue-900">Expected</h4>
-              <p className="text-xl sm:text-2xl font-bold text-blue-600">${paymentSummary.totalExpected}</p>
-              <p className="text-xs text-blue-700">
+          <div className="grid grid-cols-3 gap-1 sm:gap-4 mb-2 sm:mb-8">
+            <div className="bg-blue-50 payment-mobile-summary p-1 sm:p-4 rounded-md sm:rounded-lg border border-blue-200 sm:border-2 text-center">
+              <h4 className="font-medium text-blue-900 text-xs sm:text-base mb-1">
+                <span className="hidden sm:inline">Expected</span>
+                <span className="sm:hidden">Exp.</span>
+              </h4>
+              <p className="text-sm sm:text-2xl font-bold text-blue-600">${paymentSummary.totalExpected}</p>
+              <p className="text-xs text-blue-700 leading-tight mt-0.5 sm:mt-1">
                 <span className="hidden sm:inline">{paymentSummary.paidTournaments} tournaments • {paymentSummary.paidDivisions} divisions • {paymentSummary.paidLeagues} leagues</span>
-                <span className="sm:hidden">{paymentSummary.paidTournaments}T•{paymentSummary.paidDivisions}D•{paymentSummary.paidLeagues}L</span>
+                <span className="sm:hidden">{paymentSummary.paidTournaments + paymentSummary.paidDivisions + paymentSummary.paidLeagues} events</span>
               </p>
             </div>
-            <div className="bg-green-50 payment-mobile-summary p-2 sm:p-4 rounded-lg border-2 border-green-200">
-              <h4 className="font-medium text-green-900">Collected</h4>
-              <p className="text-xl sm:text-2xl font-bold text-green-600">${paymentSummary.totalCollected}</p>
-              <p className="text-xs text-green-700">
+            <div className="bg-green-50 payment-mobile-summary p-1 sm:p-4 rounded-md sm:rounded-lg border border-green-200 sm:border-2 text-center">
+              <h4 className="font-medium text-green-900 text-xs sm:text-base mb-1">
+                <span className="hidden sm:inline">Collected</span>
+                <span className="sm:hidden">Paid</span>
+              </h4>
+              <p className="text-sm sm:text-2xl font-bold text-green-600">${paymentSummary.totalCollected}</p>
+              <p className="text-xs text-green-700 leading-tight mt-0.5 sm:mt-1">
                 <span className="hidden sm:inline">{paymentSummary.participantsPaid} of {paymentSummary.participantsWithPayments} paid</span>
                 <span className="sm:hidden">{paymentSummary.participantsPaid}/{paymentSummary.participantsWithPayments}</span>
               </p>
             </div>
-            <div className="bg-red-50 payment-mobile-summary p-2 sm:p-4 rounded-lg border-2 border-red-200 sm:col-span-2 lg:col-span-1">
-              <h4 className="font-medium text-red-900">Outstanding</h4>
-              <p className="text-xl sm:text-2xl font-bold text-red-600">${paymentSummary.totalOwed}</p>
-              <p className="text-xs text-red-700">
+            <div className="bg-red-50 payment-mobile-summary p-1 sm:p-4 rounded-md sm:rounded-lg border border-red-200 sm:border-2 text-center">
+              <h4 className="font-medium text-red-900 text-xs sm:text-base mb-1">
+                <span className="hidden sm:inline">Outstanding</span>
+                <span className="sm:hidden">Owed</span>
+              </h4>
+              <p className="text-sm sm:text-2xl font-bold text-red-600">${paymentSummary.totalOwed}</p>
+              <p className="text-xs text-red-700 leading-tight mt-0.5 sm:mt-1">
                 <span className="hidden sm:inline">{paymentSummary.paymentRate}% payment rate</span>
                 <span className="sm:hidden">{paymentSummary.paymentRate}%</span>
               </p>
@@ -446,15 +455,15 @@ const PaymentTracker = ({
 // Tournament Payment Section Component
 const TournamentPaymentSection = ({ tournament, paidDivisions, members, onUpdateTournament, currentUserId }) => {
   return (
-    <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-      <div className="mb-4">
-        <h4 className="font-medium text-gray-900 text-lg">{tournament.name}</h4>
-        <p className="text-sm text-gray-600">
+    <div className="bg-gray-50 border border-gray-200 rounded-lg p-2 sm:p-4">
+      <div className="mb-2 sm:mb-4">
+        <h4 className="font-medium text-gray-900 text-sm sm:text-lg">{tournament.name}</h4>
+        <p className="text-xs sm:text-sm text-gray-600">
           {paidDivisions.length} paid division{paidDivisions.length !== 1 ? 's' : ''}
         </p>
       </div>
       
-      <div className="space-y-4">
+      <div className="space-y-2 sm:space-y-4">
         {paidDivisions.map(division => (
           <DivisionPaymentCard
             key={division.id}
@@ -473,11 +482,12 @@ const TournamentPaymentSection = ({ tournament, paidDivisions, members, onUpdate
 // League Payment Section Component
 const LeaguePaymentSection = ({ league, members, onUpdateLeague, currentUserId }) => {
   return (
-    <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-      <div className="flex justify-between items-center mb-4">
-        <h4 className="font-medium text-gray-900 text-lg">{league.name}</h4>
-        <span className="text-sm text-gray-500 bg-white px-3 py-1.5 rounded-full font-medium">
-          ${league.registrationFee} per person
+    <div className="bg-gray-50 border border-gray-200 rounded-lg p-2 sm:p-4">
+      <div className="flex justify-between items-center mb-2 sm:mb-4">
+        <h4 className="font-medium text-gray-900 text-sm sm:text-lg">{league.name}</h4>
+        <span className="text-xs sm:text-sm text-gray-500 bg-white px-2 py-1 sm:px-3 sm:py-1.5 rounded-full font-medium">
+          ${league.registrationFee}
+          <span className="hidden sm:inline"> per person</span>
         </span>
       </div>
       <LeaguePaymentCard
@@ -577,48 +587,58 @@ const DivisionPaymentCard = ({ tournament, division, members, onUpdateTournament
   };
 
   return (
-    <div className="bg-white border border-gray-200 rounded-lg p-4">
+    <div className="bg-white border border-gray-200 rounded-lg p-2 sm:p-4">
       {errors.length > 0 && (
         <Alert
           type="error"
           title="Payment Error"
           message={errors.join(', ')}
           onClose={() => setErrors([])}
-          className="mb-4"
+          className="mb-2 sm:mb-4"
         />
       )}
       
-      <div className="flex justify-between items-center mb-4">
-        <h5 className="font-medium text-gray-800 text-lg">{division.name}</h5>
-        <span className="text-sm text-gray-500 bg-gray-100 px-3 py-1.5 rounded-full font-medium">
-          ${division.entryFee} per person
+      <div className="flex justify-between items-center mb-2 sm:mb-4">
+        <h5 className="font-medium text-gray-800 text-sm sm:text-lg">{division.name}</h5>
+        <span className="text-xs sm:text-sm text-gray-500 bg-gray-100 px-2 py-1 sm:px-3 sm:py-1.5 rounded-full font-medium">
+          ${division.entryFee}
+          <span className="hidden sm:inline"> per person</span>
         </span>
       </div>
 
       {/* Payment Summary */}
-      <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg p-4 mb-4">
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <div className="bg-white bg-opacity-10 rounded p-3 text-center">
-            <div className="text-xl font-bold">{summary.totalParticipants}</div>
-            <div className="text-xs text-blue-100">Participants</div>
+      <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg p-2 sm:p-4 mb-2 sm:mb-4">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-1 sm:gap-3">
+          <div className="bg-white bg-opacity-10 rounded p-1.5 sm:p-3 text-center">
+            <div className="text-sm sm:text-xl font-bold">{summary.totalParticipants}</div>
+            <div className="text-xs text-blue-100">
+              <span className="hidden sm:inline">Participants</span>
+              <span className="sm:hidden">People</span>
+            </div>
           </div>
-          <div className="bg-white bg-opacity-10 rounded p-3 text-center">
-            <div className="text-xl font-bold">${summary.totalExpected}</div>
+          <div className="bg-white bg-opacity-10 rounded p-1.5 sm:p-3 text-center">
+            <div className="text-sm sm:text-xl font-bold">${summary.totalExpected}</div>
             <div className="text-xs text-blue-100">Expected</div>
           </div>
-          <div className="bg-white bg-opacity-10 rounded p-3 text-center">
-            <div className="text-xl font-bold">${summary.totalPaid}</div>
-            <div className="text-xs text-blue-100">Collected</div>
+          <div className="bg-white bg-opacity-10 rounded p-1.5 sm:p-3 text-center">
+            <div className="text-sm sm:text-xl font-bold">${summary.totalPaid}</div>
+            <div className="text-xs text-blue-100">
+              <span className="hidden sm:inline">Collected</span>
+              <span className="sm:hidden">Paid</span>
+            </div>
           </div>
-          <div className="bg-white bg-opacity-10 rounded p-3 text-center">
-            <div className="text-xl font-bold">{summary.paymentRate}%</div>
-            <div className="text-xs text-blue-100">Paid</div>
+          <div className="bg-white bg-opacity-10 rounded p-1.5 sm:p-3 text-center">
+            <div className="text-sm sm:text-xl font-bold">{summary.paymentRate}%</div>
+            <div className="text-xs text-blue-100">
+              <span className="hidden sm:inline">Paid</span>
+              <span className="sm:hidden">Rate</span>
+            </div>
           </div>
         </div>
       </div>
 
       {/* Participants */}
-      <div className="space-y-3">
+      <div className="space-y-1 sm:space-y-3">
         {participantsWithPayment.map((participant) => (
           <ParticipantPaymentCard
             key={participant.id}
@@ -632,9 +652,12 @@ const DivisionPaymentCard = ({ tournament, division, members, onUpdateTournament
       </div>
 
       {summary.isFullyPaid && (
-        <div className="bg-green-600 text-white rounded-lg p-4 text-center mt-4">
-          <CheckCircle2 className="h-6 w-6 mx-auto mb-2" />
-          <p className="font-medium">All payments collected! 🎉</p>
+        <div className="bg-green-600 text-white rounded-lg p-2 sm:p-4 text-center mt-2 sm:mt-4">
+          <CheckCircle2 className="h-4 w-4 sm:h-6 sm:w-6 mx-auto mb-1 sm:mb-2" />
+          <p className="font-medium text-sm sm:text-base">
+            <span className="hidden sm:inline">All payments collected! 🎉</span>
+            <span className="sm:hidden">Complete! 🎉</span>
+          </p>
         </div>
       )}
     </div>
@@ -716,41 +739,47 @@ const LeaguePaymentCard = ({ league, members, onUpdateLeague, currentUserId }) =
   };
 
   return (
-    <div className="bg-white border border-gray-200 rounded-lg p-4">
+    <div className="bg-white border border-gray-200 rounded-lg p-2 sm:p-4">
       {errors.length > 0 && (
         <Alert
           type="error"
           title="Payment Error"
           message={errors.join(', ')}
           onClose={() => setErrors([])}
-          className="mb-4"
+          className="mb-2 sm:mb-4"
         />
       )}
 
       {/* Payment Summary */}
-      <div className="bg-gradient-to-r from-purple-600 to-purple-700 text-white rounded-lg p-4 mb-4">
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <div className="bg-white bg-opacity-10 rounded p-3 text-center">
-            <div className="text-xl font-bold">{summary.totalParticipants}</div>
+      <div className="bg-gradient-to-r from-purple-600 to-purple-700 text-white rounded-lg p-2 sm:p-4 mb-2 sm:mb-4">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-1 sm:gap-3">
+          <div className="bg-white bg-opacity-10 rounded p-1.5 sm:p-3 text-center">
+            <div className="text-sm sm:text-xl font-bold">{summary.totalParticipants}</div>
             <div className="text-xs text-purple-100">Members</div>
           </div>
-          <div className="bg-white bg-opacity-10 rounded p-3 text-center">
-            <div className="text-xl font-bold">${summary.totalExpected}</div>
+          <div className="bg-white bg-opacity-10 rounded p-1.5 sm:p-3 text-center">
+            <div className="text-sm sm:text-xl font-bold">${summary.totalExpected}</div>
             <div className="text-xs text-purple-100">Expected</div>
           </div>
-          <div className="bg-white bg-opacity-10 rounded p-3 text-center">
-            <div className="text-xl font-bold">${summary.totalPaid}</div>
-            <div className="text-xs text-purple-100">Collected</div>
+          <div className="bg-white bg-opacity-10 rounded p-1.5 sm:p-3 text-center">
+            <div className="text-sm sm:text-xl font-bold">${summary.totalPaid}</div>
+            <div className="text-xs text-purple-100">
+              <span className="hidden sm:inline">Collected</span>
+              <span className="sm:hidden">Paid</span>
+            </div>
           </div>
-          <div className="bg-white bg-opacity-10 rounded p-3 text-center">
-            <div className="text-xl font-bold">{summary.paymentRate}%</div>
-            <div className="text-xs text-purple-100">Paid</div>
+          <div className="bg-white bg-opacity-10 rounded p-1.5 sm:p-3 text-center">
+            <div className="text-sm sm:text-xl font-bold">{summary.paymentRate}%</div>
+            <div className="text-xs text-purple-100">
+              <span className="hidden sm:inline">Paid</span>
+              <span className="sm:hidden">Rate</span>
+            </div>
           </div>
         </div>
       </div>
 
       {/* Participants */}
-      <div className="space-y-3">
+      <div className="space-y-1 sm:space-y-3">
         {participantsWithPayment.map((participant) => (
           <ParticipantPaymentCard
             key={participant.id}
@@ -764,9 +793,12 @@ const LeaguePaymentCard = ({ league, members, onUpdateLeague, currentUserId }) =
       </div>
 
       {summary.isFullyPaid && (
-        <div className="bg-green-600 text-white rounded-lg p-4 text-center mt-4">
-          <CheckCircle2 className="h-6 w-6 mx-auto mb-2" />
-          <p className="font-medium">All registrations paid! 🎉</p>
+        <div className="bg-green-600 text-white rounded-lg p-2 sm:p-4 text-center mt-2 sm:mt-4">
+          <CheckCircle2 className="h-4 w-4 sm:h-6 sm:w-6 mx-auto mb-1 sm:mb-2" />
+          <p className="font-medium text-sm sm:text-base">
+            <span className="hidden sm:inline">All registrations paid! 🎉</span>
+            <span className="sm:hidden">Complete! 🎉</span>
+          </p>
         </div>
       )}
     </div>
