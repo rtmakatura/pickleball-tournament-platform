@@ -1,5 +1,5 @@
-// src/utils/statusUtils.js - Tournament Status Management Utilities
-import { TOURNAMENT_STATUS } from '../services/models';
+// src/utils/statusUtils.js - Tournament and League Status Management Utilities
+import { TOURNAMENT_STATUS, LEAGUE_STATUS } from '../services/models';
 
 /**
  * Checks if a tournament should automatically transition to REGISTERED status
@@ -39,22 +39,116 @@ export const shouldTournamentBeRegistered = (tournament) => {
 };
 
 /**
- * Determines the appropriate tournament status based on current state and payments
+ * ADDED: Determines the appropriate tournament status based on current state, payments, and dates
  * @param {Object} tournament - Tournament object
  * @returns {string} - Appropriate tournament status
  */
 export const getAutomaticTournamentStatus = (tournament) => {
+  if (!tournament) return TOURNAMENT_STATUS.DRAFT;
+  
   const currentStatus = tournament.status;
+  const now = new Date();
+  
+  // Get event date
+  const eventDate = tournament.eventDate?.seconds 
+    ? new Date(tournament.eventDate.seconds * 1000) 
+    : tournament.eventDate ? new Date(tournament.eventDate) : null;
+  
+  // Get registration deadline or use event date
+  const registrationDeadline = tournament.registrationDeadline?.seconds
+    ? new Date(tournament.registrationDeadline.seconds * 1000)
+    : tournament.registrationDeadline ? new Date(tournament.registrationDeadline) : eventDate;
 
-  // Only auto-transition from REGISTRATION_OPEN to REGISTERED
+  // Don't auto-change archived or manually set completed tournaments
+  if (currentStatus === TOURNAMENT_STATUS.ARCHIVED || 
+      currentStatus === TOURNAMENT_STATUS.COMPLETED) {
+    return currentStatus;
+  }
+
+  // If no event date, don't auto-transition based on dates
+  if (!eventDate) {
+    // Only handle payment-based transitions
+    if (currentStatus === TOURNAMENT_STATUS.REGISTRATION_OPEN) {
+      if (shouldTournamentBeRegistered(tournament)) {
+        return TOURNAMENT_STATUS.REGISTERED;
+      }
+    }
+    return currentStatus;
+  }
+
+  // ADDED: Date-based transitions
+  
+  // If event date has passed, should be completed
+  if (now >= eventDate) {
+    return TOURNAMENT_STATUS.COMPLETED;
+  }
+
+  // If start date/registration deadline has passed, should be in progress
+  const startThreshold = registrationDeadline || eventDate;
+  if (now >= startThreshold) {
+    return TOURNAMENT_STATUS.IN_PROGRESS;
+  }
+
+  // EXISTING: Payment-based transition from REGISTRATION_OPEN to REGISTERED
+  // But only if we haven't hit the start date yet
   if (currentStatus === TOURNAMENT_STATUS.REGISTRATION_OPEN) {
-    if (shouldTournamentBeRegistered(tournament)) {
+    if (shouldTournamentBeRegistered(tournament) && now < startThreshold) {
       return TOURNAMENT_STATUS.REGISTERED;
     }
   }
 
-  // Don't change status for other cases
+  // Return current status if no automatic transition needed
   return currentStatus;
+};
+
+/**
+ * ADDED: Determines the appropriate league status based on dates
+ * @param {Object} league - League object
+ * @returns {string} - Appropriate league status
+ */
+export const getAutomaticLeagueStatus = (league) => {
+  if (!league) return LEAGUE_STATUS.ACTIVE;
+  
+  const currentStatus = league.status;
+  const now = new Date();
+  
+  const startDate = league.startDate?.seconds 
+    ? new Date(league.startDate.seconds * 1000) 
+    : league.startDate ? new Date(league.startDate) : null;
+  
+  const endDate = league.endDate?.seconds
+    ? new Date(league.endDate.seconds * 1000)
+    : league.endDate ? new Date(league.endDate) : null;
+
+  // Don't auto-change archived or manually set completed leagues
+  if (currentStatus === LEAGUE_STATUS.ARCHIVED || 
+      currentStatus === LEAGUE_STATUS.COMPLETED) {
+    return currentStatus;
+  }
+
+  // If no dates, stay in current status
+  if (!startDate || !endDate) {
+    return currentStatus || LEAGUE_STATUS.ACTIVE;
+  }
+
+  // If end date has passed, should be completed
+  if (now >= endDate) {
+    return LEAGUE_STATUS.COMPLETED;
+  }
+
+  // If we're between start and end dates, should be active
+  if (now >= startDate && now < endDate) {
+    return LEAGUE_STATUS.ACTIVE;
+  }
+
+  // If start date hasn't arrived yet and currently active, keep active
+  // If start date hasn't arrived yet and currently registered, keep registered
+  if (now < startDate) {
+    return currentStatus || LEAGUE_STATUS.REGISTERED;
+  }
+
+  // Default fallback
+  return currentStatus || LEAGUE_STATUS.ACTIVE;
 };
 
 /**
@@ -126,8 +220,29 @@ export const canTournamentTransitionTo = (tournament, newStatus) => {
   return { canTransition: false, reason: `Cannot transition from ${currentStatus} to ${newStatus}` };
 };
 
+/**
+ * ADDED: Checks if a tournament needs a status update
+ */
+export const shouldUpdateTournamentStatus = (tournament) => {
+  const currentStatus = tournament.status;
+  const suggestedStatus = getAutomaticTournamentStatus(tournament);
+  return currentStatus !== suggestedStatus;
+};
+
+/**
+ * ADDED: Checks if a league needs a status update
+ */
+export const shouldUpdateLeagueStatus = (league) => {
+  const currentStatus = league.status;
+  const suggestedStatus = getAutomaticLeagueStatus(league);
+  return currentStatus !== suggestedStatus;
+};
+
 export default {
   shouldTournamentBeRegistered,
   getAutomaticTournamentStatus,
-  canTournamentTransitionTo
+  getAutomaticLeagueStatus,
+  canTournamentTransitionTo,
+  shouldUpdateTournamentStatus,
+  shouldUpdateLeagueStatus
 };

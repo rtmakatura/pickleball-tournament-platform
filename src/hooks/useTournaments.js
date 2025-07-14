@@ -346,6 +346,26 @@ export const useTournaments = (options = {}) => {
     }
   };
 
+  // ADDED: Bulk status update for all tournaments
+  const checkAndUpdateAllTournamentStatuses = async () => {
+    try {
+      console.log('Checking all tournament statuses for updates');
+      
+      for (const tournament of tournaments) {
+        const suggestedStatus = getAutomaticTournamentStatus(tournament);
+        
+        if (suggestedStatus !== tournament.status) {
+          console.log(`Auto-updating tournament ${tournament.name} from ${tournament.status} to ${suggestedStatus}`);
+          await firebaseOps.update('tournaments', tournament.id, { status: suggestedStatus });
+        }
+      }
+      
+      console.log('Completed bulk tournament status check');
+    } catch (error) {
+      console.error('Error in bulk tournament status update:', error);
+    }
+  };
+
   return {
     tournaments,
     loading,
@@ -361,7 +381,8 @@ export const useTournaments = (options = {}) => {
     deleteDivision,
     archiveTournament,
     unarchiveTournament,
-    checkAndUpdateTournamentStatus
+    checkAndUpdateTournamentStatus,
+    checkAndUpdateAllTournamentStatuses
   };
 };
 

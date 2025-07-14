@@ -1,5 +1,5 @@
 // src/components/Dashboard.jsx (UPDATED - Added Results Entry Integration)
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { 
   Plus, 
   Calendar, 
@@ -311,6 +311,8 @@ const TournamentCard = React.memo(({ tournament, onView, onEdit, onEnterResults,
         return { color: 'text-gray-600 bg-gray-100', icon: Clock, label: 'Draft' };
       case TOURNAMENT_STATUS.REGISTRATION_OPEN:
         return { color: 'text-green-700 bg-green-100', icon: CheckCircle, label: 'Open' };
+      case TOURNAMENT_STATUS.REGISTERED:
+        return { color: 'text-blue-600 bg-blue-100', icon: Users, label: 'Registered' };
       case TOURNAMENT_STATUS.IN_PROGRESS:
         return { color: 'text-blue-700 bg-blue-100', icon: Activity, label: 'In Progress' };
       case TOURNAMENT_STATUS.COMPLETED:
@@ -657,6 +659,7 @@ const TournamentRow = React.memo(({ tournament, onView, onEdit, onEnterResults, 
             inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium
             ${tournament.status === TOURNAMENT_STATUS.DRAFT ? 'bg-gray-100 text-gray-800' :
               tournament.status === TOURNAMENT_STATUS.REGISTRATION_OPEN ? 'bg-green-100 text-green-800' :
+              tournament.status === TOURNAMENT_STATUS.REGISTERED ? 'bg-blue-100 text-blue-800' :
               tournament.status === TOURNAMENT_STATUS.IN_PROGRESS ? 'bg-blue-100 text-blue-800' :
               tournament.status === TOURNAMENT_STATUS.COMPLETED ? 'bg-purple-100 text-purple-800' :
               'bg-gray-100 text-gray-800'
@@ -665,6 +668,7 @@ const TournamentRow = React.memo(({ tournament, onView, onEdit, onEnterResults, 
             <div className={`
               w-1.5 h-1.5 rounded-full mr-1.5
               ${tournament.status === TOURNAMENT_STATUS.REGISTRATION_OPEN ? 'bg-green-400' :
+                tournament.status === TOURNAMENT_STATUS.REGISTERED ? 'bg-blue-400' :
                 tournament.status === TOURNAMENT_STATUS.IN_PROGRESS ? 'bg-blue-400' :
                 tournament.status === TOURNAMENT_STATUS.COMPLETED ? 'bg-purple-400' :
                 'bg-gray-400'
@@ -744,6 +748,8 @@ const LeagueCard = React.memo(({ league, onView, onEdit, onEnterResults, onViewR
     switch (status) {
       case LEAGUE_STATUS.ACTIVE:
         return 'text-green-700 bg-green-100';
+      case LEAGUE_STATUS.REGISTERED:
+        return 'text-blue-700 bg-blue-100';
       case LEAGUE_STATUS.COMPLETED:
         return 'text-purple-700 bg-purple-100';
       default:
@@ -1008,6 +1014,7 @@ const LeagueRow = React.memo(({ league, onView, onEdit, onEnterResults, onViewRe
           <span className={`
             inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium
             ${league.status === LEAGUE_STATUS.ACTIVE ? 'bg-green-100 text-green-800' :
+              league.status === LEAGUE_STATUS.REGISTERED ? 'bg-blue-100 text-blue-800' :
               league.status === LEAGUE_STATUS.COMPLETED ? 'bg-purple-100 text-purple-800' :
               'bg-gray-100 text-gray-800'
             }
@@ -1015,6 +1022,7 @@ const LeagueRow = React.memo(({ league, onView, onEdit, onEnterResults, onViewRe
             <div className={`
               w-1.5 h-1.5 rounded-full mr-1.5
               ${league.status === LEAGUE_STATUS.ACTIVE ? 'bg-green-400' :
+                league.status === LEAGUE_STATUS.REGISTERED ? 'bg-blue-400' :
                 league.status === LEAGUE_STATUS.COMPLETED ? 'bg-purple-400' :
                 'bg-gray-400'
               }
@@ -1341,8 +1349,8 @@ const ResultsDashboard = ({ results, tournaments, leagues, members, onViewTourna
 const Dashboard = () => {
   const { user, signIn, signUpWithProfile, logout, isAuthenticated, loading: authLoading } = useAuth();
   const { members, loading: membersLoading, addMember, updateMember, deleteMember } = useMembers({ realTime: true });
-  const { leagues, loading: leaguesLoading, addLeague, updateLeague, deleteLeague, archiveLeague, unarchiveLeague } = useLeagues({ realTime: true });
-  const { tournaments, loading: tournamentsLoading, addTournament, updateTournament, deleteTournament, archiveTournament, unarchiveTournament } = useTournaments({ realTime: true });
+  const { leagues, loading: leaguesLoading, addLeague, updateLeague, deleteLeague, archiveLeague, unarchiveLeague, checkAndUpdateAllLeagueStatuses } = useLeagues({ realTime: true });
+  const { tournaments, loading: tournamentsLoading, addTournament, updateTournament, deleteTournament, archiveTournament, unarchiveTournament, checkAndUpdateAllTournamentStatuses } = useTournaments({ realTime: true });
   // ADDED: Results and performance hooks
   const { 
   results, 
@@ -2304,6 +2312,21 @@ const Dashboard = () => {
   };
 
   // Modal close handlers already defined above with closeModal function
+
+  // ADDED: Automatic status checking on dashboard load
+  useEffect(() => {
+    if (isAuthenticated && tournaments.length > 0) {
+      console.log('Running automatic tournament status checks');
+      checkAndUpdateAllTournamentStatuses();
+    }
+  }, [isAuthenticated, tournaments.length, checkAndUpdateAllTournamentStatuses]);
+
+  useEffect(() => {
+    if (isAuthenticated && leagues.length > 0) {
+      console.log('Running automatic league status checks');
+      checkAndUpdateAllLeagueStatuses();
+    }
+  }, [isAuthenticated, leagues.length, checkAndUpdateAllLeagueStatuses]);
 
   // Show loading state while auth is initializing
   if (authLoading) {
