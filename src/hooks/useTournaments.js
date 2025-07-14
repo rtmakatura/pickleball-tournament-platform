@@ -2,6 +2,8 @@
 import { useState, useEffect } from 'react';
 import firebaseOps from '../services/firebaseOperations';
 import { createTournament, getTournamentDivisionById } from '../services/models';
+import { getAutomaticTournamentStatus } from '../utils/statusUtils';
+
 
 export const useTournaments = (options = {}) => {
   const { realTime = true, filters = {} } = options;
@@ -305,6 +307,45 @@ export const useTournaments = (options = {}) => {
     }
   };
 
+  // ADDED: Automatic status checking and updating
+  const checkAndUpdateTournamentStatus = async (tournamentId) => {
+    try {
+      console.log('Checking tournament status:', tournamentId);
+      
+      if (!tournamentId) {
+        throw new Error('Tournament ID is required for status check');
+      }
+      
+      const tournament = tournaments.find(t => t.id === tournamentId);
+      if (!tournament) {
+        console.log('Tournament not found in current state, fetching...');
+        const fetchedTournament = await firebaseOps.read('tournaments', tournamentId);
+        if (!fetchedTournament) {
+          throw new Error('Tournament not found');
+        }
+        
+        const suggestedStatus = getAutomaticTournamentStatus(fetchedTournament);
+        if (suggestedStatus !== fetchedTournament.status) {
+          console.log('Updating tournament status from', fetchedTournament.status, 'to', suggestedStatus);
+          await firebaseOps.update('tournaments', tournamentId, { status: suggestedStatus });
+        }
+        return;
+      }
+
+      const suggestedStatus = getAutomaticTournamentStatus(tournament);
+      
+      if (suggestedStatus !== tournament.status) {
+        console.log('Updating tournament status from', tournament.status, 'to', suggestedStatus);
+        await firebaseOps.update('tournaments', tournamentId, { status: suggestedStatus });
+      } else {
+        console.log('Tournament status is already correct:', tournament.status);
+      }
+    } catch (error) {
+      console.error('Error checking/updating tournament status:', error);
+      throw new Error(`Failed to check tournament status: ${error.message}`);
+    }
+  };
+
   return {
     tournaments,
     loading,
@@ -319,7 +360,8 @@ export const useTournaments = (options = {}) => {
     updateDivision,
     deleteDivision,
     archiveTournament,
-    unarchiveTournament
+    unarchiveTournament,
+    checkAndUpdateTournamentStatus
   };
 };
 

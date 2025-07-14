@@ -19,6 +19,7 @@ export const SKILL_LEVELS = {
 export const TOURNAMENT_STATUS = {
   DRAFT: 'draft',
   REGISTRATION_OPEN: 'registration_open',
+  REGISTERED: 'registered',
   IN_PROGRESS: 'in_progress',
   COMPLETED: 'completed',
   ARCHIVED: 'archived'
@@ -27,6 +28,7 @@ export const TOURNAMENT_STATUS = {
 // League statuses
 export const LEAGUE_STATUS = {
   ACTIVE: 'active',
+  REGISTERED: 'registered',
   COMPLETED: 'completed',
   ARCHIVED: 'archived'
 };

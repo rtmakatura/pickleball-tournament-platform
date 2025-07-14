@@ -22,6 +22,7 @@ import {
   calculateLeaguePaymentSummary,
   getParticipantPaymentStatus
 } from '../../utils/paymentUtils';
+import { getAutomaticTournamentStatus } from '../../utils/statusUtils';
 
 const paymentTrackerStyles = `
   .payment-tracker-section {
@@ -556,7 +557,17 @@ const DivisionPaymentCard = ({ tournament, division, members, onUpdateTournament
           : div
       );
       
-      await onUpdateTournament(tournament.id, { divisions: updatedDivisions });
+      // Create updated tournament for status check
+      const updatedTournament = { ...tournament, divisions: updatedDivisions };
+      const suggestedStatus = getAutomaticTournamentStatus(updatedTournament);
+      
+      // Update tournament with new divisions and potentially new status
+      const updateData = { divisions: updatedDivisions };
+      if (suggestedStatus !== tournament.status) {
+        updateData.status = suggestedStatus;
+      }
+      
+      await onUpdateTournament(tournament.id, updateData);
       setErrors([]);
     } catch (error) {
       setErrors([`Payment failed: ${error.message}`]);
