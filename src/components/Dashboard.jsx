@@ -508,17 +508,52 @@ const TournamentRow = React.memo(({ tournament, onView, onEdit, onEnterResults, 
   const divisionCount = tournament.divisions?.length || 0;
   
   const getRegistrationDeadlineText = (tournament) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Reset to start of day for accurate comparison
+    
+    let targetDate;
+    let isRegistrationDeadline = false;
+    
+    // Check if there's a registration deadline first
     if (tournament.registrationDeadline) {
-      const deadline = tournament.registrationDeadline.seconds 
+      targetDate = tournament.registrationDeadline.seconds 
         ? new Date(tournament.registrationDeadline.seconds * 1000)
         : new Date(tournament.registrationDeadline);
-      
-      return `Until ${deadline.toLocaleDateString('en-US', { 
+      isRegistrationDeadline = true;
+    } else if (tournament.eventDate) {
+      // Fall back to event date if no registration deadline
+      targetDate = tournament.eventDate.seconds 
+        ? new Date(tournament.eventDate.seconds * 1000)
+        : new Date(tournament.eventDate);
+      isRegistrationDeadline = false;
+    } else {
+      return 'TBD';
+    }
+    
+    // Reset target date to start of day for comparison
+    const compareDate = new Date(targetDate);
+    compareDate.setHours(0, 0, 0, 0);
+    
+    const diffTime = compareDate.getTime() - today.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    if (diffDays < 0) {
+      // Date has passed
+      return isRegistrationDeadline ? 'Registration closed' : 'Event completed';
+    } else if (diffDays === 0) {
+      // Date is today
+      return isRegistrationDeadline ? 'Registration closes today' : 'Event is today';
+    } else if (diffDays === 1) {
+      // Date is tomorrow
+      return isRegistrationDeadline ? 'Registration closes tomorrow' : 'Event is tomorrow';
+    } else {
+      // Date is in the future
+      const dateStr = targetDate.toLocaleDateString('en-US', { 
         month: 'short', 
         day: 'numeric' 
-      })}`;
+      });
+      return isRegistrationDeadline ? `Until ${dateStr}` : `Event ${dateStr}`;
     }
-    return 'Until event date';
   };
 
   const handleViewClick = useCallback((e) => {
