@@ -700,6 +700,7 @@ const TournamentForm = ({
       return;
     }
     
+    // Only sync when tournament changes (new tournament loaded)
     if (tournament && tournament.id !== tournamentIdRef.current) {
       const newFormData = {
         name: tournament.name || '',
@@ -719,7 +720,11 @@ const TournamentForm = ({
       // Clear any field-level errors when loading new tournament
       setErrors({});
       setIsSubmitting(false);
-    } else if (!tournament) {
+      
+      // Reset editing flag for new tournament
+      setUserIsEditing(false);
+    } else if (!tournament && !userIsEditing) {
+      // Only reset form if user isn't editing (creating new tournament)
       setFormData({
         name: '',
         description: '',
@@ -753,15 +758,7 @@ const TournamentForm = ({
     // Set user editing flag to prevent real-time overwrites
     setUserIsEditing(true);
     
-    // Clear any existing timeout
-    if (userEditingTimeoutRef.current) {
-      clearTimeout(userEditingTimeoutRef.current);
-    }
-    
-    // Set timeout to clear editing flag after user stops editing
-    userEditingTimeoutRef.current = setTimeout(() => {
-      setUserIsEditing(false);
-    }, 2000); // 2 seconds after last edit
+    // Note: userIsEditing will only be reset when form is saved/cancelled/navigated awa
     
     setFormData(prev => ({ ...prev, [field]: value }));
     
@@ -827,13 +824,6 @@ const TournamentForm = ({
   }, [divisions, tournament, onUpdateTournament]);
 
   const handleDivisionSave = useCallback(async (divisionData) => {
-    console.log('🔍 SAVING DIVISION:', {
-      divisionData,
-      editingIndex: editingDivisionIndex,
-      currentDivisions: divisions.length,
-      tournament: !!tournament
-    });
-    
     setDivisionSaving(true);
     
     try {
@@ -847,11 +837,6 @@ const TournamentForm = ({
         const newDivision = createTournamentDivision(divisionData);
         updatedDivisions = [...divisions, newDivision];
       }
-      
-      console.log('🔍 DIVISION SAVED:', {
-        newDivisionsCount: updatedDivisions.length,
-        newDivisions: updatedDivisions
-      });
       
       setDivisions(updatedDivisions);
       
@@ -992,6 +977,9 @@ const TournamentForm = ({
 
       await onSubmit(submissionData);
       
+      // Reset editing flag after successful submission
+      setUserIsEditing(false);
+      
     } catch (error) {
       console.error('Tournament submission error:', error);
       setErrors({ submit: error.message });
@@ -1070,12 +1058,10 @@ const TournamentForm = ({
     tournament.status === TOURNAMENT_STATUS.IN_PROGRESS && 
     !hasResults();
 
-  // Cleanup timeout on unmount
+  // Reset editing flag when component unmounts or onCancel is called
   useEffect(() => {
     return () => {
-      if (userEditingTimeoutRef.current) {
-        clearTimeout(userEditingTimeoutRef.current);
-      }
+      setUserIsEditing(false);
     };
   }, []);
 
@@ -1438,15 +1424,7 @@ const TournamentForm = ({
                 <div className="form-input-group division-add-button">
                   <Button 
                     type="button"
-                    onClick={() => {
-                      console.log('🔍 ADD DIVISION CLICKED:', {
-                        divisionsCount: divisions.length,
-                        tournament: !!tournament,
-                        isSubmitting,
-                        divisionSaving
-                      });
-                      addDivision();
-                    }}
+                    onClick={addDivision}
                     variant="outline"
                     disabled={isSubmitting || divisionSaving}
                     className="form-touch-button w-full"
@@ -1496,16 +1474,7 @@ const TournamentForm = ({
         </form>
 
         {/* Division Participants Section */}
-        {(() => {
-          console.log('🔍 DIVISION PARTICIPANTS SECTION CHECK:', {
-            tournament: !!tournament,
-            tournamentId: tournament?.id,
-            divisions: divisions,
-            divisionsLength: divisions?.length,
-            shouldShow: divisions && divisions.length > 0
-          });
-          return divisions && divisions.length > 0;
-        })() && (
+        {divisions && divisions.length > 0 && (
           <div className="form-section" style={{ marginTop: '24px' }}>
             <div 
               className="form-section-header"

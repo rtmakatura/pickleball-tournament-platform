@@ -1467,27 +1467,34 @@ const Dashboard = () => {
   const [viewingLeague, setViewingLeague] = useState(null);
   
   // FIXED: Single modal close handler with overflow cleanup failsafe
-  const closeModal = useCallback(() => {
-    if (!formLoading && !deleteLoading) {
-      setActiveModal(null);
-      setModalData(null);
-      
-      // Clean up editing states
-      setEditingTournament(null);
-      setEditingLeague(null);
-      setEditingMember(null);
-      setSelectedLeagueMembers([]);
-      
-      // Failsafe: Ensure body scroll is restored after a short delay
-      setTimeout(() => {
-        if (document.body.style.overflow === 'hidden') {
-          const originalOverflow = document.body.dataset.originalOverflow || 'auto';
-          document.body.style.overflow = originalOverflow;
-          delete document.body.dataset.originalOverflow;
-        }
-      }, 100);
+const closeModal = useCallback(() => {
+  if (!formLoading && !deleteLoading) {
+    setActiveModal(null);
+    setModalData(null);
+    
+    // Clean up editing states
+    setEditingTournament(null);
+    setEditingLeague(null);
+    setEditingMember(null);
+    setSelectedLeagueMembers([]);
+    
+    // Reset tournament form editing state to allow real-time sync
+    // This ensures form data doesn't get lost when modal closes
+    if (editingTournament) {
+      // The TournamentForm component will handle resetting its own userIsEditing state
+      // when the onCancel callback is triggered
     }
-  }, [formLoading, deleteLoading]);
+    
+    // Failsafe: Ensure body scroll is restored after a short delay
+    setTimeout(() => {
+      if (document.body.style.overflow === 'hidden') {
+        const originalOverflow = document.body.dataset.originalOverflow || 'auto';
+        document.body.style.overflow = originalOverflow;
+        delete document.body.dataset.originalOverflow;
+      }
+    }, 100);
+  }
+}, [formLoading, deleteLoading, editingTournament]);
   
   const currentUserMember = useMemo(() => 
     members.find(m => m.authUid === user?.uid), 
