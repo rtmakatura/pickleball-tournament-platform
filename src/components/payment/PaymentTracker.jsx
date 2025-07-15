@@ -1,9 +1,9 @@
 // src/components/payment/PaymentTracker.jsx - Dedicated Payment Tracking Modal
 import React, { useState, useMemo } from 'react';
-import { 
-  DollarSign, 
-  Trophy, 
-  Activity, 
+import {
+  DollarSign,
+  Trophy,
+  Activity,
   ChevronDown,
   Users,
   Check,
@@ -16,13 +16,13 @@ import {
 } from 'lucide-react';
 import { Modal, Button, Alert } from '../ui';
 import { PAYMENT_MODES } from '../../services/models';
-import { 
+import {
   calculateOverallPaymentSummary,
   calculateDivisionPaymentSummary,
   calculateLeaguePaymentSummary,
   getParticipantPaymentStatus
 } from '../../utils/paymentUtils';
-import { getAutomaticTournamentStatus } from '../../utils/statusUtils';
+import { getAutomaticTournamentStatus, getAutomaticLeagueStatus } from '../../utils/statusUtils';
 
 const paymentTrackerStyles = `
   .payment-tracker-section {
@@ -564,6 +564,7 @@ const DivisionPaymentCard = ({ tournament, division, members, onUpdateTournament
       // Update tournament with new divisions and potentially new status
       const updateData = { divisions: updatedDivisions };
       if (suggestedStatus !== tournament.status) {
+        console.log(`Auto-updating tournament status from ${tournament.status} to ${suggestedStatus} after payment`);
         updateData.status = suggestedStatus;
       }
       

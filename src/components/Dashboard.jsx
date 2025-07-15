@@ -2322,20 +2322,20 @@ const Dashboard = () => {
 
   // Modal close handlers already defined above with closeModal function
 
-  // ADDED: Automatic status checking on dashboard load
+  // ADDED: Automatic status checking on dashboard load and data changes
   useEffect(() => {
     if (isAuthenticated && tournaments.length > 0) {
       console.log('Running automatic tournament status checks');
       checkAndUpdateAllTournamentStatuses();
     }
-  }, [isAuthenticated, tournaments.length, checkAndUpdateAllTournamentStatuses]);
+  }, [isAuthenticated, tournaments, checkAndUpdateAllTournamentStatuses]);
 
   useEffect(() => {
     if (isAuthenticated && leagues.length > 0) {
       console.log('Running automatic league status checks');
       checkAndUpdateAllLeagueStatuses();
     }
-  }, [isAuthenticated, leagues.length, checkAndUpdateAllLeagueStatuses]);
+  }, [isAuthenticated, leagues, checkAndUpdateAllLeagueStatuses]);
 
   // Show loading state while auth is initializing
   if (authLoading) {
