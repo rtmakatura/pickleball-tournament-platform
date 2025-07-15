@@ -93,11 +93,11 @@ export const useTournaments = (options = {}) => {
       }
       
       if (updates.divisions !== undefined) {
-        if (!Array.isArray(updates.divisions) || updates.divisions.length === 0) {
-          throw new Error('Tournament must have at least one division');
+        if (!Array.isArray(updates.divisions)) {
+          throw new Error('Divisions must be an array');
         }
         
-        // Validate each division
+        // Validate each division (if any exist)
         updates.divisions.forEach((division, index) => {
           if (!division.name || !division.name.trim()) {
             throw new Error(`Division ${index + 1} must have a name`);

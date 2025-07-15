@@ -807,24 +807,22 @@ const TournamentForm = ({
   }, []);
 
   const deleteDivision = useCallback(async (index) => {
-    if (divisions.length > 1) {
-      setDivisionSaving(true);
+    setDivisionSaving(true);
+    
+    try {
+      const updatedDivisions = divisions.filter((_, i) => i !== index);
+      setDivisions(updatedDivisions);
       
-      try {
-        const updatedDivisions = divisions.filter((_, i) => i !== index);
-        setDivisions(updatedDivisions);
-        
-        if (tournament && tournament.id && onUpdateTournament) {
-          await onUpdateTournament(tournament.id, { divisions: updatedDivisions });
-        }
-        
-      } catch (error) {
-        console.error('Error deleting division:', error);
-        setErrors({ divisionDelete: `Failed to delete division: ${error.message}` });
-        setDivisions(divisions);
-      } finally {
-        setDivisionSaving(false);
+      if (tournament && tournament.id && onUpdateTournament) {
+        await onUpdateTournament(tournament.id, { divisions: updatedDivisions });
       }
+      
+    } catch (error) {
+      console.error('Error deleting division:', error);
+      setErrors({ divisionDelete: `Failed to delete division: ${error.message}` });
+      setDivisions(divisions);
+    } finally {
+      setDivisionSaving(false);
     }
   }, [divisions, tournament, onUpdateTournament]);
 
@@ -1121,6 +1119,19 @@ const TournamentForm = ({
                 title="Results Save Error" 
                 message={errors.resultsSubmit} 
                 onClose={() => setErrors(prev => ({ ...prev, resultsSubmit: null }))}
+              />
+            </div>
+          </div>
+        )}
+
+        {errors.delete && (
+          <div className="form-section">
+            <div className="form-section-content">
+              <Alert 
+                type="error" 
+                title="Division Delete Error" 
+                message={errors.delete} 
+                onClose={() => setErrors(prev => ({ ...prev, delete: null }))}
               />
             </div>
           </div>
@@ -1682,7 +1693,7 @@ const TournamentForm = ({
         isEditing={tournament && tournament.id}
         currentMember={currentMember}
         updateMember={updateMember}
-        canDelete={editingDivisionIndex !== null && divisions.length > 1}
+        canDelete={editingDivisionIndex !== null}
       />
 
       {/* ADDED: Results Entry Modal */}
