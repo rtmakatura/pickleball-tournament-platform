@@ -200,7 +200,7 @@ const DivisionMemberSelector = ({
 
   // FIXED: Create better formatted division options for the custom dropdown
   const getDivisionOptions = () => {
-    if (!tournament?.divisions) return [];
+    if (!tournament?.divisions || !Array.isArray(tournament.divisions)) return [];
     
     return tournament.divisions.map(div => {
       // Create a more readable, shorter label format
@@ -237,7 +237,7 @@ const DivisionMemberSelector = ({
     );
   }
 
-  if (!tournament?.divisions || tournament.divisions.length === 0) {
+  if (!tournament?.divisions || !Array.isArray(tournament.divisions) || tournament.divisions.length === 0) {
     return (
       <>
         <StyleSheet />

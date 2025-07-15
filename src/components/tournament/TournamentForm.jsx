@@ -827,6 +827,13 @@ const TournamentForm = ({
   }, [divisions, tournament, onUpdateTournament]);
 
   const handleDivisionSave = useCallback(async (divisionData) => {
+    console.log('🔍 SAVING DIVISION:', {
+      divisionData,
+      editingIndex: editingDivisionIndex,
+      currentDivisions: divisions.length,
+      tournament: !!tournament
+    });
+    
     setDivisionSaving(true);
     
     try {
@@ -840,6 +847,11 @@ const TournamentForm = ({
         const newDivision = createTournamentDivision(divisionData);
         updatedDivisions = [...divisions, newDivision];
       }
+      
+      console.log('🔍 DIVISION SAVED:', {
+        newDivisionsCount: updatedDivisions.length,
+        newDivisions: updatedDivisions
+      });
       
       setDivisions(updatedDivisions);
       
@@ -860,8 +872,6 @@ const TournamentForm = ({
 
   // Division participants change handler
   const handleDivisionParticipantsChange = useCallback((divisionId, participants) => {
-    if (!tournament) return;
-    
     const updatedDivisions = divisions.map(division => 
       division.id === divisionId 
         ? { ...division, participants }
@@ -870,11 +880,11 @@ const TournamentForm = ({
     
     setDivisions(updatedDivisions);
     
-    // Update tournament immediately if we have an update function
-    if (onUpdateTournament && tournament.id) {
+    // Update tournament immediately if we have an update function and tournament exists
+    if (onUpdateTournament && tournament?.id) {
       onUpdateTournament(tournament.id, { divisions: updatedDivisions });
     }
-  }, [tournament, divisions, onUpdateTournament]);
+  }, [divisions, onUpdateTournament, tournament]);
 
   // ADDED: Results handling functions
   const handleMarkCompleteAndEnterResults = useCallback(async () => {
@@ -1428,7 +1438,15 @@ const TournamentForm = ({
                 <div className="form-input-group division-add-button">
                   <Button 
                     type="button"
-                    onClick={addDivision}
+                    onClick={() => {
+                      console.log('🔍 ADD DIVISION CLICKED:', {
+                        divisionsCount: divisions.length,
+                        tournament: !!tournament,
+                        isSubmitting,
+                        divisionSaving
+                      });
+                      addDivision();
+                    }}
                     variant="outline"
                     disabled={isSubmitting || divisionSaving}
                     className="form-touch-button w-full"
@@ -1478,7 +1496,16 @@ const TournamentForm = ({
         </form>
 
         {/* Division Participants Section */}
-        {tournament && tournament.divisions && tournament.divisions.length > 0 && (
+        {(() => {
+          console.log('🔍 DIVISION PARTICIPANTS SECTION CHECK:', {
+            tournament: !!tournament,
+            tournamentId: tournament?.id,
+            divisions: divisions,
+            divisionsLength: divisions?.length,
+            shouldShow: divisions && divisions.length > 0
+          });
+          return divisions && divisions.length > 0;
+        })() && (
           <div className="form-section" style={{ marginTop: '24px' }}>
             <div 
               className="form-section-header"
@@ -1500,7 +1527,11 @@ const TournamentForm = ({
               <div className="form-section-content">
                 <div className="form-input-group">
                   <DivisionMemberSelector
-                    tournament={{ ...tournament, divisions: divisions }}
+                    tournament={{ 
+                      id: tournament?.id || 'new-tournament',
+                      name: formData.name || 'New Tournament',
+                      divisions: divisions 
+                    }}
                     members={members}
                     onDivisionParticipantsChange={handleDivisionParticipantsChange}
                     loading={false}
