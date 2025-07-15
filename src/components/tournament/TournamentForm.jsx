@@ -719,8 +719,7 @@ const TournamentForm = ({
       // Clear any field-level errors when loading new tournament
       setErrors({});
       setIsSubmitting(false);
-    } else if (!tournament && isInitialMount.current) {
-      // Only reset form data on initial mount, not when userIsEditing becomes false
+    } else if (!tournament) {
       setFormData({
         name: '',
         description: '',
@@ -762,7 +761,7 @@ const TournamentForm = ({
     // Set timeout to clear editing flag after user stops editing
     userEditingTimeoutRef.current = setTimeout(() => {
       setUserIsEditing(false);
-    }, 30000); // 30 seconds after last edit - prevents data loss during brief focus changes
+    }, 2000); // 2 seconds after last edit
     
     setFormData(prev => ({ ...prev, [field]: value }));
     
@@ -1063,21 +1062,12 @@ const TournamentForm = ({
     tournament.status === TOURNAMENT_STATUS.IN_PROGRESS && 
     !hasResults();
 
-  // Cleanup timeout and ensure scroll restoration on unmount
+  // Cleanup timeout on unmount
   useEffect(() => {
     return () => {
       if (userEditingTimeoutRef.current) {
         clearTimeout(userEditingTimeoutRef.current);
       }
-      
-      // Failsafe: Ensure body scroll is restored if component unmounts
-      setTimeout(() => {
-        if (document.body.style.overflow === 'hidden') {
-          const originalOverflow = document.body.dataset.originalOverflow || 'auto';
-          document.body.style.overflow = originalOverflow;
-          delete document.body.dataset.originalOverflow;
-        }
-      }, 50);
     };
   }, []);
 
@@ -1685,12 +1675,14 @@ const TournamentForm = ({
           setEditingDivisionIndex(null);
         }}
         onSave={handleDivisionSave}
+        onDelete={() => deleteDivision(editingDivisionIndex)}
         division={editingDivisionIndex !== null ? divisions[editingDivisionIndex] : null}
         title={editingDivisionIndex !== null ? 'Edit Division' : 'Add Division'}
         isSaving={divisionSaving}
         isEditing={tournament && tournament.id}
         currentMember={currentMember}
         updateMember={updateMember}
+        canDelete={editingDivisionIndex !== null && divisions.length > 1}
       />
 
       {/* ADDED: Results Entry Modal */}
@@ -1804,12 +1796,14 @@ const DivisionFormModal = ({
   isOpen, 
   onClose, 
   onSave, 
+  onDelete,
   division, 
   title, 
   isSaving = false, 
   isEditing = false,
   currentMember: divisionCurrentMember,
-  updateMember
+  updateMember,
+  canDelete = false
 }) => {
   // ADDED: Division help alert state
   const [showDivisionHelpAlert, setShowDivisionHelpAlert] = useState(false);
@@ -2019,6 +2013,17 @@ const DivisionFormModal = ({
     }
   }, [formData, isSaving, onSave]);
 
+  const handleDelete = useCallback(async () => {
+    if (!division || !onDelete) return;
+    
+    try {
+      await onDelete();
+      onClose();
+    } catch (error) {
+      setErrors({ delete: error.message });
+    }
+  }, [division, onDelete, onClose]);
+
   const skillLevelOptions = Object.entries(SKILL_LEVELS).map(([key, value]) => ({
     value,
     label: key.charAt(0) + key.slice(1).toLowerCase()
@@ -2053,6 +2058,16 @@ const DivisionFormModal = ({
           >
             Cancel
           </ModalHeaderButton>
+          {division && canDelete && (
+            <ModalHeaderButton
+              variant="danger"
+              onClick={handleDelete}
+              disabled={isSaving}
+              icon={<Trash2 className="h-4 w-4" />}
+            >
+              Delete
+            </ModalHeaderButton>
+          )}
           <ModalHeaderButton
             variant="primary"
             onClick={handleSave}
