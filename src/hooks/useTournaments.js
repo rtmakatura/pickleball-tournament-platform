@@ -14,6 +14,7 @@ export const useTournaments = (options = {}) => {
 
   useEffect(() => {
     let unsubscribe;
+    let statusCheckInterval;
 
     const fetchData = async () => {
       try {
@@ -22,11 +23,23 @@ export const useTournaments = (options = {}) => {
         setError(null);
         
         if (realTime) {
-          console.log('Setting up real-time tournament subscription');
-          unsubscribe = firebaseOps.subscribe('tournaments', (data) => {
+          console.log('Setting up real-time tournament subscription with automation');
+          unsubscribe = firebaseOps.subscribe('tournaments', async (data) => {
             console.log('Real-time tournaments update:', data);
             setTournaments(data);
+            
+            // AUTOMATION: Check for status updates after data changes
+            setTimeout(() => {
+              checkAllTournamentStatuses(data);
+            }, 1000); // Small delay to avoid race conditions
           }, filters);
+          
+          // AUTOMATION: Set up periodic status checks (every 5 minutes)
+          statusCheckInterval = setInterval(() => {
+            console.log('🔄 Running periodic tournament status check');
+            checkAndUpdateAllTournamentStatuses();
+          }, 5 * 60 * 1000); // 5 minutes
+          
         } else {
           console.log('Fetching tournaments one-time');
           const data = await firebaseOps.getAll('tournaments', filters);
@@ -48,8 +61,34 @@ export const useTournaments = (options = {}) => {
         console.log('Cleaning up tournament subscription');
         unsubscribe();
       }
+      if (statusCheckInterval) {
+        console.log('Cleaning up status check interval');
+        clearInterval(statusCheckInterval);
+      }
     };
   }, [realTime, JSON.stringify(filters)]);
+
+  // AUTOMATION: Helper function to check tournament statuses without updating state
+  const checkAllTournamentStatuses = async (tournamentData = null) => {
+    try {
+      const tournamentsToCheck = tournamentData || tournaments;
+      
+      for (const tournament of tournamentsToCheck) {
+        const suggestedStatus = getAutomaticTournamentStatus(tournament);
+        
+        if (suggestedStatus !== tournament.status) {
+          console.log(`🤖 Auto-updating tournament "${tournament.name}" from ${tournament.status} to ${suggestedStatus}`);
+          await firebaseOps.update('tournaments', tournament.id, { 
+            status: suggestedStatus,
+            lastStatusUpdate: new Date().toISOString(),
+            statusUpdateReason: 'automatic'
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Error in automated status check:', error);
+    }
+  };
 
   // FIXED: Enhanced tournament creation with better error handling
   const addTournament = async (tournamentData) => {

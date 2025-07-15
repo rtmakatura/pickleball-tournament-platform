@@ -10,11 +10,16 @@ import {
   CheckCircle,
   AlertCircle,
   ExternalLink,
-  Navigation
+  Navigation,
+  AlertTriangle,
+  XCircle,
+  Zap
 } from 'lucide-react';
-import { Button } from '../ui';
+import { Button, Alert } from '../ui';
 import { TOURNAMENT_STATUS } from '../../services/models';
 import { generateGoogleMapsLink, generateDirectionsLink, openLinkSafely, extractDomain } from '../../utils/linkUtils';
+import { calculateTournamentPaymentSummary } from '../../utils/paymentUtils';
+import { getAutomaticTournamentStatus } from '../../utils/statusUtils';
 
 /**
  * TournamentCard Component - Display tournament information in card format
@@ -38,21 +43,57 @@ const TournamentCard = ({
   currentUserId,
   compact = false
 }) => {
-  // Get tournament participants with member details
-  const participants = tournament.participants?.map(id => 
-    members.find(m => m.id === id)
-  ).filter(Boolean) || [];
+  // Get tournament participants with member details (division-aware)
+  const participants = tournament.divisions ? 
+    tournament.divisions.flatMap(div => 
+      (div.participants || []).map(id => members.find(m => m.id === id))
+    ).filter(Boolean) : 
+    (tournament.participants?.map(id => 
+      members.find(m => m.id === id)
+    ).filter(Boolean) || []);
 
-  // Check if current user is registered
-  const isRegistered = currentUserId && tournament.participants?.includes(currentUserId);
+  // Check if current user is registered (division-aware)
+  const isRegistered = currentUserId && (tournament.divisions ? 
+    tournament.divisions.some(div => div.participants?.includes(currentUserId)) :
+    tournament.participants?.includes(currentUserId));
 
-  // Calculate payment status
-  const paymentData = tournament.paymentData || {};
-  const totalParticipants = participants.length;
-  const paidParticipants = participants.filter(p => 
-    paymentData[p.id]?.status === 'paid'
-  ).length;
-  const paymentComplete = totalParticipants > 0 && paidParticipants === totalParticipants;
+  // ENHANCED: Calculate comprehensive payment status
+  const paymentSummary = calculateTournamentPaymentSummary(tournament);
+  const paymentComplete = paymentSummary.isFullyPaid;
+  
+  // AUTOMATION: Get suggested status vs current status
+  const suggestedStatus = getAutomaticTournamentStatus(tournament);
+  const statusNeedsUpdate = suggestedStatus !== tournament.status;
+  
+  // AUTOMATION: Determine alert levels
+  const getPaymentAlertLevel = () => {
+    if (!tournament.divisions || tournament.divisions.length === 0) return null;
+    
+    const hasFeeDivisions = tournament.divisions.some(div => (div.entryFee || 0) > 0);
+    if (!hasFeeDivisions) return null;
+    
+    const now = new Date();
+    const eventDate = tournament.eventDate?.seconds ? 
+      new Date(tournament.eventDate.seconds * 1000) : 
+      tournament.eventDate ? new Date(tournament.eventDate) : null;
+    
+    // Critical: Event is in progress or completed but payments incomplete
+    if ((tournament.status === TOURNAMENT_STATUS.IN_PROGRESS || 
+         tournament.status === TOURNAMENT_STATUS.COMPLETED) && 
+        !paymentComplete) {
+      return 'critical';
+    }
+    
+    // Warning: Event is soon but payments incomplete
+    if (eventDate && eventDate <= new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000) && 
+        !paymentComplete) {
+      return 'warning';
+    }
+    
+    return null;
+  };
+  
+  const paymentAlertLevel = getPaymentAlertLevel();
 
   // Get status styling
   const getStatusConfig = (status) => {
@@ -133,9 +174,45 @@ const TournamentCard = ({
         bg-white border rounded-lg shadow-sm hover:shadow-md transition-shadow
         ${onView ? 'cursor-pointer' : ''} 
         ${compact ? 'p-4' : 'p-6'}
+        ${paymentAlertLevel === 'critical' ? 'border-red-500 border-2' : ''}
+        ${paymentAlertLevel === 'warning' ? 'border-yellow-500 border-2' : ''}
+        ${statusNeedsUpdate ? 'ring-2 ring-blue-500 ring-opacity-50' : ''}
       `}
       onClick={() => onView && onView(tournament)}
     >
+      {/* AUTOMATION: Payment Alert Banner */}
+      {paymentAlertLevel && (
+        <div className={`
+          mb-4 p-3 rounded-lg flex items-center space-x-2 
+          ${paymentAlertLevel === 'critical' ? 'bg-red-50 border border-red-200' : 'bg-yellow-50 border border-yellow-200'}
+        `}>
+          {paymentAlertLevel === 'critical' ? 
+            <XCircle className="h-4 w-4 text-red-600 flex-shrink-0" /> :
+            <AlertTriangle className="h-4 w-4 text-yellow-600 flex-shrink-0" />
+          }
+          <div className="flex-1 min-w-0">
+            <p className={`text-sm font-medium ${paymentAlertLevel === 'critical' ? 'text-red-900' : 'text-yellow-900'}`}>
+              {paymentAlertLevel === 'critical' ? 'Payment Collection Critical' : 'Payment Collection Warning'}
+            </p>
+            <p className={`text-xs ${paymentAlertLevel === 'critical' ? 'text-red-700' : 'text-yellow-700'}`}>
+              {paymentSummary.participantsPaid} of {paymentSummary.totalParticipants} participants paid • ${paymentSummary.totalOwed} outstanding
+            </p>
+          </div>
+        </div>
+      )}
+      
+      {/* AUTOMATION: Status Update Indicator */}
+      {statusNeedsUpdate && (
+        <div className="mb-4 p-3 rounded-lg bg-blue-50 border border-blue-200 flex items-center space-x-2">
+          <Zap className="h-4 w-4 text-blue-600 flex-shrink-0" />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium text-blue-900">Status Update Available</p>
+            <p className="text-xs text-blue-700">
+              Suggested: {suggestedStatus.replace('_', ' ')} (currently {tournament.status.replace('_', ' ')})
+            </p>
+          </div>
+        </div>
+      )}
       {/* Header */}
       <div className="flex items-start justify-between mb-4">
         <div className="flex-1">

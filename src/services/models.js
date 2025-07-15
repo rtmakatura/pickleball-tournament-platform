@@ -279,6 +279,10 @@ export const createTournament = (tournamentData) => {
     divisions: divisions,
     commentsEnabled: tournamentData.commentsEnabled !== false,
     commentCount: 0,
+    // AUTOMATION: Status tracking fields
+    lastStatusUpdate: tournamentData.lastStatusUpdate || null,
+    statusUpdateReason: tournamentData.statusUpdateReason || null,
+    automationEnabled: tournamentData.automationEnabled !== false,
     createdAt: now,
     updatedAt: now
   };

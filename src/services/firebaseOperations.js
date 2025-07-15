@@ -52,27 +52,38 @@ export const remove = async (collectionName, id) => {
 
 // Enhanced query operations
 export const getAll = async (collectionName, filters = {}, orderField = null, limitCount = null) => {
-  let q = collection(db, collectionName);
-  
-  Object.entries(filters).forEach(([field, value]) => {
-    if (value !== undefined && value !== null) {
-      q = query(q, where(field, '==', value));
+  try {
+    let q = collection(db, collectionName);
+    
+    Object.entries(filters).forEach(([field, value]) => {
+      if (value !== undefined && value !== null) {
+        q = query(q, where(field, '==', value));
+      }
+    });
+    
+    if (orderField) {
+      q = query(q, orderBy(orderField));
     }
-  });
-  
-  if (orderField) {
-    q = query(q, orderBy(orderField));
+    
+    if (limitCount) {
+      q = query(q, limit(limitCount));
+    }
+    
+    const querySnapshot = await getDocs(q);
+    return querySnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    }));
+  } catch (error) {
+    console.error(`❌ Error fetching ${collectionName}:`, error);
+    
+    if (error.code === 'permission-denied') {
+      console.error('🔒 Permission denied - check Firestore security rules');
+      return []; // Return empty array instead of throwing
+    }
+    
+    throw error;
   }
-  
-  if (limitCount) {
-    q = query(q, limit(limitCount));
-  }
-  
-  const querySnapshot = await getDocs(q);
-  return querySnapshot.docs.map(doc => ({
-    id: doc.id,
-    ...doc.data()
-  }));
 };
 
 // Real-time subscriptions with enhanced filtering
@@ -1225,6 +1236,104 @@ export const searchResults = async (searchTerm, filters = {}) => {
 };
 
 // =============================================================================
+// TOURNAMENT STATUS AUTOMATION FUNCTIONS
+// =============================================================================
+
+// Bulk update tournament statuses with automatic status calculation
+export const bulkUpdateTournamentStatuses = async (tournamentIds = null) => {
+  try {
+    console.log('Starting bulk tournament status update');
+    
+    // Get tournaments to check
+    const tournaments = tournamentIds ? 
+      await Promise.all(tournamentIds.map(id => read('tournaments', id))) :
+      await getAll('tournaments');
+    
+    const batch = writeBatch(db);
+    let updatedCount = 0;
+    
+    tournaments.forEach(tournament => {
+      if (!tournament) return;
+      
+      const { getAutomaticTournamentStatus } = require('../utils/statusUtils');
+      const suggestedStatus = getAutomaticTournamentStatus(tournament);
+      
+      if (suggestedStatus !== tournament.status) {
+        console.log(`Bulk updating tournament ${tournament.name}: ${tournament.status} → ${suggestedStatus}`);
+        
+        const docRef = doc(db, 'tournaments', tournament.id);
+        batch.update(docRef, {
+          status: suggestedStatus,
+          lastStatusUpdate: serverTimestamp(),
+          statusUpdateReason: 'bulk_automation',
+          updatedAt: serverTimestamp()
+        });
+        
+        updatedCount++;
+      }
+    });
+    
+    if (updatedCount > 0) {
+      await batch.commit();
+      console.log(`✅ Bulk updated ${updatedCount} tournament statuses`);
+    } else {
+      console.log('No tournament status updates needed');
+    }
+    
+    return { updatedCount, totalChecked: tournaments.length };
+    
+  } catch (error) {
+    console.error('Error in bulk tournament status update:', error);
+    throw new Error(`Bulk status update failed: ${error.message}`);
+  }
+};
+
+// Subscribe to tournaments with automatic status checking
+export const subscribeWithStatusAutomation = (callback, filters = {}) => {
+  const { getAutomaticTournamentStatus } = require('../utils/statusUtils');
+  
+  return subscribe('tournaments', async (tournaments) => {
+    // Call original callback first
+    callback(tournaments);
+    
+    // Then check for automatic status updates (debounced)
+    setTimeout(async () => {
+      try {
+        await bulkUpdateTournamentStatuses(tournaments.map(t => t.id));
+      } catch (error) {
+        console.error('Error in automated status check after data change:', error);
+      }
+    }, 2000); // 2 second delay to avoid rapid updates
+    
+  }, filters);
+};
+
+// Get tournaments that need status updates
+export const getTournamentsNeedingStatusUpdates = async () => {
+  try {
+    const tournaments = await getAll('tournaments');
+    const { getAutomaticTournamentStatus } = require('../utils/statusUtils');
+    
+    const needingUpdates = tournaments.filter(tournament => {
+      const suggestedStatus = getAutomaticTournamentStatus(tournament);
+      return suggestedStatus !== tournament.status;
+    });
+    
+    return needingUpdates.map(tournament => ({
+      id: tournament.id,
+      name: tournament.name,
+      currentStatus: tournament.status,
+      suggestedStatus: getAutomaticTournamentStatus(tournament),
+      lastUpdated: tournament.lastStatusUpdate || tournament.updatedAt
+    }));
+    
+  } catch (error) {
+    console.error('Error getting tournaments needing status updates:', error);
+    throw new Error(`Failed to check tournament statuses: ${error.message}`);
+  }
+};
+
+// =============================================================================
 // UPDATED DEFAULT EXPORT (includes all existing + new functions)
 // =============================================================================
 
@@ -1293,5 +1402,10 @@ export default {
   
   // NEW: Results analytics
   getResultsAnalytics,
-  searchResults
+  searchResults,
+  
+  // NEW: Tournament status automation
+  bulkUpdateTournamentStatuses,
+  subscribeWithStatusAutomation,
+  getTournamentsNeedingStatusUpdates
 };
