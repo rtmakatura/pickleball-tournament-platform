@@ -19,7 +19,8 @@ import {
   BarChart3,
   Target,
   Award,
-  X
+  X,
+  Bell
 } from 'lucide-react';
 import { 
   useMembers, 
@@ -59,6 +60,7 @@ import { LeagueForm, LeagueMemberSelector } from './league';
 import { SignUpForm } from './auth';
 import SignInForm from './auth/SignInForm';
 import { CommentSection } from './comments';
+import { NotificationCenter } from './notifications';
 
 // ADDED: Import results entry forms and display components
 import { 
@@ -68,6 +70,7 @@ import {
   ResultsCard,
   ResultsTable
 } from './result';
+
 
 // CSS for responsive optimizations (keeping existing styles + new results styles)
 const dashboardStyles = `
@@ -261,6 +264,12 @@ const dashboardStyles = `
   .league-modal-input-group:last-child {
     margin-bottom: 0;
   }
+  
+  .results-button:hover {
+    background: linear-gradient(135deg, #047857 0%, #065f46 100%);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(5, 150, 105, 0.4);
+  }
 
   /* ADDED: Results entry styling */
   .results-button {
@@ -268,12 +277,6 @@ const dashboardStyles = `
     color: white;
     border: none;
     transition: all 0.2s ease;
-  }
-  
-  .results-button:hover {
-    background: linear-gradient(135deg, #047857 0%, #065f46 100%);
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(5, 150, 105, 0.4);
   }
   
 `;
@@ -1443,6 +1446,7 @@ const Dashboard = () => {
     LEAGUE_RESULTS_FORM: 'league_results_form',
     PLAYER_PERFORMANCE_FORM: 'player_performance_form',
     RESULTS_VIEW: 'results_view',
+    
     DELETE_CONFIRM: 'delete_confirm',
     LEAGUE_DELETE_CONFIRM: 'league_delete_confirm',
     MEMBER_DELETE_CONFIRM: 'member_delete_confirm',
@@ -1500,6 +1504,8 @@ const closeModal = useCallback(() => {
     members.find(m => m.authUid === user?.uid), 
     [members, user?.uid]
   );
+
+  
 
   // Auth UI state
   const [authMode, setAuthMode] = useState('signin');
@@ -1619,6 +1625,8 @@ const closeModal = useCallback(() => {
     });
     setActiveModal(MODAL_TYPES.RESULTS_VIEW);
   }, [results.league]);
+
+  
 
   
 
@@ -3328,6 +3336,8 @@ const closeModal = useCallback(() => {
             currentUserId={user?.uid}
           />
         )}
+
+        
       </div>
     </div>
   );

@@ -17,10 +17,9 @@ export { usePlayerPerformance } from './usePlayerPerformance';
 // Navigation and utility hooks
 export { useSmoothNavigation } from './useSmoothNavigation';
 
-// Notification badge hooks (if they exist)
-// Uncomment these lines if you have these hooks implemented
-// export { 
-//   default as useNotificationBadge, 
-//   useNotificationCount, 
-//   useNotificationStatus 
-// } from './useNotificationBadge';
+// Notification badge hooks
+export { 
+  default as useNotificationBadge, 
+  useNotificationCount, 
+  useNotificationStatus 
+} from './useNotificationBadge';

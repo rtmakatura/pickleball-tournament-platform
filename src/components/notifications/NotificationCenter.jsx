@@ -36,7 +36,8 @@ import {
 const NotificationCenter = ({ 
   onNavigate, 
   isModal = false, 
-  onClose 
+  onClose,
+  modalVariant = 'default'
 }) => {
   const { user } = useAuth();
   const { members } = useMembers();
@@ -134,55 +135,7 @@ const NotificationCenter = ({
 
   const content = (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-3">
-          <Bell className="h-6 w-6 text-gray-600" />
-          <h2 className="text-lg font-semibold text-gray-900">
-            Notifications
-            {unreadCount > 0 && (
-              <span className="ml-2 inline-flex items-center px-2 py-1 text-xs font-medium bg-blue-500 text-white rounded-full">
-                {unreadCount}
-              </span>
-            )}
-          </h2>
-        </div>
-        
-        <div className="flex items-center space-x-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setShowFilters(!showFilters)}
-            className="flex items-center"
-          >
-            <Filter className="h-4 w-4 mr-1" />
-            Filters
-          </Button>
-          
-          {unreadCount > 0 && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleMarkAllAsRead}
-              disabled={actionLoading}
-              className="flex items-center"
-            >
-              <CheckCheck className="h-4 w-4 mr-1" />
-              Mark All Read
-            </Button>
-          )}
-          
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleRefresh}
-            disabled={actionLoading}
-            className="flex items-center"
-          >
-            <RefreshCw className={`h-4 w-4 ${actionLoading ? 'animate-spin' : ''}`} />
-          </Button>
-        </div>
-      </div>
+      {/* Header - moved to modal header via headerActions */}
 
       {/* Error Alert */}
       {error && (
@@ -348,14 +301,190 @@ const NotificationCenter = ({
 
   // Return modal version if requested
   if (isModal) {
+    // Create header actions for modal
+    const headerActions = (
+      <>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setShowFilters(!showFilters)}
+          className="flex items-center"
+        >
+          <Filter className="h-4 w-4 mr-1" />
+          Filters
+        </Button>
+        
+        {unreadCount > 0 && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleMarkAllAsRead}
+            disabled={actionLoading}
+            className="flex items-center"
+          >
+            <CheckCheck className="h-4 w-4 mr-1" />
+            Mark All Read
+          </Button>
+        )}
+        
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleRefresh}
+          disabled={actionLoading}
+          className="flex items-center"
+        >
+          <RefreshCw className={`h-4 w-4 ${actionLoading ? 'animate-spin' : ''}`} />
+        </Button>
+      </>
+    );
+
+    // ADDED: Enhanced notification navigation handler
+    const handleNotificationNavigation = (notification) => {
+      try {
+        const { type, eventId, eventType, commentId, divisionId } = notification.data || {};
+        
+        // Close modal first
+        if (onClose) onClose();
+        
+        // Navigate based on notification type
+        switch (type) {
+          case 'comment_reply':
+          case 'mention':
+            // Navigate to comment section and highlight specific comment
+            if (eventType === 'tournament') {
+              // For tournament comments, open the tournament discussion modal
+              // Find the tournament in the page and trigger its view handler
+              const tournamentElements = document.querySelectorAll('[data-tournament-id]');
+              const targetTournament = Array.from(tournamentElements).find(
+                el => el.getAttribute('data-tournament-id') === eventId
+              );
+              if (targetTournament) {
+                const discussButton = targetTournament.querySelector('[data-action="discuss"]');
+                if (discussButton) {
+                  discussButton.click();
+                  // Scroll to comment after a short delay
+                  setTimeout(() => {
+                    if (commentId) {
+                      const commentElement = document.getElementById(`comment-${commentId}`);
+                      if (commentElement) {
+                        commentElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        commentElement.classList.add('highlight-comment');
+                        setTimeout(() => commentElement.classList.remove('highlight-comment'), 3000);
+                      }
+                    }
+                  }, 500);
+                }
+              }
+            } else if (eventType === 'league') {
+              // Similar logic for leagues
+              const leagueElements = document.querySelectorAll('[data-league-id]');
+              const targetLeague = Array.from(leagueElements).find(
+                el => el.getAttribute('data-league-id') === eventId
+              );
+              if (targetLeague) {
+                const discussButton = targetLeague.querySelector('[data-action="discuss"]');
+                if (discussButton) {
+                  discussButton.click();
+                  setTimeout(() => {
+                    if (commentId) {
+                      const commentElement = document.getElementById(`comment-${commentId}`);
+                      if (commentElement) {
+                        commentElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        commentElement.classList.add('highlight-comment');
+                        setTimeout(() => commentElement.classList.remove('highlight-comment'), 3000);
+                      }
+                    }
+                  }, 500);
+                }
+              }
+            }
+            break;
+            
+          case 'event_update':
+          case 'payment_reminder':
+          case 'result_posted':
+          case 'event_reminder':
+            // Navigate to the event's manage/edit view
+            if (eventType === 'tournament') {
+              const tournamentElements = document.querySelectorAll('[data-tournament-id]');
+              const targetTournament = Array.from(tournamentElements).find(
+                el => el.getAttribute('data-tournament-id') === eventId
+              );
+              if (targetTournament) {
+                const manageButton = targetTournament.querySelector('[data-action="manage"]');
+                if (manageButton) {
+                  manageButton.click();
+                }
+              }
+            } else if (eventType === 'league') {
+              const leagueElements = document.querySelectorAll('[data-league-id]');
+              const targetLeague = Array.from(leagueElements).find(
+                el => el.getAttribute('data-league-id') === eventId
+              );
+              if (targetLeague) {
+                const manageButton = targetLeague.querySelector('[data-action="manage"]');
+                if (manageButton) {
+                  manageButton.click();
+                }
+              }
+            }
+            break;
+            
+          default:
+            console.log('Unknown notification type:', type);
+        }
+        
+        // Call the original onNavigate if provided
+        if (onNavigate) {
+          onNavigate(notification);
+        }
+        
+      } catch (error) {
+        console.error('Error navigating from notification:', error);
+        // Fallback: just call the original handler
+        if (onNavigate) {
+          onNavigate(notification);
+        }
+      }
+    };
+
     return (
       <Modal
         isOpen={true}
         onClose={onClose}
-        title=""
+        title={
+          <div className="flex items-center space-x-3">
+            <Bell className="h-6 w-6 text-gray-600" />
+            <span>
+              Notifications
+              {unreadCount > 0 && (
+                <span className="ml-2 inline-flex items-center px-2 py-1 text-xs font-medium bg-blue-500 text-white rounded-full">
+                  {unreadCount}
+                </span>
+              )}
+            </span>
+          </div>
+        }
         size="xl"
+        variant={modalVariant}
+        headerAction={headerActions}
       >
-        {content}
+        {/* Pass the enhanced navigation handler to content */}
+        <div onClick={(e) => {
+          // Handle notification item clicks
+          const notificationElement = e.target.closest('[data-notification]');
+          if (notificationElement) {
+            try {
+              const notificationData = JSON.parse(notificationElement.getAttribute('data-notification'));
+              handleNotificationNavigation(notificationData);
+            } catch (error) {
+              console.error('Error parsing notification data:', error);
+            }
+          }
+        }}>
+          {content}
+        </div>
       </Modal>
     );
   }

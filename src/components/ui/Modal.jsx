@@ -21,7 +21,8 @@ const Modal = ({
   children, 
   size = 'md',
   headerAction = null,
-  footerActions = null
+  footerActions = null,
+  variant = 'default'
 }) => {
   // Size classes for different modal widths
   const sizeClasses = {
@@ -327,13 +328,25 @@ const Modal = ({
         {/* Modal container */}
         <div 
           className={`
-            bg-white rounded-lg shadow-xl w-full ${sizeClasses[size]} 
+            bg-white shadow-xl w-full ${sizeClasses[size]} 
             max-h-[90vh] overflow-hidden flex flex-col
+            ${variant === 'notification' 
+              ? 'rounded-xl shadow-2xl border border-gray-200' 
+              : 'rounded-lg'
+            }
           `}
         >
           {/* ENHANCED: Modal Header with better action support and mobile optimization */}
-          <div className="flex items-center justify-between p-3 sm:p-4 border-b bg-white">
-            <h2 className="text-base sm:text-lg font-semibold text-gray-900 flex-1 min-w-0 mr-2 sm:mr-4 truncate">
+          <div className={`flex items-center justify-between border-b ${
+            variant === 'notification' 
+              ? 'p-4 sm:p-6 bg-gray-50 border-gray-200' 
+              : 'p-3 sm:p-4 bg-white'
+          }`}>
+            <h2 className={`font-semibold text-gray-900 flex-1 min-w-0 mr-2 sm:mr-4 truncate ${
+              variant === 'notification' 
+                ? 'text-lg sm:text-xl' 
+                : 'text-base sm:text-lg'
+            }`}>
               {title}
             </h2>
             
@@ -357,7 +370,9 @@ const Modal = ({
 
           {/* Modal Body - scrollable if content is too long */}
           <div className="flex-1 overflow-y-auto">
-            {children}
+            <div className={variant === 'notification' ? 'p-4 sm:p-6' : ''}>
+              {children}
+            </div>
           </div>
 
           {/* Optional Footer Actions */}
