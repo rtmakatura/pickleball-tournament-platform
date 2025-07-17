@@ -23,13 +23,16 @@ import {
   Bell
 } from 'lucide-react';
 import { 
-  useMembers, 
-  useLeagues, 
-  useTournaments, 
   useAuth,
-  useResults,
   usePlayerPerformance
 } from '../hooks';
+import { 
+  useOptimizedMembers,
+  useOptimizedTournaments, 
+  useOptimizedLeagues,
+  useOptimizedResults
+} from '../hooks/useOptimizedFirebase';
+import { useUIStore, useEntitiesStore } from '../stores';
 import { useSmoothNavigation } from '../hooks/useSmoothNavigation';
 import { 
   SKILL_LEVELS, 
@@ -1386,19 +1389,14 @@ const ResultsDashboard = ({ results, tournaments, leagues, members, onViewTourna
 
 const Dashboard = React.forwardRef((props, ref) => {
   const { user, signIn, signUpWithProfile, logout, isAuthenticated, loading: authLoading } = useAuth();
-  const { members, loading: membersLoading, addMember, updateMember, deleteMember } = useMembers({ realTime: true });
-  const { leagues, loading: leaguesLoading, addLeague, updateLeague, deleteLeague, archiveLeague, unarchiveLeague, checkAndUpdateAllLeagueStatuses } = useLeagues({ realTime: true });
-  const { tournaments, loading: tournamentsLoading, addTournament, updateTournament, deleteTournament, archiveTournament, unarchiveTournament, checkAndUpdateAllTournamentStatuses } = useTournaments({ realTime: true });
+  const { members, loading: membersLoading } = useOptimizedMembers({ realTime: true });
+  const { leagues, loading: leaguesLoading } = useOptimizedLeagues({ realTime: true });
+  const { tournaments, loading: tournamentsLoading } = useOptimizedTournaments({ realTime: true });
   // ADDED: Results and performance hooks
   const { 
   results, 
-  loading: resultsLoading, 
-  addTournamentResults, 
-  addLeagueResults, 
-  updateTournamentResults,
-  updateLeagueResults,
-  deleteResult
-} = useResults();
+  loading: resultsLoading
+} = useOptimizedResults({ realTime: true });
 
 
   
@@ -1409,23 +1407,21 @@ const Dashboard = React.forwardRef((props, ref) => {
     updatePlayerPerformance 
   } = usePlayerPerformance();
 
-  // MOVED: Filter out archived items (moved early to avoid temporal dead zone)
-  const activeTournaments = useMemo(() => {
-    return tournaments.filter(tournament => tournament.status !== 'archived');
-  }, [tournaments]);
-
-  const activeLeagues = useMemo(() => {
-    return leagues.filter(league => league.status !== 'archived');
-  }, [leagues]);
+  // NEW: Use optimized hooks that already filter out archived items
+  const activeTournaments = tournaments; // Already filtered by useOptimizedTournaments
+  const activeLeagues = leagues; // Already filtered by useOptimizedLeagues
   
-  // Archived items
+  // Archived items - get from store directly  
+  const allTournaments = useEntitiesStore(state => Object.values(state.tournaments));
+  const allLeagues = useEntitiesStore(state => Object.values(state.leagues));
+  
   const archivedTournaments = useMemo(() => {
-    return tournaments.filter(tournament => tournament.status === 'archived');
-  }, [tournaments]);
+    return allTournaments.filter(tournament => tournament.status === 'archived');
+  }, [allTournaments]);
 
   const archivedLeagues = useMemo(() => {
-    return leagues.filter(league => league.status === 'archived');
-  }, [leagues]);
+    return allLeagues.filter(league => league.status === 'archived');
+  }, [allLeagues]);
 
   // Smooth navigation hook
   const { activeSection, scrollToSection, navItems, refs } = useSmoothNavigation();
@@ -1458,12 +1454,11 @@ const Dashboard = React.forwardRef((props, ref) => {
     ARCHIVED_ITEMS: 'archived_items'
   };
   
-  // Enhanced tournament state management
+  // Simplified local state (alert now comes from global store)
   const [formLoading, setFormLoading] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
-  const [alert, setAlert] = useState(null);
 
-  // Enhanced tournament state management
+  // Keep editing states for component logic
   const [editingTournament, setEditingTournament] = useState(null);
   const [editingLeague, setEditingLeague] = useState(null);
   const [editingMember, setEditingMember] = useState(null);
@@ -1471,23 +1466,15 @@ const Dashboard = React.forwardRef((props, ref) => {
   const [viewingLeague, setViewingLeague] = useState(null);
   
   // FIXED: Single modal close handler with overflow cleanup failsafe
-const closeModal = useCallback(() => {
+const handleCloseModal = useCallback(() => {
   if (!formLoading && !deleteLoading) {
-    setActiveModal(null);
-    setModalData(null);
+    handleCloseModal(); // This closeModal comes from useUIStore
+    setSelectedLeagueMembers([]);
     
     // Clean up editing states
     setEditingTournament(null);
     setEditingLeague(null);
     setEditingMember(null);
-    setSelectedLeagueMembers([]);
-    
-    // Reset tournament form editing state to allow real-time sync
-    // This ensures form data doesn't get lost when modal closes
-    if (editingTournament) {
-      // The TournamentForm component will handle resetting its own userIsEditing state
-      // when the onCancel callback is triggered
-    }
     
     // Failsafe: Ensure body scroll is restored after a short delay
     setTimeout(() => {
@@ -1498,7 +1485,7 @@ const closeModal = useCallback(() => {
       }
     }, 100);
   }
-}, [formLoading, deleteLoading, editingTournament]);
+}, [formLoading, deleteLoading, closeModal]);
   
   const currentUserMember = useMemo(() => 
     members.find(m => m.authUid === user?.uid), 
@@ -1547,51 +1534,44 @@ const closeModal = useCallback(() => {
   // Event handlers
   const handleViewTournament = useCallback((tournament) => {
     console.log('Viewing tournament:', tournament);
-    setModalData({ tournament });
-    setActiveModal(MODAL_TYPES.TOURNAMENT_DETAIL);
-  }, []);
+    openModal(MODAL_TYPES.TOURNAMENT_DETAIL, { tournament });
+  }, [openModal]);
 
   const handleViewLeague = useCallback((league) => {
     console.log('Viewing league:', league);
-    setModalData({ league });
-    setActiveModal(MODAL_TYPES.LEAGUE_DETAIL);
-  }, []);
+    openModal(MODAL_TYPES.LEAGUE_DETAIL, { league });
+  }, [openModal]);
 
   const handleEditTournament = useCallback((tournament) => {
     console.log('Editing tournament:', tournament);
     const latestTournament = tournaments.find(t => t.id === tournament.id) || tournament;
     setEditingTournament(latestTournament);
-    setModalData({ tournament: latestTournament });
-    setActiveModal(MODAL_TYPES.TOURNAMENT_FORM);
-  }, [tournaments]);
+    openModal(MODAL_TYPES.TOURNAMENT_FORM, { tournament: latestTournament });
+  }, [tournaments, openModal]);
 
   const handleEditLeague = useCallback((league) => {
     console.log('Editing league:', league);
     setEditingLeague(league);
     setSelectedLeagueMembers(league.participants || []);
-    setModalData({ league });
-    setActiveModal(MODAL_TYPES.LEAGUE_FORM);
-  }, []);
+    openModal(MODAL_TYPES.LEAGUE_FORM, { league });
+  }, [openModal]);
 
   const handleEditMember = useCallback((member) => {
     console.log('Editing member:', member);
     setEditingMember(member);
-    setModalData({ member });
-    setActiveModal(MODAL_TYPES.MEMBER_FORM);
-  }, []);
+    openModal(MODAL_TYPES.MEMBER_FORM, { member });
+  }, [openModal]);
 
   // ADDED: Results entry handlers
   const handleEnterTournamentResults = useCallback((tournament) => {
     console.log('Entering results for tournament:', tournament);
-    setModalData({ tournament });
-    setActiveModal(MODAL_TYPES.TOURNAMENT_RESULTS_FORM);
-  }, []);
+    openModal(MODAL_TYPES.TOURNAMENT_RESULTS_FORM, { tournament });
+  }, [openModal]);
 
   const handleEnterLeagueResults = useCallback((league) => {
     console.log('Entering results for league:', league);
-    setModalData({ league });
-    setActiveModal(MODAL_TYPES.LEAGUE_RESULTS_FORM);
-  }, []);
+    openModal(MODAL_TYPES.LEAGUE_RESULTS_FORM, { league });
+  }, [openModal]);
 
   const handleViewTournamentResults = useCallback((tournament) => {
   if (!tournament) {
@@ -1603,12 +1583,11 @@ const closeModal = useCallback(() => {
   });
     
     // FIXED: Ensure only one modal opens
-    setModalData({ 
+    openModal(MODAL_TYPES.RESULTS_VIEW, { 
       type: 'tournament', 
       event: tournament, 
       results: tournamentResults 
     });
-    setActiveModal(MODAL_TYPES.RESULTS_VIEW);
   }, [results.tournament]);
 
   const handleViewLeagueResults = useCallback((league) => {
@@ -1618,12 +1597,11 @@ const closeModal = useCallback(() => {
   
   const leagueResults = results.league?.find(result => result.leagueId === league.id);
     
-    setModalData({ 
+    openModal(MODAL_TYPES.RESULTS_VIEW, { 
       type: 'league', 
       event: league, 
       results: leagueResults 
     });
-    setActiveModal(MODAL_TYPES.RESULTS_VIEW);
   }, [results.league]);
 
   
@@ -1668,12 +1646,12 @@ const closeModal = useCallback(() => {
   const sortedTournaments = useMemo(() => getSortedTournaments(), [getSortedTournaments]);
   const sortedLeagues = useMemo(() => getSortedLeagues(), [getSortedLeagues]);
 
-  // Show alert message
-  const showAlert = useCallback((type, title, message) => {
+  // Show alert message - now handled by store
+  const handleShowAlert = useCallback((type, title, message) => {
     console.log(`Alert: ${type} - ${title}: ${message}`);
-    setAlert({ type, title, message });
-    setTimeout(() => setAlert(null), 5000);
-  }, []);
+    showAlert(type, title, message);
+    setTimeout(() => clearAlert(), 5000);
+  }, [showAlert, clearAlert]);
 
   // Handle notification navigation from App
   const handleNotificationNavigation = useCallback((notification) => {
@@ -1768,7 +1746,7 @@ const closeModal = useCallback(() => {
     setDeleteLoading(true);
     try {
       await deleteResult(result.id);
-      closeModal();
+      handleCloseModal();
       showAlert('success', 'Result deleted!', 'The result has been successfully deleted');
     } catch (err) {
       showAlert('error', 'Failed to delete result', err.message);
@@ -2196,7 +2174,7 @@ const closeModal = useCallback(() => {
     setFormLoading(true);
     try {
       const tournamentId = await addTournament(tournamentData);
-      closeModal(); // Use unified modal close function
+      handleCloseModal(); // Use unified modal close function
       showAlert('success', 'Tournament created!', `${tournamentData.name} has been created successfully`);
     } catch (err) {
       showAlert('error', 'Failed to create tournament', err.message);
@@ -2210,7 +2188,7 @@ const closeModal = useCallback(() => {
     setFormLoading(true);
     try {
       await updateTournament(editingTournament.id, tournamentData);
-      closeModal(); // Use unified modal close function
+      handleCloseModal(); // Use unified modal close function
       showAlert('success', 'Tournament updated!', `${tournamentData.name} has been updated successfully`);
     } catch (err) {
       showAlert('error', 'Failed to update tournament', err.message);
@@ -2223,7 +2201,7 @@ const closeModal = useCallback(() => {
     setDeleteLoading(true);
     try {
       await deleteTournament(tournamentId);
-      closeModal();
+      handleCloseModal();
       showAlert('success', 'Tournament deleted!', 'Tournament has been successfully deleted');
     } catch (err) {
       showAlert('error', 'Failed to delete tournament', err.message);
@@ -2262,7 +2240,7 @@ const closeModal = useCallback(() => {
         participants: selectedLeagueMembers
       });
       
-      closeModal();
+      handleCloseModal();
       showAlert('success', 'League updated!', `${leagueData.name} has been updated successfully`);
     } catch (err) {
       showAlert('error', 'Failed to update league', err.message);
@@ -2275,7 +2253,7 @@ const closeModal = useCallback(() => {
     setDeleteLoading(true);
     try {
       await deleteLeague(leagueId);
-      closeModal();
+      handleCloseModal();
       showAlert('success', 'League deleted!', 'League has been successfully deleted');
     } catch (err) {
       showAlert('error', 'Failed to delete league', err.message);
@@ -2289,7 +2267,7 @@ const closeModal = useCallback(() => {
     setFormLoading(true);
     try {
       await addMember(memberData);
-      closeModal();
+      handleCloseModal();
       showAlert('success', 'Member added!', `${memberData.firstName} ${memberData.lastName} has been added successfully`);
     } catch (err) {
       showAlert('error', 'Failed to add member', err.message);
@@ -2302,7 +2280,7 @@ const closeModal = useCallback(() => {
     setFormLoading(true);
     try {
       await updateMember(editingMember.id, memberData);
-      closeModal();
+      handleCloseModal();
       showAlert('success', 'Member updated!', `${memberData.firstName} ${memberData.lastName} has been updated successfully`);
     } catch (err) {
       showAlert('error', 'Failed to update member', err.message);
@@ -2315,7 +2293,7 @@ const closeModal = useCallback(() => {
     setDeleteLoading(true);
     try {
       await deleteMember(memberId);
-      closeModal();
+      handleCloseModal();
       showAlert('success', 'Member deleted!', 'Member has been successfully deleted');
     } catch (err) {
       showAlert('error', 'Failed to delete member', err.message);
@@ -2329,7 +2307,7 @@ const closeModal = useCallback(() => {
     setDeleteLoading(true);
     try {
       await archiveTournament(tournamentId);
-      closeModal();
+      handleCloseModal();
       showAlert('success', 'Tournament archived!', 'Tournament has been moved to archive');
     } catch (err) {
       showAlert('error', 'Failed to archive tournament', err.message);
@@ -2342,7 +2320,7 @@ const closeModal = useCallback(() => {
     setDeleteLoading(true);
     try {
       await unarchiveTournament(tournamentId);
-      closeModal();
+      handleCloseModal();
       showAlert('success', 'Tournament restored!', 'Tournament has been restored from archive');
     } catch (err) {
       showAlert('error', 'Failed to restore tournament', err.message);
@@ -2355,7 +2333,7 @@ const closeModal = useCallback(() => {
     setDeleteLoading(true);
     try {
       await archiveLeague(leagueId);
-      closeModal();
+      handleCloseModal();
       showAlert('success', 'League archived!', 'League has been moved to archive');
     } catch (err) {
       showAlert('error', 'Failed to archive league', err.message);
@@ -2368,7 +2346,7 @@ const closeModal = useCallback(() => {
     setDeleteLoading(true);
     try {
       await unarchiveLeague(leagueId);
-      closeModal();
+      handleCloseModal();
       showAlert('success', 'League restored!', 'League has been restored from archive');
     } catch (err) {
       showAlert('error', 'Failed to restore league', err.message);
@@ -2388,7 +2366,7 @@ const closeModal = useCallback(() => {
         status: TOURNAMENT_STATUS.COMPLETED 
       });
       
-      closeModal();
+      handleCloseModal();
       showAlert('success', 'Results saved!', `Tournament results for ${modalData.tournament.name} have been saved`);
     } catch (err) {
       showAlert('error', 'Failed to save results', err.message);
@@ -2407,7 +2385,7 @@ const closeModal = useCallback(() => {
         status: LEAGUE_STATUS.COMPLETED 
       });
       
-      closeModal();
+      handleCloseModal();
       showAlert('success', 'Results saved!', `League results for ${modalData.league.name} have been saved`);
     } catch (err) {
       showAlert('error', 'Failed to save results', err.message);
@@ -2538,7 +2516,7 @@ const closeModal = useCallback(() => {
               type={alert.type}
               title={alert.title}
               message={alert.message}
-              onClose={() => setAlert(null)}
+              onClose={clearAlert}
             />
           </div>
         )}
@@ -2591,7 +2569,7 @@ const closeModal = useCallback(() => {
           <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 sm:gap-4">
             <Button 
               variant="outline" 
-              onClick={() => setActiveModal(MODAL_TYPES.MEMBER_FORM)}
+              onClick={() => openModal(MODAL_TYPES.MEMBER_FORM)}
               className={`h-16 flex-col gap-2 ${isMobile ? 'mobile-action-button' : ''}`}
               size="md"
             >
@@ -2601,7 +2579,7 @@ const closeModal = useCallback(() => {
             
             <Button 
               variant="outline" 
-              onClick={() => setActiveModal(MODAL_TYPES.TOURNAMENT_FORM)}
+              onClick={() => openModal(MODAL_TYPES.TOURNAMENT_FORM)}
               className={`h-16 flex-col gap-2 ${isMobile ? 'mobile-action-button' : ''}`}
               size="md"
             >
@@ -2611,7 +2589,7 @@ const closeModal = useCallback(() => {
 
             <Button 
               variant="outline" 
-              onClick={() => setActiveModal(MODAL_TYPES.LEAGUE_FORM)}
+              onClick={() => openModal(MODAL_TYPES.LEAGUE_FORM)}
               className={`h-16 flex-col gap-2 ${isMobile ? 'mobile-action-button' : ''}`}
               size="md"
             >
@@ -2621,7 +2599,7 @@ const closeModal = useCallback(() => {
             
             <Button 
               variant="outline" 
-              onClick={() => setActiveModal(MODAL_TYPES.PAYMENT_TRACKER)}
+              onClick={() => openModal(MODAL_TYPES.PAYMENT_TRACKER)}
               className={`h-16 flex-col gap-2 ${isMobile ? 'mobile-action-button' : ''}`}
               size="md"
             >
@@ -2631,7 +2609,7 @@ const closeModal = useCallback(() => {
 
             <Button 
               variant="outline" 
-              onClick={() => setActiveModal(MODAL_TYPES.ARCHIVED_ITEMS)}
+              onClick={() => openModal(MODAL_TYPES.ARCHIVED_ITEMS)}
               className={`h-16 flex-col gap-2 ${isMobile ? 'mobile-action-button' : ''}`}
               size="md"
             >
@@ -2649,7 +2627,7 @@ const closeModal = useCallback(() => {
           actions={[
             <Button 
               key="add-tournament"
-              onClick={() => setActiveModal(MODAL_TYPES.TOURNAMENT_FORM)}
+              onClick={() => openModal(MODAL_TYPES.TOURNAMENT_FORM)}
               className="touch-target"
               size="md"
             >
@@ -2675,7 +2653,7 @@ const closeModal = useCallback(() => {
           actions={[
             <Button 
               key="add-league"
-              onClick={() => setActiveModal(MODAL_TYPES.LEAGUE_FORM)}
+              onClick={() => openModal(MODAL_TYPES.LEAGUE_FORM)}
               className="touch-target"
               size="md"
             >
@@ -2701,7 +2679,7 @@ const closeModal = useCallback(() => {
           actions={[
             <Button 
               key="add-member"
-              onClick={() => setActiveModal(MODAL_TYPES.MEMBER_FORM)}
+              onClick={() => openModal(MODAL_TYPES.MEMBER_FORM)}
               className="touch-target"
               size="md"
             >
@@ -2742,7 +2720,7 @@ const closeModal = useCallback(() => {
         {activeModal === MODAL_TYPES.TOURNAMENT_FORM && (
           <Modal
             isOpen={true}
-            onClose={closeModal}
+            onClose={handleCloseModal}
             title={editingTournament ? 'Edit Tournament' : 'Create New Tournament'}
             size="xl"
             headerAction={editingTournament ? (
@@ -2809,7 +2787,7 @@ const closeModal = useCallback(() => {
               <TournamentForm
                 tournament={editingTournament}
                 onSubmit={editingTournament ? handleUpdateTournament : handleCreateTournament}
-                onCancel={closeModal}
+                onCancel={handleCloseModal}
                 onUpdateTournament={updateTournament}
                 loading={formLoading}
                 deleteLoading={deleteLoading}
@@ -2823,7 +2801,7 @@ const closeModal = useCallback(() => {
         {activeModal === MODAL_TYPES.TOURNAMENT_DETAIL && modalData?.tournament && (
           <Modal
             isOpen={true}
-            onClose={closeModal}
+            onClose={handleCloseModal}
             title={modalData.tournament.name || 'Tournament Discussion'}
             size="xl"
           >
@@ -2839,7 +2817,7 @@ const closeModal = useCallback(() => {
         {activeModal === MODAL_TYPES.LEAGUE_FORM && (
           <Modal
             isOpen={true}
-            onClose={closeModal}
+            onClose={handleCloseModal}
             title={editingLeague ? 'Edit League' : 'Create New League'}
             size="xl"
             headerAction={editingLeague ? (
@@ -2906,7 +2884,7 @@ const closeModal = useCallback(() => {
               <LeagueForm
                 league={editingLeague}
                 onSubmit={editingLeague ? handleUpdateLeague : handleCreateLeague}
-                onCancel={closeModal}
+                onCancel={handleCloseModal}
                 loading={formLoading}
                 deleteLoading={deleteLoading}
               />
@@ -2941,7 +2919,7 @@ const closeModal = useCallback(() => {
         {activeModal === MODAL_TYPES.LEAGUE_DETAIL && modalData?.league && (
           <Modal
             isOpen={true}
-            onClose={closeModal}
+            onClose={handleCloseModal}
             title={modalData.league.name || 'League Discussion'}
             size="xl"
           >
@@ -2957,7 +2935,7 @@ const closeModal = useCallback(() => {
         {activeModal === MODAL_TYPES.MEMBER_FORM && (
           <Modal
             isOpen={true}
-            onClose={closeModal}
+            onClose={handleCloseModal}
             title={editingMember ? 'Edit Member' : 'Add New Member'}
             size="xl"
             headerAction={editingMember ? (
@@ -3010,7 +2988,7 @@ const closeModal = useCallback(() => {
             <MemberForm
               member={editingMember}
               onSubmit={editingMember ? handleUpdateMember : handleCreateMember}
-              onCancel={closeModal}
+              onCancel={handleCloseModal}
               loading={formLoading}
               deleteLoading={deleteLoading}
             />
@@ -3021,7 +2999,7 @@ const closeModal = useCallback(() => {
         {activeModal === MODAL_TYPES.TOURNAMENT_RESULTS_FORM && modalData?.tournament && (
           <Modal
             isOpen={true}
-            onClose={closeModal}
+            onClose={handleCloseModal}
             title={`Enter Results: ${modalData.tournament.name || 'Tournament'}`}
             size="xl"
           >
@@ -3029,7 +3007,7 @@ const closeModal = useCallback(() => {
               tournament={modalData.tournament}
               members={members}
               onSubmit={handleTournamentResultsSubmit}
-              onCancel={closeModal}
+              onCancel={handleCloseModal}
               loading={formLoading}
             />
           </Modal>
@@ -3039,7 +3017,7 @@ const closeModal = useCallback(() => {
         {activeModal === MODAL_TYPES.LEAGUE_RESULTS_FORM && modalData?.league && (
           <Modal
             isOpen={true}
-            onClose={closeModal}
+            onClose={handleCloseModal}
             title={`Enter Results: ${modalData.league.name || 'League'}`}
             size="xl"
           >
@@ -3047,7 +3025,7 @@ const closeModal = useCallback(() => {
               league={modalData.league}
               members={members}
               onSubmit={handleLeagueResultsSubmit}
-              onCancel={closeModal}
+              onCancel={handleCloseModal}
               loading={formLoading}
             />
           </Modal>
@@ -3057,7 +3035,7 @@ const closeModal = useCallback(() => {
         {activeModal === MODAL_TYPES.RESULTS_VIEW && modalData && modalData.results && (
           <ResultsCard 
             result={modalData.results}
-            onClose={closeModal}
+            onClose={handleCloseModal}
             showPlayerPerformance={true}
             allowEdit={true}
             onDelete={modalData.type === 'tournament' ? 
@@ -3071,7 +3049,7 @@ const closeModal = useCallback(() => {
         {activeModal === MODAL_TYPES.RESULTS_VIEW && modalData && !modalData.results && (
           <Modal
             isOpen={true}
-            onClose={closeModal}
+            onClose={handleCloseModal}
             title={`Results: ${modalData.event?.name || 'Event'}`}
             size="xl"
           >
@@ -3167,7 +3145,7 @@ const closeModal = useCallback(() => {
         {activeModal === MODAL_TYPES.ARCHIVE_TOURNAMENT_CONFIRM && modalData?.tournament && (
           <ConfirmDialog
             isOpen={true}
-            onClose={closeModal}
+            onClose={handleCloseModal}
             onConfirm={() => {
               handleArchiveTournament(modalData.tournament.id);
             }}
@@ -3184,7 +3162,7 @@ const closeModal = useCallback(() => {
         {activeModal === MODAL_TYPES.UNARCHIVE_TOURNAMENT_CONFIRM && modalData?.tournament && (
           <ConfirmDialog
             isOpen={true}
-            onClose={closeModal}
+            onClose={handleCloseModal}
             onConfirm={() => {
               handleUnarchiveTournament(modalData.tournament.id);
             }}
@@ -3201,7 +3179,7 @@ const closeModal = useCallback(() => {
         {activeModal === MODAL_TYPES.ARCHIVE_LEAGUE_CONFIRM && modalData?.league && (
           <ConfirmDialog
             isOpen={true}
-            onClose={closeModal}
+            onClose={handleCloseModal}
             onConfirm={() => {
               handleArchiveLeague(modalData.league.id);
             }}
@@ -3218,7 +3196,7 @@ const closeModal = useCallback(() => {
         {activeModal === MODAL_TYPES.UNARCHIVE_LEAGUE_CONFIRM && modalData?.league && (
           <ConfirmDialog
             isOpen={true}
-            onClose={closeModal}
+            onClose={handleCloseModal}
             onConfirm={() => {
               handleUnarchiveLeague(modalData.league.id);
             }}
@@ -3235,7 +3213,7 @@ const closeModal = useCallback(() => {
         {activeModal === MODAL_TYPES.ARCHIVED_ITEMS && (
           <Modal
             isOpen={true}
-            onClose={closeModal}
+            onClose={handleCloseModal}
             title="Archived Events"
             size="xl"
           >
@@ -3415,7 +3393,7 @@ const closeModal = useCallback(() => {
         {activeModal === MODAL_TYPES.PAYMENT_TRACKER && (
           <PaymentTracker
             isOpen={true}
-            onClose={closeModal}
+            onClose={handleCloseModal}
             tournaments={activeTournaments}
             leagues={activeLeagues}
             members={members}

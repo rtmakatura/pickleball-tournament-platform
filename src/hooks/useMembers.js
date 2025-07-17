@@ -1,5 +1,5 @@
 // src/hooks/useMembers.js (UPDATED)
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import firebaseOps from '../services/firebaseOperations';
 import userManagement from '../services/userManagement';
 import { createMember, MEMBER_ROLES } from '../services/models';
@@ -44,7 +44,9 @@ export const useMembers = (options = {}) => {
         }
         setError(null);
       } catch (err) {
-        setError(err.message);
+        console.error('useMembers error:', err);
+        setError(err.message || 'Failed to load members');
+        setMembers([]); // Provide fallback empty array
       } finally {
         setLoading(false);
       }
@@ -55,7 +57,7 @@ export const useMembers = (options = {}) => {
     return () => {
       if (unsubscribe) unsubscribe();
     };
-  }, [realTime, JSON.stringify(filters), roleFilter, activeOnly]);
+  }, [realTime, filters.status, filters.isActive, filters.role, roleFilter, activeOnly]); // Only depend on actual filter values
 
   // Create member (admin only - now requires auth integration)
   const addMember = async (memberData) => {
@@ -197,10 +199,10 @@ export const useMembers = (options = {}) => {
     memberExistsByEmail,
     getMemberStats,
     
-    // Convenience getters
-    authenticatedMembers: getAuthenticatedMembers(),
-    activeMembers: getActiveMembers(),
-    memberStats: getMemberStats()
+    // Memoized convenience getters
+    authenticatedMembers: useMemo(() => getAuthenticatedMembers(), [members]),
+    activeMembers: useMemo(() => getActiveMembers(), [members]),
+    memberStats: useMemo(() => getMemberStats(), [members])
   };
 };
 

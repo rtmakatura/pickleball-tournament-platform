@@ -15,30 +15,32 @@ export const useTournaments = (options = {}) => {
   useEffect(() => {
     let unsubscribe;
     let statusCheckInterval;
+    let statusCheckTimeout;
 
     const fetchData = async () => {
       try {
-        console.log('Fetching tournaments with options:', { realTime, filters });
+        // console.log('Fetching tournaments with options:', { realTime, filters }); // Disabled for performance
         setLoading(true);
         setError(null);
         
         if (realTime) {
-          console.log('Setting up real-time tournament subscription with automation');
+          // console.log('Setting up real-time tournament subscription with automation'); // Disabled for performance
           unsubscribe = firebaseOps.subscribe('tournaments', async (data) => {
-            console.log('Real-time tournaments update:', data);
+            // console.log('Real-time tournaments update:', data); // Disabled for performance
             setTournaments(data);
             
-            // AUTOMATION: Check for status updates after data changes
-            setTimeout(() => {
+            // AUTOMATION: Check for status updates after data changes (debounced)
+            clearTimeout(statusCheckTimeout);
+            statusCheckTimeout = setTimeout(() => {
               checkAllTournamentStatuses(data);
-            }, 1000); // Small delay to avoid race conditions
+            }, 5000); // 5 second delay to avoid excessive calls
           }, filters);
           
-          // AUTOMATION: Set up periodic status checks (every 5 minutes)
+          // AUTOMATION: Set up periodic status checks (every 30 minutes, less aggressive)
           statusCheckInterval = setInterval(() => {
             console.log('🔄 Running periodic tournament status check');
             checkAndUpdateAllTournamentStatuses();
-          }, 5 * 60 * 1000); // 5 minutes
+          }, 30 * 60 * 1000); // 30 minutes instead of 5
           
         } else {
           console.log('Fetching tournaments one-time');
@@ -65,8 +67,11 @@ export const useTournaments = (options = {}) => {
         console.log('Cleaning up status check interval');
         clearInterval(statusCheckInterval);
       }
+      if (statusCheckTimeout) {
+        clearTimeout(statusCheckTimeout);
+      }
     };
-  }, [realTime, JSON.stringify(filters)]);
+  }, [realTime, filters.status, filters.isActive, filters.userId]); // Only depend on actual filter values
 
   // AUTOMATION: Helper function to check tournament statuses without updating state
   const checkAllTournamentStatuses = async (tournamentData = null) => {

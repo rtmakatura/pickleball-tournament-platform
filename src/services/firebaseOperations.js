@@ -86,8 +86,37 @@ export const getAll = async (collectionName, filters = {}, orderField = null, li
   }
 };
 
-// Real-time subscriptions with enhanced filtering
+// Enhanced real-time subscriptions with listener management
+const activeListeners = new Map(); // Track active listeners
+
 export const subscribe = (collectionName, callback, filters = {}, orderField = null) => {
+  // Create a unique key for this subscription
+  const listenerKey = `${collectionName}_${JSON.stringify(filters)}_${orderField || ''}`;
+  
+  // If listener already exists, just add callback
+  if (activeListeners.has(listenerKey)) {
+    const existingListener = activeListeners.get(listenerKey);
+    existingListener.callbacks.push(callback);
+    
+    // Immediately call callback with cached data
+    if (existingListener.lastData) {
+      callback(existingListener.lastData);
+    }
+    
+    // Return unsubscribe function
+    return () => {
+      const listener = activeListeners.get(listenerKey);
+      if (listener) {
+        listener.callbacks = listener.callbacks.filter(cb => cb !== callback);
+        if (listener.callbacks.length === 0) {
+          listener.unsubscribe();
+          activeListeners.delete(listenerKey);
+        }
+      }
+    };
+  }
+  
+  // Create new listener
   let q = collection(db, collectionName);
   
   Object.entries(filters).forEach(([field, value]) => {
@@ -100,13 +129,37 @@ export const subscribe = (collectionName, callback, filters = {}, orderField = n
     q = query(q, orderBy(orderField));
   }
   
-  return onSnapshot(q, (querySnapshot) => {
+  const unsubscribe = onSnapshot(q, (querySnapshot) => {
     const documents = querySnapshot.docs.map(doc => ({
       id: doc.id,
       ...doc.data()
     }));
-    callback(documents);
+    
+    const listener = activeListeners.get(listenerKey);
+    if (listener) {
+      listener.lastData = documents;
+      listener.callbacks.forEach(cb => cb(documents));
+    }
   });
+  
+  // Store listener info
+  activeListeners.set(listenerKey, {
+    unsubscribe,
+    callbacks: [callback],
+    lastData: null
+  });
+  
+  // Return unsubscribe function
+  return () => {
+    const listener = activeListeners.get(listenerKey);
+    if (listener) {
+      listener.callbacks = listener.callbacks.filter(cb => cb !== callback);
+      if (listener.callbacks.length === 0) {
+        listener.unsubscribe();
+        activeListeners.delete(listenerKey);
+      }
+    }
+  };
 };
 
 export const subscribeToDoc = (collectionName, id, callback) => {

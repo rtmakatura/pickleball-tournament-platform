@@ -36,7 +36,7 @@ export const useLeagues = (options = {}) => {
     return () => {
       if (unsubscribe) unsubscribe();
     };
-  }, [realTime, JSON.stringify(filters)]);
+  }, [realTime, filters.status, filters.isActive, filters.userId]); // Only depend on actual filter values
 
   const addLeague = async (leagueData) => {
     const league = createLeague(leagueData);
