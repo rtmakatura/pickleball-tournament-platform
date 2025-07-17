@@ -44,17 +44,33 @@ const UserManagement = () => {
   const [newRole, setNewRole] = useState('');
   const [alert, setAlert] = useState(null);
 
-  // Check admin permissions
+  // Check admin permissions with fallback protection
   const canManage = canManageUsers(currentUser?.uid, members);
+  const currentMember = members.find(m => m.authUid === currentUser?.uid);
   
+  // ENHANCED: Admin lockout protection
   if (!canManage) {
     return (
       <Card title="Access Denied">
         <Alert 
           type="error" 
           title="Insufficient Permissions" 
-          message="You don't have permission to access user management." 
+          message={
+            currentMember 
+              ? "You don't have permission to access user management."
+              : "Unable to verify your account permissions. If you are an admin and seeing this message, your member record may be missing or corrupted. Please contact technical support."
+          }
         />
+        {!currentMember && currentUser && (
+          <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+            <h4 className="text-sm font-medium text-yellow-800">Debug Information:</h4>
+            <p className="text-xs text-yellow-700 mt-1">
+              Auth UID: {currentUser.uid}<br/>
+              Email: {currentUser.email}<br/>
+              Member Record: Not Found
+            </p>
+          </div>
+        )}
       </Card>
     );
   }

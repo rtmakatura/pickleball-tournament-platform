@@ -25,6 +25,22 @@ import { createMember, MEMBER_ROLES } from './models';
  */
 export const createMemberFromAuth = async (user, additionalData = {}) => {
   try {
+    // ENHANCED: Check for existing member record first
+    const existingMember = await getMemberByAuthUid(user.uid);
+    if (existingMember) {
+      console.log('Member record already exists for user:', user.uid);
+      return existingMember.id;
+    }
+    
+    // ENHANCED: Check for email conflicts
+    const emailConflicts = await searchMembersByEmail(user.email);
+    if (emailConflicts.length > 0) {
+      throw new Error(
+        'A member record already exists with this email address. ' +
+        'This may indicate a data inconsistency. Please contact support.'
+      );
+    }
+    
     const memberData = createMember({
       authUid: user.uid,
       email: user.email,
@@ -32,13 +48,14 @@ export const createMemberFromAuth = async (user, additionalData = {}) => {
       lastName: additionalData.lastName || 'User',
       displayName: additionalData.displayName || `${additionalData.firstName || 'New'} ${additionalData.lastName || 'User'}`,
       phoneNumber: additionalData.phoneNumber || '',
-      venmoHandle: additionalData.venmoHandle || '', // NEW: Include venmo handle
+      venmoHandle: additionalData.venmoHandle || '',
       skillLevel: additionalData.skillLevel || 'beginner',
-      role: MEMBER_ROLES.PLAYER, // New users start as players
+      role: MEMBER_ROLES.PLAYER,
       isActive: true
     });
 
     const memberId = await firebaseOps.create('members', memberData);
+    console.log('Successfully created member record:', memberId);
     return memberId;
   } catch (error) {
     console.error('Error creating member from auth:', error);
@@ -66,6 +83,13 @@ export const getMemberByAuthUid = async (authUid) => {
     };
   } catch (error) {
     console.error('Error getting member by auth UID:', error);
+    
+    // Enhanced error handling for permission issues
+    if (error.code === 'permission-denied') {
+      console.error('🔒 Permission denied - check Firestore security rules');
+      throw new Error('Database access denied. Please check your permissions.');
+    }
+    
     throw new Error('Failed to get member profile: ' + error.message);
   }
 };
