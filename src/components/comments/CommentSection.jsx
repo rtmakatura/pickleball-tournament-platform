@@ -576,7 +576,7 @@ const CommentSection = ({
         </div>
 
         {/* Comments List */}
-        <div className="space-y-4">
+        <div className="space-y-4" id="comments-list">
           {loading ? (
             <div className="text-center py-8 text-gray-500">
               <div className="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-gray-300"></div>
@@ -611,6 +611,7 @@ const CommentSection = ({
                   <CommentItem
                     key={comment.id}
                     comment={comment}
+                    id={`comment-${comment.id}`}
                     replies={filteredComments.filter(c => c.parentId === comment.id)}
                     currentMember={currentMember}
                     members={members}
@@ -663,7 +664,8 @@ const CommentItem = ({
   startReply,
   cancelReply,
   getDivisionName,
-  isDivisionBased
+  isDivisionBased,
+  id
 }) => {
   const [replyText, setReplyText] = useState('');
   const [showActions, setShowActions] = useState(false);
@@ -692,7 +694,7 @@ const CommentItem = ({
   console.log('📝 Rendering comment:', comment.id, 'with', replies.length, 'replies');
 
   return (
-    <div className={`${comment.depth > 0 ? 'ml-6 border-l-2 border-gray-200 pl-4' : ''}`}>
+    <div className={`${comment.depth > 0 ? 'ml-6 border-l-2 border-gray-200 pl-4' : ''}`} id={id}>
       <div className="bg-white border border-gray-200 rounded-lg p-4">
         {/* Comment Header */}
         <div className="flex items-start justify-between mb-2">
@@ -858,6 +860,7 @@ const CommentItem = ({
                 <CommentItem
                   key={reply.id}
                   comment={{ ...reply, depth: (comment.depth || 0) + 1 }}
+                  id={`comment-${reply.id}`}
                   replies={[]} // Keep replies simple - no deep nesting for now
                   currentMember={currentMember}
                   members={members}

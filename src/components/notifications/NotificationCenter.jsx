@@ -339,113 +339,14 @@ const NotificationCenter = ({
       </>
     );
 
-    // ADDED: Enhanced notification navigation handler
+    // Use proper navigation handler from App
     const handleNotificationNavigation = (notification) => {
-      try {
-        const { type, eventId, eventType, commentId, divisionId } = notification.data || {};
-        
-        // Close modal first
-        if (onClose) onClose();
-        
-        // Navigate based on notification type
-        switch (type) {
-          case 'comment_reply':
-          case 'mention':
-            // Navigate to comment section and highlight specific comment
-            if (eventType === 'tournament') {
-              // For tournament comments, open the tournament discussion modal
-              // Find the tournament in the page and trigger its view handler
-              const tournamentElements = document.querySelectorAll('[data-tournament-id]');
-              const targetTournament = Array.from(tournamentElements).find(
-                el => el.getAttribute('data-tournament-id') === eventId
-              );
-              if (targetTournament) {
-                const discussButton = targetTournament.querySelector('[data-action="discuss"]');
-                if (discussButton) {
-                  discussButton.click();
-                  // Scroll to comment after a short delay
-                  setTimeout(() => {
-                    if (commentId) {
-                      const commentElement = document.getElementById(`comment-${commentId}`);
-                      if (commentElement) {
-                        commentElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                        commentElement.classList.add('highlight-comment');
-                        setTimeout(() => commentElement.classList.remove('highlight-comment'), 3000);
-                      }
-                    }
-                  }, 500);
-                }
-              }
-            } else if (eventType === 'league') {
-              // Similar logic for leagues
-              const leagueElements = document.querySelectorAll('[data-league-id]');
-              const targetLeague = Array.from(leagueElements).find(
-                el => el.getAttribute('data-league-id') === eventId
-              );
-              if (targetLeague) {
-                const discussButton = targetLeague.querySelector('[data-action="discuss"]');
-                if (discussButton) {
-                  discussButton.click();
-                  setTimeout(() => {
-                    if (commentId) {
-                      const commentElement = document.getElementById(`comment-${commentId}`);
-                      if (commentElement) {
-                        commentElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                        commentElement.classList.add('highlight-comment');
-                        setTimeout(() => commentElement.classList.remove('highlight-comment'), 3000);
-                      }
-                    }
-                  }, 500);
-                }
-              }
-            }
-            break;
-            
-          case 'event_update':
-          case 'payment_reminder':
-          case 'result_posted':
-          case 'event_reminder':
-            // Navigate to the event's manage/edit view
-            if (eventType === 'tournament') {
-              const tournamentElements = document.querySelectorAll('[data-tournament-id]');
-              const targetTournament = Array.from(tournamentElements).find(
-                el => el.getAttribute('data-tournament-id') === eventId
-              );
-              if (targetTournament) {
-                const manageButton = targetTournament.querySelector('[data-action="manage"]');
-                if (manageButton) {
-                  manageButton.click();
-                }
-              }
-            } else if (eventType === 'league') {
-              const leagueElements = document.querySelectorAll('[data-league-id]');
-              const targetLeague = Array.from(leagueElements).find(
-                el => el.getAttribute('data-league-id') === eventId
-              );
-              if (targetLeague) {
-                const manageButton = targetLeague.querySelector('[data-action="manage"]');
-                if (manageButton) {
-                  manageButton.click();
-                }
-              }
-            }
-            break;
-            
-          default:
-            console.log('Unknown notification type:', type);
-        }
-        
-        // Call the original onNavigate if provided
-        if (onNavigate) {
-          onNavigate(notification);
-        }
-        
-      } catch (error) {
-        console.error('Error navigating from notification:', error);
-        // Fallback: just call the original handler
-        if (onNavigate) {
-          onNavigate(notification);
-        }
+      // Close modal first
+      if (onClose) onClose();
+      
+      // Call the navigation handler passed from App
+      if (onNavigate) {
+        onNavigate(notification);
       }
     };
 
@@ -470,7 +371,7 @@ const NotificationCenter = ({
         variant={modalVariant}
         headerAction={headerActions}
       >
-        {/* Pass the enhanced navigation handler to content */}
+        {/* Pass the navigation handler to content */}
         <div onClick={(e) => {
           // Handle notification item clicks
           const notificationElement = e.target.closest('[data-notification]');

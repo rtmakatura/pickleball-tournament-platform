@@ -1384,7 +1384,7 @@ const ResultsDashboard = ({ results, tournaments, leagues, members, onViewTourna
   );
 };
 
-const Dashboard = () => {
+const Dashboard = React.forwardRef((props, ref) => {
   const { user, signIn, signUpWithProfile, logout, isAuthenticated, loading: authLoading } = useAuth();
   const { members, loading: membersLoading, addMember, updateMember, deleteMember } = useMembers({ realTime: true });
   const { leagues, loading: leaguesLoading, addLeague, updateLeague, deleteLeague, archiveLeague, unarchiveLeague, checkAndUpdateAllLeagueStatuses } = useLeagues({ realTime: true });
@@ -1674,6 +1674,94 @@ const closeModal = useCallback(() => {
     setAlert({ type, title, message });
     setTimeout(() => setAlert(null), 5000);
   }, []);
+
+  // Handle notification navigation from App
+  const handleNotificationNavigation = useCallback((notification) => {
+    try {
+      const type = notification.type;
+      const { eventId, eventType, commentId, divisionId } = notification.data || {};
+      
+      // Navigate based on notification type
+      switch (type) {
+        case 'mention':
+        case 'comment_reply':
+          if (eventType === 'tournament') {
+            const tournament = tournaments.find(t => t.id === eventId);
+            if (tournament) {
+              handleViewTournament(tournament);
+              
+              // Scroll to comment after modal opens
+              if (commentId) {
+                setTimeout(() => {
+                  const commentElement = document.getElementById(`comment-${commentId}`);
+                  if (commentElement) {
+                    commentElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    // Add highlight styling
+                    commentElement.style.backgroundColor = '#fef3c7';
+                    commentElement.style.border = '2px solid #f59e0b';
+                    commentElement.style.borderRadius = '8px';
+                    setTimeout(() => {
+                      commentElement.style.backgroundColor = '';
+                      commentElement.style.border = '';
+                      commentElement.style.borderRadius = '';
+                    }, 3000);
+                  }
+                }, 1000);
+              }
+            }
+          } else if (eventType === 'league') {
+            const league = leagues.find(l => l.id === eventId);
+            if (league) {
+              handleViewLeague(league);
+              
+              // Scroll to comment after modal opens
+              if (commentId) {
+                setTimeout(() => {
+                  const commentElement = document.getElementById(`comment-${commentId}`);
+                  if (commentElement) {
+                    commentElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    // Add highlight styling
+                    commentElement.style.backgroundColor = '#fef3c7';
+                    commentElement.style.border = '2px solid #f59e0b';
+                    commentElement.style.borderRadius = '8px';
+                    setTimeout(() => {
+                      commentElement.style.backgroundColor = '';
+                      commentElement.style.border = '';
+                      commentElement.style.borderRadius = '';
+                    }, 3000);
+                  }
+                }, 1000);
+              }
+            }
+          }
+          break;
+          
+        case 'event_update':
+        case 'payment_reminder':
+        case 'result_posted':
+        case 'event_reminder':
+          if (eventType === 'tournament') {
+            const tournament = tournaments.find(t => t.id === eventId);
+            if (tournament) {
+              handleEditTournament(tournament);
+            }
+          } else if (eventType === 'league') {
+            const league = leagues.find(l => l.id === eventId);
+            if (league) {
+              handleEditLeague(league);
+            }
+          }
+          break;
+      }
+    } catch (error) {
+      console.error('Error in Dashboard navigation:', error);
+    }
+  }, [tournaments, leagues, handleViewTournament, handleViewLeague, handleEditTournament, handleEditLeague]);
+
+  // Expose handler to parent via ref
+  React.useImperativeHandle(ref, () => ({
+    handleNotificationNavigation
+  }), [handleNotificationNavigation]);
 
   // ADDED: Result deletion handlers (placed after showAlert is defined)
   const handleDeleteResult = useCallback(async (result) => {
@@ -3341,6 +3429,8 @@ const closeModal = useCallback(() => {
       </div>
     </div>
   );
-};
+});
+
+Dashboard.displayName = 'Dashboard';
 
 export default Dashboard;

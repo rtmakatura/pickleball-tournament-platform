@@ -16,6 +16,14 @@ import { useNotificationBadge } from './hooks/useNotificationBadge';
 function App() {
   const { user } = useAuth();
   const [showNotifications, setShowNotifications] = useState(false);
+  const [dashboardRef, setDashboardRef] = useState(null);
+
+  // Navigation handler for notifications
+  const handleNotificationNavigation = (notification) => {
+    if (dashboardRef && dashboardRef.handleNotificationNavigation) {
+      dashboardRef.handleNotificationNavigation(notification);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
@@ -47,7 +55,7 @@ function App() {
       </header>
 
       <main className="flex-1">
-        <Dashboard />
+        <Dashboard ref={setDashboardRef} />
       </main>
 
       <Footer />
@@ -56,7 +64,7 @@ function App() {
         <NotificationCenter
           isModal={true}
           onClose={() => setShowNotifications(false)}
-          onNavigate={() => setShowNotifications(false)}
+          onNavigate={handleNotificationNavigation}
           modalVariant="notification"
         />
       )}

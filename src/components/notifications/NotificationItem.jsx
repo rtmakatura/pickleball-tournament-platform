@@ -397,6 +397,7 @@ const NotificationItem = ({
         }
       `}
       onClick={handleClick}
+      data-notification={JSON.stringify(notification)}
     >
       {/* Notification Icon */}
       <div className={`flex-shrink-0 ${theme.icon}`}>
