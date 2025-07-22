@@ -20,7 +20,8 @@ import {
   Target,
   Award,
   X,
-  Bell
+  Bell,
+  Edit3
 } from 'lucide-react';
 import { 
   useMembers, 
@@ -419,8 +420,8 @@ const TournamentCard = React.memo(({ tournament, onView, onEdit, onEnterResults,
               size="sm"
             >
               <Trophy className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
-              <span className="hidden xs:inline">Manage</span>
-              <span className="xs:hidden">Edit</span>
+              <span className="hidden xs:inline">View Details</span>
+              <span className="xs:hidden">View</span>
             </Button>
           </div>
           
@@ -738,7 +739,7 @@ const TournamentRow = React.memo(({ tournament, onView, onEdit, onEnterResults, 
             onClick={handleEditClick}
             type="button"
           >
-            Edit
+            View
           </button>
           {/* ADDED: Results buttons */}
           {canEnterResults && (
@@ -877,7 +878,7 @@ const LeagueCard = React.memo(({ league, onView, onEdit, onEnterResults, onViewR
               size="md"
             >
               <Activity className="h-4 w-4 mr-2" />
-              Manage
+              View Details
             </Button>
           </div>
           
@@ -1088,7 +1089,7 @@ const LeagueRow = React.memo(({ league, onView, onEdit, onEnterResults, onViewRe
             onClick={handleEditClick}
             type="button"
           >
-            Edit
+            View
           </button>
           {canEnterResults && (
             <button 
@@ -1467,6 +1468,7 @@ const Dashboard = React.forwardRef((props, ref) => {
   const [editingTournament, setEditingTournament] = useState(null);
   const [editingLeague, setEditingLeague] = useState(null);
   const [editingMember, setEditingMember] = useState(null);
+  const [isEditMode, setIsEditMode] = useState(false);
   const [viewingTournament, setViewingTournament] = useState(null);
   const [viewingLeague, setViewingLeague] = useState(null);
   
@@ -1480,6 +1482,7 @@ const closeModal = useCallback(() => {
     setEditingTournament(null);
     setEditingLeague(null);
     setEditingMember(null);
+    setIsEditMode(false);
     setSelectedLeagueMembers([]);
     
     // Reset tournament form editing state to allow real-time sync
@@ -1499,6 +1502,10 @@ const closeModal = useCallback(() => {
     }, 100);
   }
 }, [formLoading, deleteLoading, editingTournament]);
+
+  const handleEnterEditMode = useCallback(() => {
+    setIsEditMode(true);
+  }, []);
   
   const currentUserMember = useMemo(() => 
     members.find(m => m.authUid === user?.uid), 
@@ -1558,16 +1565,18 @@ const closeModal = useCallback(() => {
   }, []);
 
   const handleEditTournament = useCallback((tournament) => {
-    console.log('Editing tournament:', tournament);
+    console.log('Viewing tournament:', tournament);
     const latestTournament = tournaments.find(t => t.id === tournament.id) || tournament;
     setEditingTournament(latestTournament);
+    setIsEditMode(false); // Start in view mode
     setModalData({ tournament: latestTournament });
     setActiveModal(MODAL_TYPES.TOURNAMENT_FORM);
   }, [tournaments]);
 
   const handleEditLeague = useCallback((league) => {
-    console.log('Editing league:', league);
+    console.log('Viewing league:', league);
     setEditingLeague(league);
+    setIsEditMode(false); // Start in view mode
     setSelectedLeagueMembers(league.participants || []);
     setModalData({ league });
     setActiveModal(MODAL_TYPES.LEAGUE_FORM);
@@ -2757,45 +2766,66 @@ const closeModal = useCallback(() => {
           <Modal
             isOpen={true}
             onClose={closeModal}
-            title={editingTournament ? 'Edit Tournament' : 'Create New Tournament'}
+            title={editingTournament ? (isEditMode ? 'Edit Tournament' : 'Tournament Details') : 'Create New Tournament'}
             size="xl"
             headerAction={editingTournament ? (
-              <>
-                {editingTournament.status === TOURNAMENT_STATUS.COMPLETED && (
+              isEditMode ? (
+                <>
+                  {editingTournament.status === TOURNAMENT_STATUS.COMPLETED && (
+                    <ModalHeaderButton
+                      variant="outline"
+                      onClick={() => {
+                        setModalData({ tournament: editingTournament });
+                        setActiveModal(MODAL_TYPES.ARCHIVE_TOURNAMENT_CONFIRM);
+                      }}
+                      disabled={formLoading || deleteLoading}
+                      icon={<Activity className="h-4 w-4" />}
+                    >
+                      Archive
+                    </ModalHeaderButton>
+                  )}
                   <ModalHeaderButton
-                    variant="outline"
+                    variant="danger"
                     onClick={() => {
                       setModalData({ tournament: editingTournament });
-                      setActiveModal(MODAL_TYPES.ARCHIVE_TOURNAMENT_CONFIRM);
+                      setActiveModal(MODAL_TYPES.DELETE_CONFIRM);
                     }}
                     disabled={formLoading || deleteLoading}
-                    icon={<Activity className="h-4 w-4" />}
+                    icon={<Trash2 className="h-4 w-4" />}
                   >
-                    Archive
+                    Delete
                   </ModalHeaderButton>
-                )}
-                <ModalHeaderButton
-                  variant="danger"
-                  onClick={() => {
-                    setModalData({ tournament: editingTournament });
-                    setActiveModal(MODAL_TYPES.DELETE_CONFIRM);
-                  }}
-                  disabled={formLoading || deleteLoading}
-                  icon={<Trash2 className="h-4 w-4" />}
-                >
-                  Delete
-                </ModalHeaderButton>
-                <ModalHeaderButton
-                  variant="primary"
-                  type="submit"
-                  form="tournament-form"
-                  loading={formLoading}
-                  disabled={formLoading || deleteLoading}
-                  icon={<CheckCircle className="h-4 w-4" />}
-                >
-                  Update Tournament
-                </ModalHeaderButton>
-              </>
+                  <ModalHeaderButton
+                    variant="primary"
+                    type="submit"
+                    form="tournament-form"
+                    loading={formLoading}
+                    disabled={formLoading || deleteLoading}
+                    icon={<CheckCircle className="h-4 w-4" />}
+                  >
+                    Update Tournament
+                  </ModalHeaderButton>
+                </>
+              ) : (
+                <>
+                  <ModalHeaderButton
+                    variant="outline"
+                    onClick={closeModal}
+                    disabled={formLoading || deleteLoading}
+                    icon={<X className="h-4 w-4" />}
+                  >
+                    Close
+                  </ModalHeaderButton>
+                  <ModalHeaderButton
+                    variant="primary"
+                    onClick={handleEnterEditMode}
+                    disabled={formLoading || deleteLoading}
+                    icon={<Edit3 className="h-4 w-4" />}
+                  >
+                    Edit Tournament
+                  </ModalHeaderButton>
+                </>
+              )
             ) : (
               <>
                 <ModalHeaderButton
@@ -2828,6 +2858,7 @@ const closeModal = useCallback(() => {
                 loading={formLoading}
                 deleteLoading={deleteLoading}
                 members={members}
+                isReadOnly={editingTournament && !isEditMode}
               />
             </div>
           </Modal>
@@ -2854,45 +2885,66 @@ const closeModal = useCallback(() => {
           <Modal
             isOpen={true}
             onClose={closeModal}
-            title={editingLeague ? 'Edit League' : 'Create New League'}
+            title={editingLeague ? (isEditMode ? 'Edit League' : 'League Details') : 'Create New League'}
             size="xl"
             headerAction={editingLeague ? (
-              <>
-                {editingLeague.status === LEAGUE_STATUS.COMPLETED && (
+              isEditMode ? (
+                <>
+                  {editingLeague.status === LEAGUE_STATUS.COMPLETED && (
+                    <ModalHeaderButton
+                      variant="outline"
+                      onClick={() => {
+                        setModalData({ league: editingLeague });
+                        setActiveModal(MODAL_TYPES.ARCHIVE_LEAGUE_CONFIRM);
+                      }}
+                      disabled={formLoading || deleteLoading}
+                      icon={<Activity className="h-4 w-4" />}
+                    >
+                      Archive
+                    </ModalHeaderButton>
+                  )}
                   <ModalHeaderButton
-                    variant="outline"
+                    variant="danger"
                     onClick={() => {
                       setModalData({ league: editingLeague });
-                      setActiveModal(MODAL_TYPES.ARCHIVE_LEAGUE_CONFIRM);
+                      setActiveModal(MODAL_TYPES.LEAGUE_DELETE_CONFIRM);
                     }}
                     disabled={formLoading || deleteLoading}
-                    icon={<Activity className="h-4 w-4" />}
+                    icon={<Trash2 className="h-4 w-4" />}
                   >
-                    Archive
+                    Delete
                   </ModalHeaderButton>
-                )}
-                <ModalHeaderButton
-                  variant="danger"
-                  onClick={() => {
-                    setModalData({ league: editingLeague });
-                    setActiveModal(MODAL_TYPES.LEAGUE_DELETE_CONFIRM);
-                  }}
-                  disabled={formLoading || deleteLoading}
-                  icon={<Trash2 className="h-4 w-4" />}
-                >
-                  Delete
-                </ModalHeaderButton>
-                <ModalHeaderButton
-                  variant="primary"
-                  type="submit"
-                  form="league-form"
-                  loading={formLoading}
-                  disabled={formLoading || deleteLoading}
-                  icon={<CheckCircle className="h-4 w-4" />}
-                >
-                  Update League
-                </ModalHeaderButton>
-              </>
+                  <ModalHeaderButton
+                    variant="primary"
+                    type="submit"
+                    form="league-form"
+                    loading={formLoading}
+                    disabled={formLoading || deleteLoading}
+                    icon={<CheckCircle className="h-4 w-4" />}
+                  >
+                    Update League
+                  </ModalHeaderButton>
+                </>
+              ) : (
+                <>
+                  <ModalHeaderButton
+                    variant="outline"
+                    onClick={closeModal}
+                    disabled={formLoading || deleteLoading}
+                    icon={<X className="h-4 w-4" />}
+                  >
+                    Close
+                  </ModalHeaderButton>
+                  <ModalHeaderButton
+                    variant="primary"
+                    onClick={handleEnterEditMode}
+                    disabled={formLoading || deleteLoading}
+                    icon={<Edit3 className="h-4 w-4" />}
+                  >
+                    Edit League
+                  </ModalHeaderButton>
+                </>
+              )
             ) : (
               <>
                 <ModalHeaderButton
@@ -2923,6 +2975,7 @@ const closeModal = useCallback(() => {
                 onCancel={closeModal}
                 loading={formLoading}
                 deleteLoading={deleteLoading}
+                isReadOnly={editingLeague && !isEditMode}
               />
               
               <div className="league-modal-section">

@@ -336,7 +336,8 @@ const LeagueForm = ({
   onSubmit, 
   onCancel, 
   loading = false,
-  deleteLoading = false
+  deleteLoading = false,
+  isReadOnly = false
 }) => {
   // ADDED: Results hook integration
   const { 
@@ -974,7 +975,7 @@ const LeagueForm = ({
                       required
                       placeholder="Enter league name"
                       className="text-lg"
-                      disabled={isSubmitting}
+                      disabled={isSubmitting || isReadOnly}
                     />
                   </div>
 
@@ -987,7 +988,7 @@ const LeagueForm = ({
                       error={errors.description}
                       placeholder="Brief description of the league"
                       helperText="What's special about this league? Format, rules, etc."
-                      disabled={isSubmitting}
+                      disabled={isSubmitting || isReadOnly}
                     />
                   </div>
 
@@ -1001,7 +1002,7 @@ const LeagueForm = ({
                         error={errors.skillLevel}
                         required
                         helperText="Target skill level for participants"
-                        disabled={isSubmitting}
+                        disabled={isSubmitting || isReadOnly}
                       />
                     </div>
 
@@ -1014,7 +1015,7 @@ const LeagueForm = ({
                         error={errors.eventType}
                         required
                         helperText="League format"
-                        disabled={isSubmitting}
+                        disabled={isSubmitting || isReadOnly}
                       />
                     </div>
 
@@ -1025,7 +1026,7 @@ const LeagueForm = ({
                         onChange={handleChange('status')}
                         options={statusOptions}
                         helperText="Current league status"
-                        disabled={isSubmitting}
+                        disabled={isSubmitting || isReadOnly}
                       />
                     </div>
                   </div>
@@ -1061,7 +1062,7 @@ const LeagueForm = ({
                         error={errors.startDate}
                         required
                         helperText="League can be backdated if needed"
-                        disabled={isSubmitting}
+                        disabled={isSubmitting || isReadOnly}
                       />
                     </div>
 
@@ -1074,7 +1075,7 @@ const LeagueForm = ({
                         error={errors.endDate}
                         required
                         helperText="When the league ends"
-                        disabled={isSubmitting}
+                        disabled={isSubmitting || isReadOnly}
                       />
                     </div>
                   </div>
@@ -1139,7 +1140,7 @@ const LeagueForm = ({
                       error={errors.location}
                       placeholder="Main venue, facility, or area for league play"
                       helperText="Optional - Enter primary venue or area where league games are played"
-                      disabled={isSubmitting}
+                      disabled={isSubmitting || isReadOnly}
                     />
                     {formData.location && (
                       <Button
@@ -1165,7 +1166,7 @@ const LeagueForm = ({
                       error={errors.website}
                       placeholder="https://example.com/league-info"
                       helperText="Optional - Link to league rules, schedule, standings, or information page"
-                      disabled={isSubmitting}
+                      disabled={isSubmitting || isReadOnly}
                     />
                     {formData.website && (
                       <Button
@@ -1256,7 +1257,7 @@ const LeagueForm = ({
                         step="0.01"
                         placeholder="0.00"
                         helperText="Cost to join the league"
-                        disabled={isSubmitting}
+                        disabled={isSubmitting || isReadOnly}
                       />
                     </div>
 
@@ -1270,7 +1271,7 @@ const LeagueForm = ({
                           { value: PAYMENT_MODES.GROUP, label: 'Group Payment (One Payer)' }
                         ]}
                         helperText="How participants will handle payments"
-                        disabled={isSubmitting}
+                        disabled={isSubmitting || isReadOnly}
                       />
                     </div>
 
@@ -1284,7 +1285,7 @@ const LeagueForm = ({
                         min="1"
                         placeholder="2"
                         helperText="Maximum number of league members"
-                        disabled={isSubmitting}
+                        disabled={isSubmitting || isReadOnly}
                       />
                     </div>
                   </div>
@@ -1335,7 +1336,7 @@ const LeagueForm = ({
                       checked={formData.isActive}
                       onChange={handleChange('isActive')}
                       className="h-5 w-5 text-green-600 focus:ring-green-500 border-gray-300 rounded"
-                      disabled={isSubmitting}
+                      disabled={isSubmitting || isReadOnly}
                     />
                     <label htmlFor="isActive" className="ml-3 flex-1">
                       <span className="block text-sm font-medium text-gray-900">Active league</span>

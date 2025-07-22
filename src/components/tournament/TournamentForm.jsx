@@ -425,7 +425,8 @@ const TournamentForm = ({
   onUpdateTournament,
   loading = false,
   deleteLoading = false,
-  members = []
+  members = [],
+  isReadOnly = false
 }) => {
   
   const isInitialMount = useRef(true);
@@ -1237,7 +1238,7 @@ const TournamentForm = ({
                     error={errors.name}
                     required
                     placeholder="Enter tournament name"
-                    disabled={isSubmitting}
+                    disabled={isSubmitting || isReadOnly}
                     className="text-lg"
                   />
                 </div>
@@ -1249,7 +1250,7 @@ const TournamentForm = ({
                     value={formData.description}
                     onChange={handleChange('description')}
                     placeholder="Brief description of the tournament"
-                    disabled={isSubmitting}
+                    disabled={isSubmitting || isReadOnly}
                   />
                 </div>
 
@@ -1260,7 +1261,7 @@ const TournamentForm = ({
                   <select
                     value={formData.status}
                     onChange={handleChange('status')}
-                    disabled={isSubmitting}
+                    disabled={isSubmitting || isReadOnly}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                   >
                     {statusOptions.map(option => (
@@ -1306,7 +1307,7 @@ const TournamentForm = ({
                       error={errors.eventDate}
                       required
                       helperText="Tournament can be backdated if needed"
-                      disabled={isSubmitting}
+                      disabled={isSubmitting || isReadOnly}
                     />
                   </div>
 
@@ -1317,7 +1318,7 @@ const TournamentForm = ({
                       value={formData.registrationDeadline}
                       onChange={handleChange('registrationDeadline')}
                       helperText="Optional - when registration closes"
-                      disabled={isSubmitting}
+                      disabled={isSubmitting || isReadOnly}
                     />
                   </div>
                 </div>
@@ -1332,7 +1333,7 @@ const TournamentForm = ({
                     required
                     placeholder="Tournament venue or location"
                     helperText="Enter venue name or full address for best mapping results"
-                    disabled={isSubmitting}
+                    disabled={isSubmitting || isReadOnly}
                   />
                   {formData.location && (
                     <Button
@@ -1358,7 +1359,7 @@ const TournamentForm = ({
                     error={errors.website}
                     placeholder="https://example.com/tournament-info"
                     helperText="Optional - Link to tournament information"
-                    disabled={isSubmitting}
+                    disabled={isSubmitting || isReadOnly}
                   />
                   {formData.website && (
                     <Button
@@ -1418,18 +1419,20 @@ const TournamentForm = ({
                 </div>
 
                 {/* Add Division Button */}
-                <div className="form-input-group division-add-button">
-                  <Button 
-                    type="button"
-                    onClick={addDivision}
-                    variant="outline"
-                    disabled={isSubmitting || divisionSaving}
-                    className="form-touch-button w-full"
-                  >
-                    <Plus className="h-4 w-4 mr-2" />
-                    Add New Division
-                  </Button>
-                </div>
+                {!isReadOnly && (
+                  <div className="form-input-group division-add-button">
+                    <Button 
+                      type="button"
+                      onClick={addDivision}
+                      variant="outline"
+                      disabled={isSubmitting || divisionSaving}
+                      className="form-touch-button w-full"
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      Add New Division
+                    </Button>
+                  </div>
+                )}
 
                 {/* Division List */}
                 <div>
@@ -1443,6 +1446,7 @@ const TournamentForm = ({
                       canDelete={divisions.length > 1}
                       disabled={isSubmitting || divisionSaving}
                       loading={divisionSaving}
+                      isReadOnly={isReadOnly}
                     />
                   ))}
                 </div>
@@ -1718,7 +1722,7 @@ const TournamentForm = ({
 /**
  * Division Card Component (unchanged)
  */
-const DivisionCard = ({ division, index, onEdit, onDelete, canDelete, disabled, loading }) => {
+const DivisionCard = ({ division, index, onEdit, onDelete, canDelete, disabled, loading, isReadOnly = false }) => {
   const formatEventType = (eventType) => {
     return eventType.split('_').map(word => 
       word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
@@ -1767,32 +1771,34 @@ const DivisionCard = ({ division, index, onEdit, onDelete, canDelete, disabled, 
         </div>
       )}
       
-      <div className="flex space-x-3 pt-2">
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={onEdit}
-          disabled={disabled}
-          className="form-touch-button flex-1"
-        >
-          <Edit3 className="h-4 w-4 mr-2" />
-          Edit Division
-        </Button>
-        {canDelete && (
+      {!isReadOnly && (
+        <div className="flex space-x-3 pt-2">
           <Button
             type="button"
             variant="outline"
             size="sm"
-            onClick={onDelete}
+            onClick={onEdit}
             disabled={disabled}
-            loading={loading}
-            className="form-touch-button"
+            className="form-touch-button flex-1"
           >
-            <Trash2 className="h-4 w-4" />
+            <Edit3 className="h-4 w-4 mr-2" />
+            Edit Division
           </Button>
-        )}
-      </div>
+          {canDelete && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={onDelete}
+              disabled={disabled}
+              loading={loading}
+              className="form-touch-button"
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          )}
+        </div>
+      )}
     </div>
   );
 };
