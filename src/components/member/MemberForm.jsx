@@ -18,32 +18,32 @@ import { useAuth } from '../../hooks/useAuth';
 import { useMembers } from '../../hooks/useMembers';
 import { canEditUserRoles } from '../../utils/roleUtils';
 
-// Enhanced member form styles matching tournament form quality
+// MOBILE-OPTIMIZED: Enhanced member form styles with responsive spacing
 const memberFormStyles = `
-  /* Base form container - match tournament form */
+  /* Base form container - mobile-first */
   .member-form {
     -webkit-overflow-scrolling: touch;
     scroll-behavior: smooth;
   }
   
-  /* Consistent section spacing system - exactly 24px everywhere */
+  /* MOBILE-FIRST: Responsive section spacing */
   .form-section {
     background: white;
-    border-radius: 16px;
+    border-radius: 12px;
     border: 1px solid #e5e7eb;
-    margin-bottom: 24px;
+    margin-bottom: 12px;
     overflow: visible;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
   }
   
   /* ADDED: Special handling for form sections with dropdowns */
   .form-section-with-dropdown {
     background: white;
-    border-radius: 16px;
+    border-radius: 12px;
     border: 1px solid #e5e7eb;
-    margin-bottom: 24px;
+    margin-bottom: 12px;
     overflow: visible;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
     position: relative;
     z-index: 10;
   }
@@ -58,8 +58,9 @@ const memberFormStyles = `
     margin-bottom: 0;
   }
   
+  /* MOBILE-OPTIMIZED: Section headers */
   .form-section-header {
-    padding: 20px;
+    padding: 12px 16px;
     border-bottom: 1px solid #e5e7eb;
     background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
     cursor: pointer;
@@ -70,15 +71,15 @@ const memberFormStyles = `
     background: linear-gradient(135deg, #e2e8f0 0%, #cbd5e1 100%);
   }
   
-  /* Consistent content padding - exactly 24px always */
+  /* MOBILE-OPTIMIZED: Content padding */
   .form-section-content {
-    padding: 24px;
+    padding: 16px;
     overflow: visible;
   }
   
-  /* Standardized input group spacing - exactly 24px always */
+  /* MOBILE-OPTIMIZED: Input group spacing */
   .form-input-group {
-    margin-bottom: 24px;
+    margin-bottom: 16px;
   }
   
   .form-input-group:last-child {
@@ -88,6 +89,33 @@ const memberFormStyles = `
   /* FIXED: Remove margin from grid children to prevent double spacing */
   .form-grid .form-input-group {
     margin-bottom: 0;
+  }
+  
+  /* DESKTOP: Larger spacing for bigger screens */
+  @media (min-width: 768px) {
+    .form-section {
+      border-radius: 16px;
+      margin-bottom: 24px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    }
+    
+    .form-section-with-dropdown {
+      border-radius: 16px;
+      margin-bottom: 24px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    }
+    
+    .form-section-header {
+      padding: 20px;
+    }
+    
+    .form-section-content {
+      padding: 24px;
+    }
+    
+    .form-input-group {
+      margin-bottom: 24px;
+    }
   }
   
   /* Touch-optimized buttons */
@@ -103,11 +131,11 @@ const memberFormStyles = `
     transform: scale(0.96);
   }
   
-  /* Responsive grid system */
+  /* MOBILE-OPTIMIZED: Responsive grid system */
   .form-grid {
     display: grid;
     grid-template-columns: 1fr;
-    gap: 24px;
+    gap: 16px;
   }
   
   @media (min-width: 640px) {
@@ -132,50 +160,84 @@ const memberFormStyles = `
     opacity: 1;
   }
   
-  /* Member info card */
+  /* MOBILE-OPTIMIZED: Member info card */
   .member-info-card {
     background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
     color: white;
-    border-radius: 16px;
-    padding: 20px;
-    margin-bottom: 24px;
+    border-radius: 12px;
+    padding: 12px;
+    margin-bottom: 16px;
   }
   
-  /* Member features info card styling */
+  /* DESKTOP: Larger cards */
+  @media (min-width: 768px) {
+    .form-grid {
+      gap: 24px;
+    }
+    
+    .member-info-card {
+      border-radius: 16px;
+      padding: 20px;
+      margin-bottom: 24px;
+    }
+  }
+  
+  /* MOBILE-OPTIMIZED: Member features info card styling */
   .member-features-card {
     background: linear-gradient(135deg, #059669 0%, #047857 100%);
     color: white;
-    border-radius: 16px;
-    padding: 24px;
-    margin-bottom: 24px;
+    border-radius: 12px;
+    padding: 12px;
+    margin-bottom: 16px;
   }
   
   .member-features-grid {
     display: grid;
     grid-template-columns: 1fr;
-    gap: 16px;
+    gap: 8px;
   }
   
   @media (min-width: 768px) {
     .member-features-grid {
       grid-template-columns: repeat(2, 1fr);
+      gap: 16px;
     }
   }
   
   .member-feature-item {
     display: flex;
     align-items: center;
-    font-size: 0.875rem;
-    line-height: 1.25rem;
+    font-size: 0.75rem;
+    line-height: 1rem;
     opacity: 0.95;
   }
   
   .member-feature-icon {
-    height: 1rem;
-    width: 1rem;
-    margin-right: 0.5rem;
+    height: 0.875rem;
+    width: 0.875rem;
+    margin-right: 0.375rem;
     color: rgba(255, 255, 255, 0.9);
     flex-shrink: 0;
+  }
+  
+  /* DESKTOP: Larger features card */
+  @media (min-width: 768px) {
+    .member-features-card {
+      border-radius: 16px;
+      padding: 24px;
+      margin-bottom: 24px;
+    }
+    
+    .member-feature-item {
+      font-size: 0.875rem;
+      line-height: 1.25rem;
+    }
+    
+    .member-feature-icon {
+      height: 1rem;
+      width: 1rem;
+      margin-right: 0.5rem;
+    }
   }
   
   /* Form actions section */
@@ -279,7 +341,7 @@ const MemberForm = ({
     return false;
   });
   
-  // Section expansion logic
+  // Mobile-conservative section expansion logic
   const getInitialSectionState = useCallback(() => {
     const isNewEntry = !member;
     
@@ -291,10 +353,11 @@ const MemberForm = ({
       };
     }
     
+    // MOBILE: Start with only personal section expanded to save space
     return {
-      personal: isNewEntry,
-      pickleball: isNewEntry,
-      account: isNewEntry
+      personal: true,
+      pickleball: false,
+      account: false
     };
   }, [isMobile, member]);
 

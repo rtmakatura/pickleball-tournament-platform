@@ -29,7 +29,7 @@ import { useResults } from '../../hooks';
 import { useAuth } from '../../hooks/useAuth';
 import { useMembers } from '../../hooks/useMembers';
 
-// UPDATED: League form styles with results section styling
+// MOBILE-OPTIMIZED: League form styles with responsive spacing
 const mobileLeagueFormStyles = `
   /* Mobile-first form optimizations */
   .mobile-league-form {
@@ -38,14 +38,14 @@ const mobileLeagueFormStyles = `
     padding: 0;
   }
   
-  /* Consistent section spacing and styling - EXACTLY 24px everywhere */
+  /* MOBILE-FIRST: Responsive section spacing */
   .mobile-league-section {
     background: white;
-    border-radius: 16px;
+    border-radius: 12px;
     border: 1px solid #e5e7eb;
-    margin-bottom: 24px;
+    margin-bottom: 12px;
     overflow: hidden;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
   }
   
   .mobile-league-section:first-child {
@@ -56,8 +56,9 @@ const mobileLeagueFormStyles = `
     margin-bottom: 0;
   }
   
+  /* MOBILE-OPTIMIZED: Section headers */
   .mobile-league-header {
-    padding: 20px;
+    padding: 12px 16px;
     border-bottom: 1px solid #e5e7eb;
     background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
     cursor: pointer;
@@ -68,9 +69,9 @@ const mobileLeagueFormStyles = `
     background: linear-gradient(135deg, #e2e8f0 0%, #cbd5e1 100%);
   }
   
-  /* Consistent content padding - EXACTLY 24px */
+  /* MOBILE-OPTIMIZED: Content padding */
   .mobile-league-content {
-    padding: 24px;
+    padding: 16px;
   }
   
   .mobile-league-touch-button {
@@ -85,9 +86,9 @@ const mobileLeagueFormStyles = `
     transform: scale(0.96);
   }
   
-  /* Standardized input group spacing - EXACTLY 24px */
+  /* MOBILE-OPTIMIZED: Input group spacing */
   .mobile-league-input-group {
-    margin-bottom: 24px;
+    margin-bottom: 16px;
   }
   
   .mobile-league-input-group:last-child {
@@ -97,7 +98,32 @@ const mobileLeagueFormStyles = `
   .mobile-league-grid {
     display: grid;
     grid-template-columns: 1fr;
-    gap: 24px;
+    gap: 16px;
+  }
+  
+  /* DESKTOP: Larger spacing for bigger screens */
+  @media (min-width: 768px) {
+    .mobile-league-section {
+      border-radius: 16px;
+      margin-bottom: 24px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    }
+    
+    .mobile-league-header {
+      padding: 20px;
+    }
+    
+    .mobile-league-content {
+      padding: 24px;
+    }
+    
+    .mobile-league-input-group {
+      margin-bottom: 24px;
+    }
+    
+    .mobile-league-grid {
+      gap: 24px;
+    }
   }
   
   @media (min-width: 640px) {
@@ -128,36 +154,63 @@ const mobileLeagueFormStyles = `
     opacity: 1;
   }
   
-  /* Enhanced info cards with consistent styling */
+  /* MOBILE-OPTIMIZED: Enhanced info cards */
   .league-info-card {
     background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
     color: white;
-    border-radius: 16px;
-    padding: 20px;
-    margin-bottom: 24px;
+    border-radius: 12px;
+    padding: 12px;
+    margin-bottom: 16px;
   }
   
   .league-duration-display {
     background: rgba(255, 255, 255, 0.1);
-    border-radius: 12px;
-    padding: 16px;
-    margin-top: 16px;
+    border-radius: 8px;
+    padding: 12px;
+    margin-top: 12px;
     backdrop-filter: blur(10px);
   }
   
   .league-payment-preview {
     background: linear-gradient(135deg, #10b981 0%, #059669 100%);
     color: white;
-    border-radius: 12px;
-    padding: 16px;
-    margin-top: 16px;
+    border-radius: 8px;
+    padding: 12px;
+    margin-top: 12px;
   }
   
-  /* Mobile-optimized alerts with consistent spacing */
+  /* MOBILE-OPTIMIZED: Alerts */
   .mobile-league-alert {
-    border-radius: 12px;
-    padding: 16px;
-    margin-bottom: 24px;
+    border-radius: 8px;
+    padding: 12px;
+    margin-bottom: 16px;
+  }
+  
+  /* DESKTOP: Larger cards */
+  @media (min-width: 768px) {
+    .league-info-card {
+      border-radius: 16px;
+      padding: 20px;
+      margin-bottom: 24px;
+    }
+    
+    .league-duration-display {
+      border-radius: 12px;
+      padding: 16px;
+      margin-top: 16px;
+    }
+    
+    .league-payment-preview {
+      border-radius: 12px;
+      padding: 16px;
+      margin-top: 16px;
+    }
+    
+    .mobile-league-alert {
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 24px;
+    }
   }
   
   /* Status indicator styles */
@@ -194,41 +247,62 @@ const mobileLeagueFormStyles = `
     padding: 24px;
   }
   
-  /* League features info card styling */
+  /* MOBILE-OPTIMIZED: League features info card styling */
   .league-features-card {
     background: linear-gradient(135deg, #059669 0%, #047857 100%);
     color: white;
-    border-radius: 16px;
-    padding: 24px;
-    margin-bottom: 24px;
+    border-radius: 12px;
+    padding: 12px;
+    margin-bottom: 16px;
   }
   
   .league-features-grid {
     display: grid;
     grid-template-columns: 1fr;
-    gap: 16px;
+    gap: 8px;
   }
   
   @media (min-width: 768px) {
     .league-features-grid {
       grid-template-columns: repeat(2, 1fr);
+      gap: 16px;
     }
   }
   
   .league-feature-item {
     display: flex;
     align-items: center;
-    font-size: 0.875rem;
-    line-height: 1.25rem;
+    font-size: 0.75rem;
+    line-height: 1rem;
     opacity: 0.95;
   }
   
   .league-feature-icon {
-    height: 1rem;
-    width: 1rem;
-    margin-right: 0.5rem;
+    height: 0.875rem;
+    width: 0.875rem;
+    margin-right: 0.375rem;
     color: rgba(255, 255, 255, 0.9);
     flex-shrink: 0;
+  }
+  
+  /* DESKTOP: Larger features card */
+  @media (min-width: 768px) {
+    .league-features-card {
+      border-radius: 16px;
+      padding: 24px;
+      margin-bottom: 24px;
+    }
+    
+    .league-feature-item {
+      font-size: 0.875rem;
+      line-height: 1.25rem;
+    }
+    
+    .league-feature-icon {
+      height: 1rem;
+      width: 1rem;
+      margin-right: 0.5rem;
+    }
   }
 
   /* ADDED: Results section styling */
@@ -380,7 +454,7 @@ const LeagueForm = ({
     return false;
   });
   
-  // Section expansion logic
+  // Mobile-conservative section expansion logic
   const getInitialSectionState = useCallback(() => {
     const isNewEntry = !league;
     
@@ -395,12 +469,12 @@ const LeagueForm = ({
       };
     }
     
-    // Mobile: NEW forms expanded, EDIT forms collapsed
+    // MOBILE: Start with only basic section expanded to save space
     return {
-      basic: isNewEntry,
-      schedule: isNewEntry,
-      details: isNewEntry,
-      settings: isNewEntry,
+      basic: true,
+      schedule: false,
+      details: false,
+      settings: false,
       results: false
     };
   }, [isMobile, league]);

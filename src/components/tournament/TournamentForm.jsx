@@ -43,7 +43,7 @@ import { formatWebsiteUrl, isValidUrl, generateGoogleMapsLink, openLinkSafely } 
 import { TournamentResultsForm } from '../result';
 import { useResults } from '../../hooks';
 
-// Updated tournament form styles with results section styling
+// Updated tournament form styles with mobile-optimized spacing
 const tournamentFormStyles = `
   /* Base form container */
   .tournament-form {
@@ -51,14 +51,14 @@ const tournamentFormStyles = `
     scroll-behavior: smooth;
   }
   
-  /* Consistent section spacing system - exactly 24px everywhere */
+  /* MOBILE-FIRST: Responsive section spacing system */
   .form-section {
     background: white;
-    border-radius: 16px;
+    border-radius: 12px;
     border: 1px solid #e5e7eb;
-    margin-bottom: 24px;
+    margin-bottom: 12px;
     overflow: visible;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
     position: relative;
     z-index: 1;
   }
@@ -67,16 +67,17 @@ const tournamentFormStyles = `
     margin-bottom: 0;
   }
   
-  /* REMOVED: No longer needed - all sections now support dropdowns */
+  /* MOBILE-OPTIMIZED: Section content padding */
   .form-section-content {
-    padding: 24px;
+    padding: 16px;
     position: relative;
     z-index: 15;
     overflow: visible;
   }
   
+  /* MOBILE-OPTIMIZED: Section headers */
   .form-section-header {
-    padding: 20px;
+    padding: 12px 16px;
     border-bottom: 1px solid #e5e7eb;
     background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
     cursor: pointer;
@@ -87,15 +88,34 @@ const tournamentFormStyles = `
     background: linear-gradient(135deg, #e2e8f0 0%, #cbd5e1 100%);
   }
   
-  /* Consistent content padding - exactly 24px always - REMOVED: Handled above */
-  
-  /* Standardized input group spacing - exactly 24px always */
+  /* MOBILE-OPTIMIZED: Input group spacing */
   .form-input-group {
-    margin-bottom: 24px;
+    margin-bottom: 16px;
   }
   
   .form-input-group:last-child {
     margin-bottom: 0;
+  }
+  
+  /* DESKTOP: Larger spacing for bigger screens */
+  @media (min-width: 768px) {
+    .form-section {
+      border-radius: 16px;
+      margin-bottom: 24px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    }
+    
+    .form-section-content {
+      padding: 24px;
+    }
+    
+    .form-section-header {
+      padding: 20px;
+    }
+    
+    .form-input-group {
+      margin-bottom: 24px;
+    }
   }
   
   /* Touch-optimized buttons */
@@ -148,13 +168,13 @@ const tournamentFormStyles = `
     overflow: visible;
   }
   
-  /* Division cards */
+  /* MOBILE-OPTIMIZED: Division cards */
   .division-card {
     background: white;
-    border: 2px solid #e5e7eb;
-    border-radius: 16px;
-    padding: 20px;
-    margin-bottom: 24px;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 12px;
+    margin-bottom: 12px;
     transition: all 0.2s ease;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
   }
@@ -169,53 +189,61 @@ const tournamentFormStyles = `
     box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
   }
   
-  /* Summary cards */
+  /* DESKTOP: Larger division cards */
+  @media (min-width: 768px) {
+    .division-card {
+      border: 2px solid #e5e7eb;
+      border-radius: 16px;
+      padding: 20px;
+      margin-bottom: 24px;
+    }
+  }
+  
+  /* MOBILE-OPTIMIZED: Summary cards */
   .summary-card {
     background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
     color: white;
-    border-radius: 16px;
-    padding: 20px;
-    margin-bottom: 32px;
+    border-radius: 12px;
+    padding: 12px;
+    margin-bottom: 16px;
   }
   
   .quick-stats {
     display: grid;
-    grid-template-columns: 1fr;
-    gap: 12px;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
     text-align: center;
-  }
-  
-  @media (min-width: 480px) {
-    .quick-stats {
-      grid-template-columns: repeat(2, 1fr);
-      gap: 10px;
-    }
-  }
-  
-  @media (min-width: 640px) {
-    .quick-stats {
-      grid-template-columns: repeat(3, 1fr);
-      gap: 8px;
-    }
   }
   
   .stat-item {
     background: rgba(255, 255, 255, 0.15);
-    border-radius: 12px;
-    padding: 16px 12px;
+    border-radius: 8px;
+    padding: 8px 4px;
     backdrop-filter: blur(10px);
     border: 1px solid rgba(255, 255, 255, 0.2);
-    min-height: 80px;
+    min-height: 60px;
     display: flex;
     flex-direction: column;
     justify-content: center;
     align-items: center;
   }
   
-  @media (min-width: 640px) {
+  /* DESKTOP: Larger summary cards */
+  @media (min-width: 768px) {
+    .summary-card {
+      border-radius: 16px;
+      padding: 20px;
+      margin-bottom: 32px;
+    }
+    
+    .quick-stats {
+      gap: 12px;
+    }
+    
     .stat-item {
-      padding: 12px 8px;
-      min-height: auto;
+      border-radius: 12px;
+      padding: 16px 12px;
+      min-height: 80px;
     }
   }
   
@@ -250,46 +278,71 @@ const tournamentFormStyles = `
     }
   }
   
-  /* Tournament features info card styling */
+  /* MOBILE-OPTIMIZED: Tournament features info card styling */
   .tournament-features-card {
     background: linear-gradient(135deg, #059669 0%, #047857 100%);
     color: white;
-    border-radius: 16px;
-    padding: 24px;
-    margin-bottom: 24px;
+    border-radius: 12px;
+    padding: 12px;
+    margin-bottom: 16px;
   }
   
   .tournament-features-grid {
     display: grid;
     grid-template-columns: 1fr;
-    gap: 16px;
+    gap: 8px;
   }
   
   @media (min-width: 768px) {
     .tournament-features-grid {
       grid-template-columns: repeat(2, 1fr);
+      gap: 16px;
     }
   }
   
   .tournament-feature-item {
     display: flex;
     align-items: center;
-    font-size: 0.875rem;
-    line-height: 1.25rem;
+    font-size: 0.75rem;
+    line-height: 1rem;
     opacity: 0.95;
   }
   
   .tournament-feature-icon {
-    height: 1rem;
-    width: 1rem;
-    margin-right: 0.5rem;
+    height: 0.875rem;
+    width: 0.875rem;
+    margin-right: 0.375rem;
     color: rgba(255, 255, 255, 0.9);
     flex-shrink: 0;
   }
   
-  /* Division list spacing improvement */
+  /* MOBILE-OPTIMIZED: Division list spacing */
   .division-add-button {
-    margin-bottom: 32px;
+    margin-bottom: 16px;
+  }
+  
+  /* DESKTOP: Larger features card */
+  @media (min-width: 768px) {
+    .tournament-features-card {
+      border-radius: 16px;
+      padding: 24px;
+      margin-bottom: 24px;
+    }
+    
+    .tournament-feature-item {
+      font-size: 0.875rem;
+      line-height: 1.25rem;
+    }
+    
+    .tournament-feature-icon {
+      height: 1rem;
+      width: 1rem;
+      margin-right: 0.5rem;
+    }
+    
+    .division-add-button {
+      margin-bottom: 32px;
+    }
   }
 
   /* ADDED: Results section styling */
@@ -583,6 +636,7 @@ const TournamentForm = ({
   });
   
   // Section expansion logic
+  // Mobile-conservative section expansion logic
   const getInitialSectionState = useCallback(() => {
     const isNewEntry = !tournament;
     
@@ -596,11 +650,12 @@ const TournamentForm = ({
       };
     }
     
+    // MOBILE: Start with only basic section expanded to save space
     return {
-      basic: isNewEntry,
-      details: isNewEntry,
-      divisions: isNewEntry,
-      participants: isNewEntry,
+      basic: true,
+      details: false,
+      divisions: false,
+      participants: false,
       results: false
     };
   }, [isMobile, tournament]);
