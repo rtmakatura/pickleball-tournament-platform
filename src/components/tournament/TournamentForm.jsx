@@ -936,16 +936,13 @@ const TournamentForm = ({
       newErrors.website = 'Please enter a valid website URL';
     }
 
-    if (divisions.length === 0) {
-      newErrors.divisions = 'Tournament must have at least one division';
-    } else {
-      divisions.forEach((division, index) => {
-        const divisionValidation = validateDivision(division);
-        if (!divisionValidation.isValid) {
-          newErrors[`division_${index}`] = `Division ${index + 1}: ${divisionValidation.errors.join(', ')}`;
-        }
-      });
-    }
+    // Validate existing divisions (allow empty divisions array for new tournaments)
+    divisions.forEach((division, index) => {
+      const divisionValidation = validateDivision(division);
+      if (!divisionValidation.isValid) {
+        newErrors[`division_${index}`] = `Division ${index + 1}: ${divisionValidation.errors.join(', ')}`;
+      }
+    });
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -1462,7 +1459,7 @@ const TournamentForm = ({
                     <Alert 
                       type="info" 
                       title="No Divisions Added" 
-                      message="Add at least one division to organize your tournament participants." 
+                      message="You can add divisions now or later. Divisions help organize participants by skill level and event type." 
                     />
                   </div>
                 )}

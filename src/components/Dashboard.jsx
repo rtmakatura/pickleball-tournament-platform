@@ -2381,17 +2381,24 @@ const closeModal = useCallback(() => {
   const handleTournamentResultsSubmit = async (resultsData) => {
     setFormLoading(true);
     try {
-      await addTournamentResults(modalData.tournament.id, resultsData);
-      
-      // Update tournament status to completed
-      await updateTournament(modalData.tournament.id, { 
-        status: TOURNAMENT_STATUS.COMPLETED 
-      });
+      if (modalData.existingResults) {
+        // Update existing results
+        await updateTournamentResults(modalData.tournament.id, resultsData);
+        showAlert('success', 'Results updated!', `Tournament results for ${modalData.tournament.name} have been updated`);
+      } else {
+        // Create new results
+        await addTournamentResults(modalData.tournament.id, resultsData);
+        
+        // Update tournament status to completed
+        await updateTournament(modalData.tournament.id, { 
+          status: TOURNAMENT_STATUS.COMPLETED 
+        });
+        showAlert('success', 'Results saved!', `Tournament results for ${modalData.tournament.name} have been saved`);
+      }
       
       closeModal();
-      showAlert('success', 'Results saved!', `Tournament results for ${modalData.tournament.name} have been saved`);
     } catch (err) {
-      showAlert('error', 'Failed to save results', err.message);
+      showAlert('error', `Failed to ${modalData.existingResults ? 'update' : 'save'} results`, err.message);
     } finally {
       setFormLoading(false);
     }
@@ -2400,17 +2407,24 @@ const closeModal = useCallback(() => {
   const handleLeagueResultsSubmit = async (resultsData) => {
     setFormLoading(true);
     try {
-      await addLeagueResults(modalData.league.id, resultsData);
-      
-      // Update league status to completed
-      await updateLeague(modalData.league.id, { 
-        status: LEAGUE_STATUS.COMPLETED 
-      });
+      if (modalData.existingResults) {
+        // Update existing results
+        await updateLeagueResults(modalData.league.id, resultsData);
+        showAlert('success', 'Results updated!', `League results for ${modalData.league.name} have been updated`);
+      } else {
+        // Create new results
+        await addLeagueResults(modalData.league.id, resultsData);
+        
+        // Update league status to completed
+        await updateLeague(modalData.league.id, { 
+          status: LEAGUE_STATUS.COMPLETED 
+        });
+        showAlert('success', 'Results saved!', `League results for ${modalData.league.name} have been saved`);
+      }
       
       closeModal();
-      showAlert('success', 'Results saved!', `League results for ${modalData.league.name} have been saved`);
     } catch (err) {
-      showAlert('error', 'Failed to save results', err.message);
+      showAlert('error', `Failed to ${modalData.existingResults ? 'update' : 'save'} results`, err.message);
     } finally {
       setFormLoading(false);
     }
@@ -3022,7 +3036,7 @@ const closeModal = useCallback(() => {
           <Modal
             isOpen={true}
             onClose={closeModal}
-            title={`Enter Results: ${modalData.tournament.name || 'Tournament'}`}
+            title={`${modalData.existingResults ? 'Edit' : 'Enter'} Results: ${modalData.tournament.name || 'Tournament'}`}
             size="xl"
           >
             <TournamentResultsForm
@@ -3031,6 +3045,7 @@ const closeModal = useCallback(() => {
               onSubmit={handleTournamentResultsSubmit}
               onCancel={closeModal}
               loading={formLoading}
+              existingResults={modalData.existingResults}
             />
           </Modal>
         )}
@@ -3040,7 +3055,7 @@ const closeModal = useCallback(() => {
           <Modal
             isOpen={true}
             onClose={closeModal}
-            title={`Enter Results: ${modalData.league.name || 'League'}`}
+            title={`${modalData.existingResults ? 'Edit' : 'Enter'} Results: ${modalData.league.name || 'League'}`}
             size="xl"
           >
             <LeagueResultsForm
@@ -3049,6 +3064,7 @@ const closeModal = useCallback(() => {
               onSubmit={handleLeagueResultsSubmit}
               onCancel={closeModal}
               loading={formLoading}
+              existingResults={modalData.existingResults}
             />
           </Modal>
         )}
@@ -3060,6 +3076,22 @@ const closeModal = useCallback(() => {
             onClose={closeModal}
             showPlayerPerformance={true}
             allowEdit={true}
+            onEdit={(result) => {
+              // Handle edit functionality based on result type
+              if (result.type === 'tournament') {
+                const tournament = tournaments.find(t => t.id === result.tournamentId);
+                if (tournament) {
+                  setModalData({ tournament, existingResults: result });
+                  setActiveModal(MODAL_TYPES.TOURNAMENT_RESULTS_FORM);
+                }
+              } else if (result.type === 'league') {
+                const league = leagues.find(l => l.id === result.leagueId);
+                if (league) {
+                  setModalData({ league, existingResults: result });
+                  setActiveModal(MODAL_TYPES.LEAGUE_RESULTS_FORM);
+                }
+              }
+            }}
             onDelete={modalData.type === 'tournament' ? 
               () => handleDeleteTournamentResult(modalData.event) : 
               () => handleDeleteLeagueResult(modalData.event)

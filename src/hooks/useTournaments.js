@@ -100,9 +100,7 @@ export const useTournaments = (options = {}) => {
         throw new Error('Tournament name is required');
       }
       
-      if (!tournamentData.divisions || tournamentData.divisions.length === 0) {
-        throw new Error('Tournament must have at least one division');
-      }
+      // Allow tournaments to be created without divisions (can be added later)
       
       const tournament = createTournament(tournamentData);
       console.log('Created tournament object:', tournament);

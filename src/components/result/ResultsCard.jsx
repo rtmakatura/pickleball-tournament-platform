@@ -27,7 +27,7 @@ const ResultsCard = ({
   result, 
   onClose, 
   showPlayerPerformance = true,
-  allowEdit = false,
+  allowEdit = true,
   onEdit,
   onDelete
 }) => {
