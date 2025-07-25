@@ -1,5 +1,6 @@
 // src/components/ui/Modal.jsx - UPDATED: Enhanced header action styling with proper mobile touch support
 import React from 'react';
+import ReactDOM from 'react-dom';
 import { X } from 'lucide-react';
 
 /**
@@ -68,7 +69,8 @@ const Modal = ({
   // Don't render anything if modal is closed
   if (!isOpen) return null;
 
-  return (
+  // Portal the modal to document.body to escape stacking contexts
+  return ReactDOM.createPortal(
     <>
       {/* ENHANCED: Modal header button styles with proper mobile touch support */}
       <style dangerouslySetInnerHTML={{__html: `
@@ -210,24 +212,19 @@ const Modal = ({
           border-color: #3b82f6;
         }
         
-        .modal-header-button-primary:hover:not(:disabled) {
+.modal-header-button-primary:hover:not(:disabled) {
           background-color: #2563eb;
           border-color: #2563eb;
-          transform: translateY(-1px);
-          box-shadow: 0 4px 12px rgba(59, 130, 246, 0.25);
-        }
-        
-        .modal-header-button-danger {
-          background-color: white;
-          color: #dc2626;
-          border-color: #dc2626;
         }
         
         .modal-header-button-danger:hover:not(:disabled) {
           background-color: #dc2626;
           color: white;
-          transform: translateY(-1px);
-          box-shadow: 0 4px 12px rgba(220, 38, 38, 0.25);
+        }
+        
+        .modal-header-button-outline:hover:not(:disabled) {
+          background-color: #f9fafb;
+          border-color: #9ca3af;
         }
         
         .modal-header-button-outline {
@@ -270,10 +267,6 @@ const Modal = ({
         
         /* Active state for mobile */
         @media (max-width: 768px) {
-          .modal-header-button:active:not(:disabled) {
-            transform: scale(0.94);
-          }
-          
           .modal-header-button .loading-spinner {
             margin-right: 0;
             width: 18px;
@@ -284,7 +277,7 @@ const Modal = ({
 
       {/* Full-screen backdrop with dark overlay */}
       <div 
-        className="modal-backdrop fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+        className="modal-backdrop fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9999] p-4"
         onClick={handleBackdropClick}
       >
         {/* Modal container */}
@@ -345,7 +338,8 @@ const Modal = ({
           )}
         </div>
       </div>
-    </>
+    </>,
+    document.body
   );
 };
 

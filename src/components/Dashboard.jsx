@@ -2800,9 +2800,9 @@ const closeModal = useCallback(() => {
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 relative">
         {/* Background decoration */}
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_120%,rgba(120,119,198,0.1),rgba(255,255,255,0))] pointer-events-none"></div>
-        <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-br from-blue-400/20 to-purple-600/20 rounded-full blur-3xl transform translate-x-32 -translate-y-32 pointer-events-none"></div>
-        <div className="absolute bottom-0 left-0 w-96 h-96 bg-gradient-to-tr from-emerald-400/20 to-cyan-600/20 rounded-full blur-3xl transform -translate-x-32 translate-y-32 pointer-events-none"></div>
-        <div className="relative z-10">
+        <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-br from-blue-400/20 to-purple-600/20 rounded-full blur-3xl transform translate-x-16 -translate-y-32 pointer-events-none"></div>
+        <div className="absolute bottom-0 left-0 w-96 h-96 bg-gradient-to-tr from-emerald-400/20 to-cyan-600/20 rounded-full blur-3xl transform -translate-x-16 translate-y-32 pointer-events-none"></div>
+        <div className="relative">
         <DashboardStyles />
       
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-4">
@@ -3735,14 +3735,16 @@ const closeModal = useCallback(() => {
       </div>
       </div>
       
-      {/* Floating Action Menu */}
-      <FloatingActionMenu 
-        onCreateMember={() => setActiveModal(MODAL_TYPES.MEMBER_FORM)}
-        onCreateTournament={() => setActiveModal(MODAL_TYPES.TOURNAMENT_FORM)}
-        onCreateLeague={() => setActiveModal(MODAL_TYPES.LEAGUE_FORM)}
-        onViewPayments={() => setActiveModal(MODAL_TYPES.PAYMENT_TRACKER)}
-        onViewArchive={() => setActiveModal(MODAL_TYPES.ARCHIVED_ITEMS)}
-      />
+      {/* Floating Action Menu - Desktop Only */}
+      <div className="hidden sm:block">
+        <FloatingActionMenu 
+          onCreateMember={() => setActiveModal(MODAL_TYPES.MEMBER_FORM)}
+          onCreateTournament={() => setActiveModal(MODAL_TYPES.TOURNAMENT_FORM)}
+          onCreateLeague={() => setActiveModal(MODAL_TYPES.LEAGUE_FORM)}
+          onViewPayments={() => setActiveModal(MODAL_TYPES.PAYMENT_TRACKER)}
+          onViewArchive={() => setActiveModal(MODAL_TYPES.ARCHIVED_ITEMS)}
+        />
+      </div>
       </div>
     </>
   );

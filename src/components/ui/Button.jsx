@@ -28,13 +28,13 @@ const Button = ({
   // Base button classes
   const baseClasses = 'inline-flex items-center justify-center font-semibold rounded-xl focus:outline-none focus:ring-2 focus:ring-offset-2 transition-all duration-200 ease-out';
   
-  // Variant classes
+  // Performance-first variant classes - minimal effects only
   const variantClasses = {
-    primary: 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 focus:ring-blue-500 text-white shadow-lg hover:shadow-xl transition-all duration-200 transform hover:-translate-y-0.5',
-    secondary: 'bg-gradient-to-r from-gray-500 to-gray-600 hover:from-gray-600 hover:to-gray-700 focus:ring-gray-500 text-white shadow-lg hover:shadow-xl transition-all duration-200 transform hover:-translate-y-0.5',
-    outline: 'border-2 border-gray-300 bg-white hover:bg-gray-50 hover:border-gray-400 focus:ring-blue-500 text-gray-700 shadow-sm hover:shadow-md transition-all duration-200 transform hover:-translate-y-0.5',
-    danger: 'bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 focus:ring-red-500 text-white shadow-lg hover:shadow-xl transition-all duration-200 transform hover:-translate-y-0.5',
-    ghost: 'hover:bg-gray-100 focus:ring-blue-500 text-gray-700 hover:shadow-md transition-all duration-200 transform hover:-translate-y-0.5',
+    primary: 'bg-blue-600 hover:bg-blue-700 focus:ring-blue-500 text-white shadow-sm transition-colors duration-150',
+    secondary: 'bg-white border border-gray-300 hover:bg-gray-50 focus:ring-blue-500 text-gray-700 shadow-sm transition-colors duration-150',
+    outline: 'border border-gray-300 bg-white hover:bg-gray-50 hover:border-blue-500 focus:ring-blue-500 text-gray-700 transition-colors duration-150',
+    danger: 'bg-red-600 hover:bg-red-700 focus:ring-red-500 text-white shadow-sm transition-colors duration-150',
+    ghost: 'hover:bg-gray-100 focus:ring-blue-500 text-gray-700 transition-colors duration-150',
   };
   
   // Size classes

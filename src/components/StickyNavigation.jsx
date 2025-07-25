@@ -26,7 +26,7 @@ const StickyNavigation = ({ activeSection, onNavigate, navItems }) => {
     <>
       {/* Mobile: Fixed Sticky Navigation */}
       <div className="block sm:hidden sticky top-0 z-50 bg-white border-b border-gray-200 shadow-md mb-6">
-        <div className="flex justify-between items-center px-4 py-2">
+        <div className="flex justify-between items-center px-3 py-1">
           {filteredNavItems.map((item) => {
             const mobileLabel = {
               'Overview': 'Stats',
@@ -41,7 +41,7 @@ const StickyNavigation = ({ activeSection, onNavigate, navItems }) => {
                 key={item.id}
                 onClick={() => onNavigate(item.id)}
                 className={`
-                  flex flex-col items-center py-2 px-2 rounded-lg transition-all duration-200 flex-1 mx-1
+                  flex flex-col items-center py-1 px-1 rounded-md transition-colors duration-150 flex-1 mx-0.5
                   ${activeSection === item.id 
                     ? 'bg-blue-500 text-white' 
                     : 'text-gray-600 hover:bg-gray-100'
@@ -50,7 +50,7 @@ const StickyNavigation = ({ activeSection, onNavigate, navItems }) => {
                 type="button"
               >
                 {getIcon(item.id)}
-                <span className="text-xs font-medium mt-1">{mobileLabel}</span>
+                <span className="text-xs font-medium mt-0.5">{mobileLabel}</span>
               </button>
             );
           })}
@@ -60,18 +60,18 @@ const StickyNavigation = ({ activeSection, onNavigate, navItems }) => {
       {/* Desktop: Sticky Top Navigation (unchanged) */}
       <div className="hidden sm:block sticky top-0 z-50 bg-white/80 backdrop-blur-xl border-b border-white/20 shadow-2xl mb-8">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <nav className="py-4">
+          <nav className="py-2">
             <div className="flex justify-center">
-              <div className="flex space-x-2 bg-white/70 backdrop-blur-sm p-2 rounded-2xl overflow-x-auto max-w-full shadow-lg border border-white/20">
+              <div className="flex space-x-1 bg-white/70 backdrop-blur-sm p-1 rounded-xl overflow-x-auto max-w-full shadow-lg border border-white/20">
                 {filteredNavItems.map((item) => (
                   <button
                     key={item.id}
                     onClick={() => onNavigate(item.id)}
                     className={`
-                      flex items-center space-x-3 px-6 py-3 text-sm font-semibold rounded-xl transition-all duration-300 whitespace-nowrap transform hover:scale-105
+                      flex items-center space-x-2 px-3 py-1.5 text-sm font-semibold rounded-lg transition-colors duration-150 whitespace-nowrap
                       ${activeSection === item.id 
-                        ? 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-lg' 
-                        : 'text-gray-700 hover:text-gray-900 hover:bg-white/80 hover:shadow-md'
+                        ? 'bg-blue-500 text-white' 
+                        : 'text-gray-700 hover:text-gray-900 hover:bg-white/80'
                       }
                     `}
                     type="button"

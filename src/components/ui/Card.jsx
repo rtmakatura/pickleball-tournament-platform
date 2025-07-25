@@ -22,12 +22,12 @@ export const Card = React.forwardRef(({
 }, ref) => (
   <div 
     ref={ref}
-    className={`bg-white rounded-2xl border border-gray-200 shadow-lg hover:shadow-xl transition-all duration-300 ease-out ${className}`}
+    className={`bg-white rounded-xl border border-gray-200 shadow-sm ${className}`}
     {...props}
   >
     {/* Card Header - only show if title or actions provided */}
     {(title || actions) && (
-      <div className="px-8 py-6 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-white">
+      <div className="px-8 py-6 border-b border-gray-100 bg-gray-50">
         <div className="flex items-center justify-between">
           <div>
             {title && (
