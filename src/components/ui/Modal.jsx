@@ -294,8 +294,8 @@ const Modal = ({
           {/* ENHANCED: Modal Header with better action support and mobile optimization */}
           <div className={`flex items-center justify-between border-b ${
             variant === 'notification' 
-              ? 'p-6 sm:p-8 bg-gradient-to-r from-gray-50 to-white border-gray-200' 
-              : 'p-4 sm:p-6 bg-gradient-to-r from-gray-50 to-white border-gray-200'
+              ? 'p-3 sm:p-8 bg-gradient-to-r from-gray-50 to-white border-gray-200' 
+              : 'p-2 sm:p-6 bg-gradient-to-r from-gray-50 to-white border-gray-200'
           }`}>
             <h2 className={`font-semibold text-gray-900 flex-1 min-w-0 mr-2 sm:mr-4 truncate ${
               variant === 'notification' 
@@ -325,7 +325,7 @@ const Modal = ({
 
           {/* Modal Body - scrollable if content is too long */}
           <div className="flex-1 overflow-y-auto">
-            <div className={variant === 'notification' ? 'p-4 sm:p-6' : ''}>
+            <div className={variant === 'notification' ? 'p-2 sm:p-6' : ''}>
               {children}
             </div>
           </div>

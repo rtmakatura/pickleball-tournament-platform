@@ -1178,7 +1178,7 @@ const TournamentForm = ({
     <div className="tournament-form">
       <StyleSheet />
       
-      <div className="p-6">
+      <div className="p-3 sm:p-6">
         {/* Error alerts */}
         {errors.submit && (
           <div className="form-section">
@@ -2205,7 +2205,7 @@ const DivisionFormModal = ({
         </>
       }
     >
-      <div className="p-6">
+      <div className="p-3 sm:p-6">
         {/* Error alerts */}
         {errors.submit && (
           <div className="form-section">
@@ -2466,4 +2466,4 @@ const DivisionFormModal = ({
   );
 };
 
-export default TournamentForm;
+export default React.memo(TournamentForm);

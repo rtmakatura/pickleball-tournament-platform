@@ -25,7 +25,7 @@ const StickyNavigation = ({ activeSection, onNavigate, navItems }) => {
   return (
     <>
       {/* Mobile: Fixed Sticky Navigation */}
-      <div className="block sm:hidden sticky top-0 z-50 bg-white border-b border-gray-200 shadow-md mb-6">
+      <div className="block sm:hidden sticky top-0 z-40 bg-white border-b border-gray-200 shadow-md mb-6">
         <div className="flex justify-between items-center px-3 py-1">
           {filteredNavItems.map((item) => {
             const mobileLabel = {
@@ -58,7 +58,7 @@ const StickyNavigation = ({ activeSection, onNavigate, navItems }) => {
       </div>
 
       {/* Desktop: Sticky Top Navigation (unchanged) */}
-      <div className="hidden sm:block sticky top-0 z-50 bg-white/80 backdrop-blur-xl border-b border-white/20 shadow-2xl mb-8">
+      <div className="hidden sm:block sticky top-0 z-40 bg-white/80 backdrop-blur-xl border-b border-white/20 shadow-2xl mb-8">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <nav className="py-2">
             <div className="flex justify-center">

@@ -292,7 +292,7 @@ const mobileLeagueFormStyles = `
   @media (min-width: 768px) {
     .league-features-card {
       border-radius: 16px;
-      padding: 24px;
+      padding: 12px;
       margin-bottom: 24px;
     }
     
@@ -911,7 +911,7 @@ const LeagueForm = ({
       {/* Plain form component without Modal wrapper */}
       <div className="mobile-league-form">
         {/* Consistent container with proper padding */}
-        <div style={{ padding: '24px' }}>
+        <div className="p-6">
           {/* Error alerts for submission issues */}
           {errors.submit && (
             <div className="mobile-league-alert">
@@ -1617,4 +1617,4 @@ const LeagueForm = ({
   );
 };
 
-export default LeagueForm;
+export default React.memo(LeagueForm);

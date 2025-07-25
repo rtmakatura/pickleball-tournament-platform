@@ -341,13 +341,13 @@ const PaymentTracker = ({
       size="xl"
     >
       
-      <div className="p-3 sm:p-6">
+      <div className="p-2 sm:p-6">
         <div className="max-w-4xl mx-auto">
           
           {/* Debug section removed to save mobile space */}
           
           {/* Payment Summary Cards */}
-          <div className="grid grid-cols-3 gap-1 sm:gap-4 mb-2 sm:mb-8">
+          <div className="grid grid-cols-3 gap-0.5 sm:gap-4 mb-1 sm:mb-8">
             <div className="bg-blue-50 payment-mobile-summary p-1 sm:p-4 rounded-md sm:rounded-lg border border-blue-200 sm:border-2 text-center">
               <h4 className="font-medium text-blue-900 text-xs sm:text-base mb-1">
                 <span className="hidden sm:inline">Expected</span>

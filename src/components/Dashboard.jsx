@@ -2819,15 +2819,15 @@ const closeModal = useCallback(() => {
         )}
 
         {/* Dashboard Title */}
-        <div className="mb-6">
-          <h2 className="text-2xl sm:text-3xl font-bold text-gray-900">Dashboard</h2>
-          <p className="text-gray-600 text-sm sm:text-base mt-1">
+        <div className="mb-3">
+          <h2 className="text-xl sm:text-3xl font-bold text-gray-900">Dashboard</h2>
+          <p className="text-gray-600 text-sm sm:text-base mt-0.5">
             Welcome back, {currentUserMember?.firstName || user.email.split('@')[0]}!
           </p>
         </div>
 
         {/* Stats Cards - Extra Compact Mobile */}
-        <div ref={refs.statsRef} className="grid grid-cols-2 lg:grid-cols-4 gap-1.5 lg:gap-6 mb-3 lg:mb-8">
+        <div ref={refs.statsRef} className="grid grid-cols-2 lg:grid-cols-4 gap-1 lg:gap-6 mb-2 lg:mb-8">
           <div className="group relative bg-gradient-to-br from-emerald-500 via-green-500 to-teal-600 rounded-md lg:rounded-2xl shadow-md lg:shadow-lg hover:shadow-emerald-500/25 p-1.5 lg:p-5 text-center transform hover:-translate-y-1 transition-all duration-300 overflow-hidden">
             <div className="absolute inset-0 bg-gradient-to-r from-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
             <div className="relative z-10">
@@ -2899,7 +2899,7 @@ const closeModal = useCallback(() => {
               New
             </Button>
           ]}
-          className="mb-8 sm:mb-8"
+          className="mb-4 sm:mb-8"
         >
           <ResponsiveTournamentList 
             data={sortedTournaments}
@@ -2951,7 +2951,7 @@ const closeModal = useCallback(() => {
               New
             </Button>
           ]}
-          className="mb-8 sm:mb-8"
+          className="mb-4 sm:mb-8"
         >
           <ResponsiveMemberList 
             data={members}
@@ -2966,7 +2966,7 @@ const closeModal = useCallback(() => {
           ref={refs.resultsRef}
           title="Event Results History"
           subtitle={`${(results.tournament?.length || 0) + (results.league?.length || 0)} completed event${((results.tournament?.length || 0) + (results.league?.length || 0)) !== 1 ? 's' : ''} with results`}
-          className="mb-8 sm:mb-8"
+          className="mb-4 sm:mb-8"
         >
           <ResultsDashboard 
             results={results}

@@ -599,7 +599,7 @@ const MemberForm = ({
     <div className="member-form">
       <StyleSheet />
       
-      <div className="p-6">
+      <div className="p-3 sm:p-6">
         {/* Help Alert for New Members */}
         {showHelpAlert && (
           <div className="mb-4">

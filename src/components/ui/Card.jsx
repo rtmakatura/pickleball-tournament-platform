@@ -27,7 +27,7 @@ export const Card = React.forwardRef(({
   >
     {/* Card Header - only show if title or actions provided */}
     {(title || actions) && (
-      <div className="px-8 py-6 border-b border-gray-100 bg-gray-50">
+      <div className="px-4 py-3 sm:px-8 sm:py-6 border-b border-gray-100 bg-gray-50">
         <div className="flex items-center justify-between">
           <div>
             {title && (
@@ -50,7 +50,7 @@ export const Card = React.forwardRef(({
       </div>
     )}
     {/* Card Body */}
-    <div className="px-8 py-6">
+    <div className="px-4 py-3 sm:px-8 sm:py-6">
       {children}
     </div>
   </div>
