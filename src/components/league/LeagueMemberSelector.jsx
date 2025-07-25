@@ -257,14 +257,18 @@ const LeagueMemberSelector = ({
             <div className="flex flex-wrap gap-2">
               {selectedMembers.map(memberId => {
                 const member = members.find(m => m.id === memberId);
-                if (!member) return null;
+                const displayName = member ? 
+                  `${member.firstName} ${member.lastName}` : 
+                  `Former Member (${memberId.slice(-6)})`;
                 
                 return (
                   <span
                     key={memberId}
-                    className="inline-flex items-center px-3 py-1.5 bg-blue-100 text-blue-800 text-sm rounded-full"
+                    className={`inline-flex items-center px-3 py-1.5 text-sm rounded-full ${
+                      member ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-600'
+                    }`}
                   >
-                    {member.firstName} {member.lastName}
+                    {displayName}
                     <button
                       onClick={(e) => {
                         e.stopPropagation();

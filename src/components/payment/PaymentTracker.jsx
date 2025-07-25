@@ -563,7 +563,11 @@ const DivisionPaymentCard = ({ tournament, division, members, onUpdateTournament
       
       return {
         id: participantId,
-        member: member || { firstName: 'Unknown', lastName: 'Member', email: '' },
+        member: member || { 
+          firstName: 'Former', 
+          lastName: `Member (${participantId.slice(-6)})`, 
+          email: 'deleted-user@placeholder.com' 
+        },
         ...paymentStatus,
         isCurrentUser: participantId === currentUserId
       };
@@ -738,7 +742,11 @@ const LeaguePaymentCard = ({ league, members, onUpdateLeague, currentUserId }) =
       
       return {
         id: participantId,
-        member: member || { firstName: 'Unknown', lastName: 'Member', email: '' },
+        member: member || { 
+          firstName: 'Former', 
+          lastName: `Member (${participantId.slice(-6)})`, 
+          email: 'deleted-user@placeholder.com' 
+        },
         ...paymentStatus,
         isCurrentUser: participantId === currentUserId
       };

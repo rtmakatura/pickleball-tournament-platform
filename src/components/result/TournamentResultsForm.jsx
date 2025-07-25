@@ -10,9 +10,9 @@ const TournamentResultsForm = ({
   isLoading = false,
   existingResults = null 
 }) => {
-  // FIXED: Improved member name extraction with better fallbacks
+  // FIXED: Improved member name extraction with deleted user handling
   const getMemberName = (memberId) => {
-    if (!memberId) return 'Unknown Member';
+    if (!memberId) return 'Former Member';
     
     console.log('🔍 Looking up member:', memberId);
     
@@ -27,7 +27,7 @@ const TournamentResultsForm = ({
     
     if (!member) {
       console.warn('⚠️ Member not found for ID:', memberId);
-      return `Member ${memberId}`;
+      return `Former Member (${memberId.slice(-6)})`;
     }
     
     console.log('✅ Found member:', member);
@@ -40,7 +40,7 @@ const TournamentResultsForm = ({
     if (member.displayName) return member.displayName;
     if (member.email) return member.email; // fallback to email if no name
     
-    return `Member ${memberId}`;
+    return `Former Member (${memberId.slice(-6)})`;
   };
 
   // FIXED: Create member lookup map for faster access
@@ -86,10 +86,10 @@ const TournamentResultsForm = ({
     console.log('🏗️ Generating placements for division:', division.name);
     console.log('📋 Division participants:', division.participants);
 
-    // Create placement entries for each participant
+    // Create placement entries for each participant with deleted user handling
     const participantPlacements = division.participants.map((participantId) => {
       const member = memberLookup.get(participantId);
-      let memberName = 'Unknown Member';
+      let memberName = 'Former Member';
       
       if (member) {
         if (member.firstName && member.lastName) {
@@ -101,7 +101,7 @@ const TournamentResultsForm = ({
         }
       } else {
         console.warn('⚠️ Member not found in lookup:', participantId);
-        memberName = `Member ${participantId}`;
+        memberName = `Former Member (${participantId.slice(-6)})`;
       }
       
       console.log(`👤 Participant ${participantId} -> ${memberName}`);

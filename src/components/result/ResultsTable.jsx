@@ -82,29 +82,29 @@ const ResultsTable = ({
     return 0;
   };
 
-  // Helper function to get winner information
+  // Helper function to get winner information with deleted user handling
   const getWinnerInfo = (result) => {
     if (result.type === 'tournament' && result.divisionResults) {
       // Get winner from first division or overall winner
       const firstDivision = result.divisionResults[0];
       if (firstDivision?.participantPlacements?.length > 0) {
         const winner = firstDivision.participantPlacements.find(p => p.placement === 1);
-        return winner ? winner.participantName : 'TBD';
+        return winner ? (winner.participantName || 'Former Member') : 'TBD';
       }
     } else if (result.type === 'league' && result.participantPlacements) {
       const winner = result.participantPlacements.find(p => p.placement === 1);
-      return winner ? winner.participantName : 'TBD';
+      return winner ? (winner.participantName || 'Former Member') : 'TBD';
     } else if (result.teamStandings) {
       // Legacy team format
       const winner = result.teamStandings.find(team => team.position === 1) || result.teamStandings[0];
       if (winner) {
-        return winner.teamName || `${winner.player1Name} / ${winner.player2Name}`;
+        return winner.teamName || `${winner.player1Name || 'Former Member'} / ${winner.player2Name || 'Former Member'}`;
       }
     } else if (result.standings) {
       // Legacy individual format
       const winner = result.standings[0];
       if (winner) {
-        return winner.playerName || winner.memberName || 'Unknown';
+        return winner.playerName || winner.memberName || 'Former Member';
       }
     }
     return 'TBD';

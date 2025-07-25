@@ -10,9 +10,9 @@ const LeagueResultsForm = ({
   isLoading = false,
   existingResults = null 
 }) => {
-  // IMPROVED: Better member name extraction function
+  // IMPROVED: Better member name extraction function with deleted user handling
   const getMemberName = (member) => {
-    if (!member) return 'Unknown Member';
+    if (!member) return 'Former Member';
     
     // Try different name properties in order of preference
     if (member.name) return member.name;
@@ -22,7 +22,7 @@ const LeagueResultsForm = ({
     if (member.displayName) return member.displayName;
     if (member.email) return member.email; // fallback to email if no name
     
-    return 'Unknown Member';
+    return 'Former Member';
   };
 
   const [formData, setFormData] = useState({
@@ -62,7 +62,7 @@ const LeagueResultsForm = ({
     return `Winter ${year}`;
   };
 
-  // IMPROVED: Helper function to create placement results with better member lookup
+  // IMPROVED: Helper function to create placement results with deleted user handling
   const generatePlacementResults = (league) => {
     if (!league.participants || league.participants.length === 0) {
       return [];
@@ -81,7 +81,13 @@ const LeagueResultsForm = ({
         m.userId === participantId
       );
       
-      const memberName = getMemberName(member);
+      let memberName;
+      if (member) {
+        memberName = getMemberName(member);
+      } else {
+        // Handle deleted/missing members gracefully
+        memberName = `Former Member (${participantId.slice(-6)})`;
+      }
       
       console.log(`Participant ${participantId} -> Member:`, member, `-> Name: ${memberName}`);
       
