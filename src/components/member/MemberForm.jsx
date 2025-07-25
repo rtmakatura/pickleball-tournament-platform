@@ -989,4 +989,4 @@ const MemberForm = ({
     </div>
   );
 };
-export default MemberForm;
+export default React.memo(MemberForm);

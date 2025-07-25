@@ -1539,6 +1539,11 @@ const Dashboard = React.forwardRef((props, ref) => {
   const [viewingTournament, setViewingTournament] = useState(null);
   const [viewingLeague, setViewingLeague] = useState(null);
   
+  // ADDED: Change detection for unsaved participant/member changes
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [initialTournamentState, setInitialTournamentState] = useState(null);
+  const [initialLeagueMembers, setInitialLeagueMembers] = useState([]);
+  
   // FIXED: Single modal close handler with overflow cleanup failsafe
 const closeModal = useCallback(() => {
   if (!formLoading && !deleteLoading) {
@@ -1552,6 +1557,11 @@ const closeModal = useCallback(() => {
     setIsEditMode(false);
     setSelectedLeagueMembers([]);
     
+    // ADDED: Reset change detection
+    setHasUnsavedChanges(false);
+    setInitialTournamentState(null);
+    setInitialLeagueMembers([]);
+    
     // Reset tournament form editing state to allow real-time sync
     // This ensures form data doesn't get lost when modal closes
     if (editingTournament) {
@@ -1559,21 +1569,67 @@ const closeModal = useCallback(() => {
       // when the onCancel callback is triggered
     }
     
-    // Failsafe: Ensure body scroll and padding are restored after a short delay
+    // Simple failsafe: Ensure body scroll is restored
     setTimeout(() => {
-      if (document.body.style.overflow === 'hidden') {
-        const originalOverflow = document.body.dataset.originalOverflow || 'auto';
-        const originalPaddingRight = document.body.dataset.originalPaddingRight || '0px';
-        
-        document.body.style.overflow = originalOverflow;
-        document.body.style.paddingRight = originalPaddingRight;
-        
-        delete document.body.dataset.originalOverflow;
-        delete document.body.dataset.originalPaddingRight;
-      }
+      document.body.style.overflow = 'auto';
     }, 100);
   }
 }, [formLoading, deleteLoading, editingTournament]);
+
+  // ADDED: Tournament change detection callback with stable dependencies
+  const handleTournamentParticipantChange = useCallback((tournament) => {
+    if (!initialTournamentState) return;
+    
+    // Compare current tournament divisions with initial state
+    const currentState = {
+      divisions: tournament.divisions?.map(div => ({
+        id: div.id,
+        participants: [...(div.participants || [])]
+      })) || []
+    };
+    
+    // Check if participants have changed in any division
+    const hasChanges = currentState.divisions.some(currentDiv => {
+      const initialDiv = initialTournamentState.divisions.find(d => d.id === currentDiv.id);
+      if (!initialDiv) return true; // New division
+      
+      // Compare participant arrays
+      if (currentDiv.participants.length !== initialDiv.participants.length) return true;
+      return !currentDiv.participants.every(p => initialDiv.participants.includes(p));
+    });
+    
+    setHasUnsavedChanges(prev => {
+      if (prev !== hasChanges) {
+        // Auto-enter edit mode when changes are detected
+        if (hasChanges) {
+          setIsEditMode(true);
+        }
+        return hasChanges;
+      }
+      return prev;
+    });
+  }, [initialTournamentState]); // REMOVED hasUnsavedChanges and isEditMode from dependencies
+
+  // ADDED: League member change detection with stable dependencies
+  const handleLeagueMemberChange = useCallback((newMembers) => {
+    setSelectedLeagueMembers(newMembers);
+    
+    // Compare with initial state
+    const hasChanges = newMembers.length !== initialLeagueMembers.length ||
+      !newMembers.every(member => initialLeagueMembers.includes(member)) ||
+      !initialLeagueMembers.every(member => newMembers.includes(member));
+    
+    setHasUnsavedChanges(prev => {
+      if (prev !== hasChanges) {
+        // Auto-enter edit mode when changes are detected
+        if (hasChanges) {
+          setIsEditMode(true);
+        }
+        return hasChanges;
+      }
+      return prev;
+    });
+  }, [initialLeagueMembers]); // REMOVED hasUnsavedChanges, isEditMode, editingLeague from dependencies
 
   const handleEnterEditMode = useCallback(() => {
     setIsEditMode(true);
@@ -1641,6 +1697,16 @@ const closeModal = useCallback(() => {
     const latestTournament = tournaments.find(t => t.id === tournament.id) || tournament;
     setEditingTournament(latestTournament);
     setIsEditMode(false); // Start in view mode
+    setHasUnsavedChanges(false); // Reset change detection
+    
+    // Store initial state for change detection
+    setInitialTournamentState({
+      divisions: latestTournament.divisions?.map(div => ({
+        id: div.id,
+        participants: [...(div.participants || [])]
+      })) || []
+    });
+    
     setModalData({ tournament: latestTournament });
     setActiveModal(MODAL_TYPES.TOURNAMENT_FORM);
   }, [tournaments]);
@@ -1649,7 +1715,13 @@ const closeModal = useCallback(() => {
     console.log('Viewing league:', league);
     setEditingLeague(league);
     setIsEditMode(false); // Start in view mode
-    setSelectedLeagueMembers(league.participants || []);
+    setHasUnsavedChanges(false); // Reset change detection
+    
+    // Store initial state for change detection
+    const initialMembers = [...(league.participants || [])];
+    setInitialLeagueMembers(initialMembers);
+    setSelectedLeagueMembers(initialMembers);
+    
     setModalData({ league });
     setActiveModal(MODAL_TYPES.LEAGUE_FORM);
   }, []);
@@ -2919,9 +2991,9 @@ const closeModal = useCallback(() => {
                     variant="primary"
                     onClick={handleEnterEditMode}
                     disabled={formLoading || deleteLoading}
-                    icon={<Edit3 className="h-4 w-4" />}
+                    icon={hasUnsavedChanges ? <CheckCircle className="h-4 w-4" /> : <Edit3 className="h-4 w-4" />}
                   >
-                    Edit Tournament
+                    {hasUnsavedChanges ? 'Update Tournament' : 'Edit Tournament'}
                   </ModalHeaderButton>
                 </>
               )
@@ -2950,15 +3022,16 @@ const closeModal = useCallback(() => {
           >
             <div className="space-y-6">
               <TournamentForm
-                tournament={editingTournament}
-                onSubmit={editingTournament ? handleUpdateTournament : handleCreateTournament}
-                onCancel={closeModal}
-                onUpdateTournament={updateTournament}
-                loading={formLoading}
-                deleteLoading={deleteLoading}
-                members={members}
-                isReadOnly={editingTournament && !isEditMode}
-              />
+              tournament={editingTournament}
+              onSubmit={editingTournament ? handleUpdateTournament : handleCreateTournament}
+              onCancel={closeModal}
+              onUpdateTournament={updateTournament}
+              onParticipantChange={handleTournamentParticipantChange}
+              loading={formLoading}
+              deleteLoading={deleteLoading}
+              members={members}
+              isReadOnly={editingTournament && !isEditMode}
+            />
             </div>
           </Modal>
         )}
@@ -3038,9 +3111,9 @@ const closeModal = useCallback(() => {
                     variant="primary"
                     onClick={handleEnterEditMode}
                     disabled={formLoading || deleteLoading}
-                    icon={<Edit3 className="h-4 w-4" />}
+                    icon={hasUnsavedChanges ? <CheckCircle className="h-4 w-4" /> : <Edit3 className="h-4 w-4" />}
                   >
-                    Edit League
+                    {hasUnsavedChanges ? 'Update League' : 'Edit League'}
                   </ModalHeaderButton>
                 </>
               )
@@ -3093,7 +3166,7 @@ const closeModal = useCallback(() => {
                     <LeagueMemberSelector
                       members={members}
                       selectedMembers={selectedLeagueMembers}
-                      onSelectionChange={setSelectedLeagueMembers}
+                      onSelectionChange={handleLeagueMemberChange}
                       loading={membersLoading}
                     />
                   </div>
@@ -3196,7 +3269,7 @@ const closeModal = useCallback(() => {
               members={members}
               onSubmit={handleTournamentResultsSubmit}
               onCancel={closeModal}
-              loading={formLoading}
+              isLoading={formLoading}
               existingResults={modalData.existingResults}
             />
           </Modal>

@@ -464,4 +464,4 @@ const PlayerPerformanceForm = ({
   );
 };
 
-export default PlayerPerformanceForm;
+export default React.memo(PlayerPerformanceForm);

@@ -10,11 +10,9 @@ const TournamentResultsForm = ({
   isLoading = false,
   existingResults = null 
 }) => {
-  // FIXED: Improved member name extraction with deleted user handling
+  // Improved member name extraction with deleted user handling
   const getMemberName = (memberId) => {
     if (!memberId) return 'Former Member';
-    
-    console.log('🔍 Looking up member:', memberId);
     
     // Try to find member by various ID fields
     const member = members.find(m => 
@@ -26,11 +24,8 @@ const TournamentResultsForm = ({
     );
     
     if (!member) {
-      console.warn('⚠️ Member not found for ID:', memberId);
       return `Former Member (${memberId.slice(-6)})`;
     }
-    
-    console.log('✅ Found member:', member);
     
     // Try different name properties in order of preference
     if (member.name) return member.name;
@@ -43,7 +38,7 @@ const TournamentResultsForm = ({
     return `Former Member (${memberId.slice(-6)})`;
   };
 
-  // FIXED: Create member lookup map for faster access
+  // Create member lookup map for faster access
   const memberLookup = React.useMemo(() => {
     const lookup = new Map();
     members.forEach(member => {
@@ -61,7 +56,6 @@ const TournamentResultsForm = ({
       });
     });
     
-    console.log('📋 Created member lookup with', lookup.size, 'entries');
     return lookup;
   }, [members]);
 
@@ -73,18 +67,14 @@ const TournamentResultsForm = ({
   const [errors, setErrors] = useState({});
   const [expandedDivisions, setExpandedDivisions] = useState({});
 
-  // FIXED: Better placement results generation
+  // Better placement results generation
   const generatePlacementResults = (division) => {
     if (!division.participants || division.participants.length === 0) {
-      console.log('⚠️ No participants in division:', division.name);
       return {
         totalTeams: 0,
         participantPlacements: []
       };
     }
-
-    console.log('🏗️ Generating placements for division:', division.name);
-    console.log('📋 Division participants:', division.participants);
 
     // Create placement entries for each participant with deleted user handling
     const participantPlacements = division.participants.map((participantId) => {
@@ -100,11 +90,8 @@ const TournamentResultsForm = ({
           memberName = member.email;
         }
       } else {
-        console.warn('⚠️ Member not found in lookup:', participantId);
         memberName = `Former Member (${participantId.slice(-6)})`;
       }
-      
-      console.log(`👤 Participant ${participantId} -> ${memberName}`);
       
       return {
         participantId,
@@ -122,10 +109,7 @@ const TournamentResultsForm = ({
 
   // Initialize form data
   useEffect(() => {
-    console.log('🚀 Initializing form with:', { existingResults, tournament, membersCount: members.length });
-    
     if (existingResults) {
-      console.log('📝 Loading existing results');
       setFormData({
         divisionResults: existingResults.divisionResults || [],
         notes: existingResults.notes || '',
@@ -134,8 +118,6 @@ const TournamentResultsForm = ({
           new Date().toISOString().split('T')[0]
       });
     } else if (tournament?.divisions && members.length > 0) {
-      console.log('🆕 Creating new form from tournament divisions');
-      
       // Generate initial placement structure from tournament divisions
       const initialDivisionResults = tournament.divisions.map(division => {
         const placementData = generatePlacementResults(division);
@@ -148,8 +130,6 @@ const TournamentResultsForm = ({
           participantPlacements: placementData.participantPlacements
         };
       });
-      
-      console.log('📊 Generated initial division results:', initialDivisionResults);
       
       setFormData(prev => ({
         ...prev,
@@ -248,9 +228,7 @@ const TournamentResultsForm = ({
       return;
     }
 
-    console.log('📤 Submitting tournament results');
-
-    // FIXED: Create clean, standardized result data
+    // Create clean, standardized result data
     const resultData = {
       tournamentId: tournament?.id || 'unknown',
       tournamentName: tournament?.name || 'Unknown Tournament',
@@ -275,7 +253,6 @@ const TournamentResultsForm = ({
       type: 'tournament'
     };
 
-    console.log('📊 Final result data:', resultData);
     onSubmit(resultData);
   };
 
@@ -290,50 +267,9 @@ const TournamentResultsForm = ({
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-lg max-w-5xl w-full max-h-[90vh] overflow-hidden flex flex-col">
-      {/* Header */}
-      <div className="px-6 py-4 border-b border-gray-200 flex-shrink-0">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            <Trophy className="w-6 h-6 text-yellow-500" />
-            <div>
-              <h2 className="text-xl font-semibold text-gray-900">
-                {existingResults ? 'Edit' : 'Enter'} Tournament Results
-              </h2>
-              <p className="text-sm text-gray-600">
-                {tournament?.name || 'Tournament'} - Final Placements
-              </p>
-            </div>
-          </div>
-          <button
-            onClick={onCancel}
-            className="p-2 hover:bg-gray-100 rounded-full transition-colors"
-          >
-            <X className="w-5 h-5 text-gray-500" />
-          </button>
-        </div>
-      </div>
-
-      {/* Form Content */}
-      <div className="flex-1 overflow-y-auto">
-        <form onSubmit={handleSubmit} className="p-6 space-y-6">
-          {/* Debug info for development */}
-          {process.env.NODE_ENV === 'development' && (
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <h4 className="text-sm font-medium text-blue-800 mb-2">Debug Info:</h4>
-              <div className="grid grid-cols-2 gap-4 text-xs text-blue-700">
-                <div>
-                  <p>Tournament divisions: {tournament?.divisions?.length || 0}</p>
-                  <p>Available members: {members?.length || 0}</p>
-                  <p>Member lookup size: {memberLookup.size}</p>
-                </div>
-                <div>
-                  <p>Generated division results: {formData.divisionResults.length}</p>
-                  <p>Total participants: {formData.divisionResults.reduce((sum, div) => sum + div.participantPlacements.length, 0)}</p>
-                </div>
-              </div>
-            </div>
-          )}
+    <div className="max-h-[70vh] overflow-y-auto">
+      <form onSubmit={handleSubmit} className="p-6 space-y-6">
+          
 
           {/* Tournament Info */}
           <div className="bg-gray-50 rounded-lg p-4">
@@ -565,29 +501,27 @@ const TournamentResultsForm = ({
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
             />
           </div>
+        {/* Form Buttons */}
+          <div className="flex justify-end space-x-3 pt-6 border-t border-gray-200">
+            <button
+              type="button"
+              onClick={onCancel}
+              className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleSubmit}
+              disabled={isLoading}
+              className="flex items-center space-x-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:bg-blue-300 disabled:cursor-not-allowed transition-colors"
+            >
+              <Save className="w-4 h-4" />
+              <span>{isLoading ? 'Saving...' : existingResults ? 'Update Results' : 'Save Results'}</span>
+            </button>
+          </div>
         </form>
-      </div>
-
-      {/* Footer */}
-      <div className="px-6 py-4 border-t border-gray-200 flex justify-end space-x-3 flex-shrink-0">
-        <button
-          type="button"
-          onClick={onCancel}
-          className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
-        >
-          Cancel
-        </button>
-        <button
-          onClick={handleSubmit}
-          disabled={isLoading}
-          className="flex items-center space-x-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:bg-blue-300 disabled:cursor-not-allowed transition-colors"
-        >
-          <Save className="w-4 h-4" />
-          <span>{isLoading ? 'Saving...' : existingResults ? 'Update Results' : 'Save Results'}</span>
-        </button>
-      </div>
     </div>
   );
 };
 
-export default TournamentResultsForm;
+export default React.memo(TournamentResultsForm);

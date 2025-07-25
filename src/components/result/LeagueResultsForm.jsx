@@ -510,4 +510,4 @@ const LeagueResultsForm = ({
   );
 };
 
-export default LeagueResultsForm;
+export default React.memo(LeagueResultsForm);

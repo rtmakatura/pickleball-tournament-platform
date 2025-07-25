@@ -39,41 +39,17 @@ const Modal = ({
     }
   };
 
-  // Global modal counter to track multiple modals
-  const modalCountRef = React.useRef(0);
-
-  // Handle scroll and escape key management with scrollbar compensation
+  // Stable modal effect with minimal dependencies
   React.useEffect(() => {
     if (!isOpen) return;
 
-    // Increment modal counter
-    modalCountRef.current += 1;
+    const body = document.body;
+    const originalOverflow = body.style.overflow;
     
-    // Store original styles and apply scrollbar compensation only for the first modal
-    if (modalCountRef.current === 1) {
-      const currentOverflow = document.body.style.overflow;
-      const currentPaddingRight = document.body.style.paddingRight;
-      const originalOverflow = currentOverflow || 'auto';
-      const originalPaddingRight = currentPaddingRight || '0px';
-      
-      // Store original values
-      if (!document.body.dataset.originalOverflow) {
-        document.body.dataset.originalOverflow = originalOverflow;
-        document.body.dataset.originalPaddingRight = originalPaddingRight;
-      }
-      
-      // Calculate scrollbar width to prevent content shift
-      const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
-      
-      // Apply overflow hidden and compensate for scrollbar width
-      document.body.style.overflow = 'hidden';
-      if (scrollbarWidth > 0) {
-        const currentPadding = parseInt(originalPaddingRight) || 0;
-        document.body.style.paddingRight = `${currentPadding + scrollbarWidth}px`;
-      }
-    }
+    // Apply modal styles
+    body.style.overflow = 'hidden';
 
-    // Handle escape key
+    // Stable escape handler
     const handleEscape = (e) => {
       if (e.key === 'Escape') {
         onClose();
@@ -82,46 +58,12 @@ const Modal = ({
     
     document.addEventListener('keydown', handleEscape);
 
-    // Cleanup function with full restoration
+    // Cleanup
     return () => {
       document.removeEventListener('keydown', handleEscape);
-      
-      // Decrement modal counter
-      modalCountRef.current = Math.max(0, modalCountRef.current - 1);
-      
-      // Only restore styles when all modals are closed
-      if (modalCountRef.current === 0) {
-        const originalOverflow = document.body.dataset.originalOverflow || 'auto';
-        const originalPaddingRight = document.body.dataset.originalPaddingRight || '0px';
-        
-        document.body.style.overflow = originalOverflow;
-        document.body.style.paddingRight = originalPaddingRight;
-        
-        delete document.body.dataset.originalOverflow;
-        delete document.body.dataset.originalPaddingRight;
-      }
+      body.style.overflow = originalOverflow || 'auto';
     };
-  }, [isOpen, onClose]);
-
-  // Failsafe cleanup effect - runs when component unmounts
-  React.useEffect(() => {
-    return () => {
-      // Emergency cleanup if component unmounts with open modal
-      if (isOpen) {
-        modalCountRef.current = Math.max(0, modalCountRef.current - 1);
-        if (modalCountRef.current === 0) {
-          const originalOverflow = document.body.dataset.originalOverflow || 'auto';
-          const originalPaddingRight = document.body.dataset.originalPaddingRight || '0px';
-          
-          document.body.style.overflow = originalOverflow;
-          document.body.style.paddingRight = originalPaddingRight;
-          
-          delete document.body.dataset.originalOverflow;
-          delete document.body.dataset.originalPaddingRight;
-        }
-      }
-    };
-  }, []);
+  }, [isOpen]); // REMOVED onClose from dependencies
 
   // Don't render anything if modal is closed
   if (!isOpen) return null;
@@ -342,13 +284,13 @@ const Modal = ({
 
       {/* Full-screen backdrop with dark overlay */}
       <div 
-        className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+        className="modal-backdrop fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
         onClick={handleBackdropClick}
       >
         {/* Modal container */}
         <div 
           className={`
-            bg-white shadow-xl w-full ${sizeClasses[size]} 
+            modal-content bg-white shadow-xl w-full ${sizeClasses[size]} 
             max-h-[90vh] overflow-hidden flex flex-col
             ${variant === 'notification' 
               ? 'rounded-xl shadow-2xl border border-gray-200' 
@@ -450,4 +392,4 @@ export const ModalHeaderButton = ({
   );
 };
 
-export default Modal;
+export default React.memo(Modal);

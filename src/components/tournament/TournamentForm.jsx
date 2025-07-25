@@ -516,6 +516,7 @@ const TournamentForm = ({
   onSubmit, 
   onCancel, 
   onUpdateTournament,
+  onParticipantChange = null,
   loading = false,
   deleteLoading = false,
   members = [],
@@ -910,6 +911,11 @@ const TournamentForm = ({
         await onUpdateTournament(tournament.id, { divisions: updatedDivisions });
       }
       
+      // ADDED: Notify parent of participant changes for change detection
+      if (onParticipantChange && tournament) {
+        onParticipantChange({ ...tournament, divisions: updatedDivisions });
+      }
+      
     } catch (error) {
       console.error('Error deleting division:', error);
       setErrors({ divisionDelete: `Failed to delete division: ${error.message}` });
@@ -917,7 +923,7 @@ const TournamentForm = ({
     } finally {
       setDivisionSaving(false);
     }
-  }, [divisions, tournament, onUpdateTournament]);
+  }, [divisions, tournament, onUpdateTournament, onParticipantChange]);
 
   const handleDivisionSave = useCallback(async (divisionData) => {
     setDivisionSaving(true);
@@ -940,6 +946,11 @@ const TournamentForm = ({
         await onUpdateTournament(tournament.id, { divisions: updatedDivisions });
       }
       
+      // ADDED: Notify parent of participant changes for change detection
+      if (onParticipantChange && tournament) {
+        onParticipantChange({ ...tournament, divisions: updatedDivisions });
+      }
+      
       setShowDivisionModal(false);
       setEditingDivisionIndex(null);
       
@@ -949,7 +960,7 @@ const TournamentForm = ({
     } finally {
       setDivisionSaving(false);
     }
-  }, [editingDivisionIndex, divisions, tournament, onUpdateTournament]);
+  }, [editingDivisionIndex, divisions, tournament, onUpdateTournament, onParticipantChange]);
 
   // Division participants change handler
   const handleDivisionParticipantsChange = useCallback((divisionId, participants) => {
@@ -965,7 +976,12 @@ const TournamentForm = ({
     if (onUpdateTournament && tournament?.id) {
       onUpdateTournament(tournament.id, { divisions: updatedDivisions });
     }
-  }, [divisions, onUpdateTournament, tournament]);
+    
+    // ADDED: Notify parent of participant changes for change detection
+    if (onParticipantChange && tournament) {
+      onParticipantChange({ ...tournament, divisions: updatedDivisions });
+    }
+  }, [divisions, onUpdateTournament, tournament, onParticipantChange]);
 
   // ADDED: Results handling functions
   const handleMarkCompleteAndEnterResults = useCallback(async () => {
