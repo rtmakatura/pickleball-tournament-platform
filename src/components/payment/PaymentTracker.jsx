@@ -242,7 +242,8 @@ const PaymentTracker = ({
   members = [],
   onUpdateTournament,
   onUpdateLeague,
-  currentUserId
+  currentUserId,
+  initialTargetEvent = null
 }) => {
   // Add styles to document head
   React.useEffect(() => {
@@ -265,6 +266,41 @@ const PaymentTracker = ({
     tournaments: true,
     leagues: true
   });
+
+  // ADDED: Auto-expand and scroll to target event
+  const targetSectionRef = React.useRef(null);
+  
+  React.useEffect(() => {
+    if (isOpen && initialTargetEvent) {
+      // Auto-expand the relevant section
+      if (initialTargetEvent.type === 'tournament') {
+        setExpandedSections(prev => ({ ...prev, tournaments: true }));
+      } else if (initialTargetEvent.type === 'league') {
+        setExpandedSections(prev => ({ ...prev, leagues: true }));
+      }
+      
+      // Scroll to target after modal is rendered
+      setTimeout(() => {
+        const targetElement = document.getElementById(`payment-${initialTargetEvent.type}-${initialTargetEvent.id}`);
+        if (targetElement) {
+          targetElement.scrollIntoView({ 
+            behavior: 'smooth', 
+            block: 'center',
+            inline: 'nearest'
+          });
+          // Add highlight effect
+          targetElement.style.backgroundColor = '#fef3c7';
+          targetElement.style.border = '2px solid #f59e0b';
+          targetElement.style.borderRadius = '12px';
+          setTimeout(() => {
+            targetElement.style.backgroundColor = '';
+            targetElement.style.border = '';
+            targetElement.style.borderRadius = '';
+          }, 3000);
+        }
+      }, 300);
+    }
+  }, [isOpen, initialTargetEvent]);
 
   // Get tournaments with paid divisions (excluding archived/deleted)
   const tournamentsWithPaidDivisions = useMemo(() => {
@@ -456,7 +492,10 @@ const PaymentTracker = ({
 // Tournament Payment Section Component
 const TournamentPaymentSection = ({ tournament, paidDivisions, members, onUpdateTournament, currentUserId }) => {
   return (
-    <div className="bg-gray-50 border border-gray-200 rounded-lg p-2 sm:p-4">
+    <div 
+      id={`payment-tournament-${tournament.id}`}
+      className="bg-gray-50 border border-gray-200 rounded-lg p-2 sm:p-4"
+    >
       <div className="mb-2 sm:mb-4">
         <h4 className="font-medium text-gray-900 text-sm sm:text-lg">{tournament.name}</h4>
         <p className="text-xs sm:text-sm text-gray-600">
@@ -483,7 +522,10 @@ const TournamentPaymentSection = ({ tournament, paidDivisions, members, onUpdate
 // League Payment Section Component
 const LeaguePaymentSection = ({ league, members, onUpdateLeague, currentUserId }) => {
   return (
-    <div className="bg-gray-50 border border-gray-200 rounded-lg p-2 sm:p-4">
+    <div 
+      id={`payment-league-${league.id}`}
+      className="bg-gray-50 border border-gray-200 rounded-lg p-2 sm:p-4"
+    >
       <div className="flex justify-between items-center mb-2 sm:mb-4">
         <h4 className="font-medium text-gray-900 text-sm sm:text-lg">{league.name}</h4>
         <span className="text-xs sm:text-sm text-gray-500 bg-white px-2 py-1 sm:px-3 sm:py-1.5 rounded-full font-medium">

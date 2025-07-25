@@ -304,7 +304,7 @@ const DashboardStyles = () => {
 };
 
 // UPDATED: Tournament Card Component with Results Entry
-const TournamentCard = React.memo(({ tournament, onView, onEdit, onEnterResults, onViewResults, hasResults }) => {
+const TournamentCard = React.memo(({ tournament, onView, onEdit, onEnterResults, onViewResults, onViewPayments, hasResults }) => {
   const totalParticipants = getTournamentTotalParticipants(tournament);
   const totalExpected = getTournamentTotalExpected(tournament);
   const divisionCount = tournament.divisions?.length || 0;
@@ -425,6 +425,26 @@ const TournamentCard = React.memo(({ tournament, onView, onEdit, onEnterResults,
             </Button>
           </div>
           
+          {/* ADDED: Payment tracking button */}
+          {tournament.divisions?.some(div => 
+            div.participants?.length > 0 && parseFloat(div.entryFee || 0) > 0
+          ) && (
+            <div className="flex">
+              <Button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onViewPayments(tournament);
+                }}
+                className="mobile-action-button flex-1 bg-purple-600 hover:bg-purple-700 text-white text-xs sm:text-sm"
+                size="sm"
+              >
+                <DollarSign className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+                <span className="hidden xs:inline">View Payments</span>
+                <span className="xs:hidden">Payments</span>
+              </Button>
+            </div>
+          )}
+          
           {canEnterResults && (
             <div className="flex">
               <Button
@@ -506,7 +526,7 @@ const TournamentCard = React.memo(({ tournament, onView, onEdit, onEnterResults,
 });
 
 // UPDATED: Desktop Tournament Row Component with Results Entry
-const TournamentRow = React.memo(({ tournament, onView, onEdit, onEnterResults, onViewResults, hasResults }) => {
+const TournamentRow = React.memo(({ tournament, onView, onEdit, onEnterResults, onViewResults, onViewPayments, hasResults }) => {
   const totalParticipants = getTournamentTotalParticipants(tournament);
   const totalExpected = getTournamentTotalExpected(tournament);
   const divisionCount = tournament.divisions?.length || 0;
@@ -741,6 +761,22 @@ const TournamentRow = React.memo(({ tournament, onView, onEdit, onEnterResults, 
           >
             View
           </button>
+          {/* ADDED: Payment tracking button for desktop */}
+          {tournament.divisions?.some(div => 
+            div.participants?.length > 0 && parseFloat(div.entryFee || 0) > 0
+          ) && (
+            <button 
+              className="inline-flex items-center justify-center px-3 py-1.5 text-sm bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors w-20"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onViewPayments(tournament);
+              }}
+              type="button"
+            >
+              Payments
+            </button>
+          )}
           {/* ADDED: Results buttons */}
           {canEnterResults && (
             <button 
@@ -767,7 +803,7 @@ const TournamentRow = React.memo(({ tournament, onView, onEdit, onEnterResults, 
 });
 
 // UPDATED: League Card Component with Results Entry
-const LeagueCard = React.memo(({ league, onView, onEdit, onEnterResults, onViewResults, hasResults }) => {
+const LeagueCard = React.memo(({ league, onView, onEdit, onEnterResults, onViewResults, onViewPayments, hasResults }) => {
   const participantCount = league.participants?.length || 0;
   
   const formatEventType = (eventType) => {
@@ -882,6 +918,23 @@ const LeagueCard = React.memo(({ league, onView, onEdit, onEnterResults, onViewR
             </Button>
           </div>
           
+          {/* ADDED: Payment tracking button for leagues */}
+          {league.participants?.length > 0 && parseFloat(league.registrationFee || 0) > 0 && (
+            <div className="flex">
+              <Button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onViewPayments(league);
+                }}
+                className="mobile-action-button flex-1 bg-purple-600 hover:bg-purple-700 text-white"
+                size="md"
+              >
+                <DollarSign className="h-4 w-4 mr-2" />
+                View Payments
+              </Button>
+            </div>
+          )}
+          
           {/* ADDED: Results action button */}
           {canEnterResults && (
             <div className="flex">
@@ -921,7 +974,7 @@ const LeagueCard = React.memo(({ league, onView, onEdit, onEnterResults, onViewR
 });
 
 // UPDATED: Desktop League Row Component with Results Entry
-const LeagueRow = React.memo(({ league, onView, onEdit, onEnterResults, onViewResults, hasResults }) => {
+const LeagueRow = React.memo(({ league, onView, onEdit, onEnterResults, onViewResults, onViewPayments, hasResults }) => {
   const formatEventType = (eventType) => {
     if (!eventType) return '';
     return eventType.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase());
@@ -1091,6 +1144,20 @@ const LeagueRow = React.memo(({ league, onView, onEdit, onEnterResults, onViewRe
           >
             View
           </button>
+          {/* ADDED: Payment tracking button for leagues desktop */}
+          {league.participants?.length > 0 && parseFloat(league.registrationFee || 0) > 0 && (
+            <button 
+              className="inline-flex items-center justify-center px-3 py-1.5 text-sm bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onViewPayments(league);
+              }}
+              type="button"
+            >
+              Payments
+            </button>
+          )}
           {canEnterResults && (
             <button 
               className="inline-flex items-center justify-center px-3 py-1.5 text-sm results-button rounded-md hover:opacity-90 transition-colors"
@@ -1635,6 +1702,29 @@ const closeModal = useCallback(() => {
     setActiveModal(MODAL_TYPES.RESULTS_VIEW);
   }, [results.league]);
 
+  // ADDED: Payment tracking handlers
+  const handleViewTournamentPayments = useCallback((tournament) => {
+    setModalData({ 
+      targetEvent: {
+        type: 'tournament',
+        id: tournament.id,
+        name: tournament.name
+      }
+    });
+    setActiveModal(MODAL_TYPES.PAYMENT_TRACKER);
+  }, []);
+
+  const handleViewLeaguePayments = useCallback((league) => {
+    setModalData({ 
+      targetEvent: {
+        type: 'league',
+        id: league.id,
+        name: league.name
+      }
+    });
+    setActiveModal(MODAL_TYPES.PAYMENT_TRACKER);
+  }, []);
+
   
 
   
@@ -1829,6 +1919,7 @@ const closeModal = useCallback(() => {
                 onEdit={handleEditTournament}
                 onEnterResults={handleEnterTournamentResults}
                 onViewResults={handleViewTournamentResults}
+                onViewPayments={handleViewTournamentPayments}
                 hasResults={hasResultsForTournament(tournament.id)}
               />
             ))}
@@ -1889,6 +1980,7 @@ const closeModal = useCallback(() => {
                       onEdit={handleEditTournament}
                       onEnterResults={handleEnterTournamentResults}
                       onViewResults={handleViewTournamentResults}
+                      onViewPayments={handleViewTournamentPayments}
                       hasResults={hasResultsForTournament(tournament.id)}
                     />
                   ))}
@@ -1945,6 +2037,7 @@ const closeModal = useCallback(() => {
                 onEdit={handleEditLeague}
                 onEnterResults={handleEnterLeagueResults}
                 onViewResults={handleViewLeagueResults}
+                onViewPayments={handleViewLeaguePayments}
                 hasResults={hasResultsForLeague(league.id)}
               />
             ))}
@@ -2005,6 +2098,7 @@ const closeModal = useCallback(() => {
                       onEdit={handleEditLeague}
                       onEnterResults={handleEnterLeagueResults}
                       onViewResults={handleViewLeagueResults}
+                      onViewPayments={handleViewLeaguePayments}
                       hasResults={hasResultsForLeague(league.id)}
                     />
                   ))}
@@ -3507,6 +3601,7 @@ const closeModal = useCallback(() => {
             onUpdateTournament={updateTournament}
             onUpdateLeague={updateLeague}
             currentUserId={user?.uid}
+            initialTargetEvent={modalData?.targetEvent}
           />
         )}
 
