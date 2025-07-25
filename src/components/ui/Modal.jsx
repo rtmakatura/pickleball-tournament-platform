@@ -42,25 +42,35 @@ const Modal = ({
   // Global modal counter to track multiple modals
   const modalCountRef = React.useRef(0);
 
-  // Handle scroll and escape key management with robust cleanup
+  // Handle scroll and escape key management with scrollbar compensation
   React.useEffect(() => {
     if (!isOpen) return;
 
     // Increment modal counter
     modalCountRef.current += 1;
     
-    // Store original overflow style only for the first modal
+    // Store original styles and apply scrollbar compensation only for the first modal
     if (modalCountRef.current === 1) {
       const currentOverflow = document.body.style.overflow;
+      const currentPaddingRight = document.body.style.paddingRight;
       const originalOverflow = currentOverflow || 'auto';
+      const originalPaddingRight = currentPaddingRight || '0px';
       
-      // Store in a more persistent way
+      // Store original values
       if (!document.body.dataset.originalOverflow) {
         document.body.dataset.originalOverflow = originalOverflow;
+        document.body.dataset.originalPaddingRight = originalPaddingRight;
       }
       
-      // Prevent body scroll when modal is open
+      // Calculate scrollbar width to prevent content shift
+      const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+      
+      // Apply overflow hidden and compensate for scrollbar width
       document.body.style.overflow = 'hidden';
+      if (scrollbarWidth > 0) {
+        const currentPadding = parseInt(originalPaddingRight) || 0;
+        document.body.style.paddingRight = `${currentPadding + scrollbarWidth}px`;
+      }
     }
 
     // Handle escape key
@@ -72,18 +82,23 @@ const Modal = ({
     
     document.addEventListener('keydown', handleEscape);
 
-    // Cleanup function with robust restoration
+    // Cleanup function with full restoration
     return () => {
       document.removeEventListener('keydown', handleEscape);
       
       // Decrement modal counter
       modalCountRef.current = Math.max(0, modalCountRef.current - 1);
       
-      // Only restore scroll when all modals are closed
+      // Only restore styles when all modals are closed
       if (modalCountRef.current === 0) {
         const originalOverflow = document.body.dataset.originalOverflow || 'auto';
+        const originalPaddingRight = document.body.dataset.originalPaddingRight || '0px';
+        
         document.body.style.overflow = originalOverflow;
+        document.body.style.paddingRight = originalPaddingRight;
+        
         delete document.body.dataset.originalOverflow;
+        delete document.body.dataset.originalPaddingRight;
       }
     };
   }, [isOpen, onClose]);
@@ -96,8 +111,13 @@ const Modal = ({
         modalCountRef.current = Math.max(0, modalCountRef.current - 1);
         if (modalCountRef.current === 0) {
           const originalOverflow = document.body.dataset.originalOverflow || 'auto';
+          const originalPaddingRight = document.body.dataset.originalPaddingRight || '0px';
+          
           document.body.style.overflow = originalOverflow;
+          document.body.style.paddingRight = originalPaddingRight;
+          
           delete document.body.dataset.originalOverflow;
+          delete document.body.dataset.originalPaddingRight;
         }
       }
     };

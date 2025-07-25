@@ -1559,12 +1559,17 @@ const closeModal = useCallback(() => {
       // when the onCancel callback is triggered
     }
     
-    // Failsafe: Ensure body scroll is restored after a short delay
+    // Failsafe: Ensure body scroll and padding are restored after a short delay
     setTimeout(() => {
       if (document.body.style.overflow === 'hidden') {
         const originalOverflow = document.body.dataset.originalOverflow || 'auto';
+        const originalPaddingRight = document.body.dataset.originalPaddingRight || '0px';
+        
         document.body.style.overflow = originalOverflow;
+        document.body.style.paddingRight = originalPaddingRight;
+        
         delete document.body.dataset.originalOverflow;
+        delete document.body.dataset.originalPaddingRight;
       }
     }, 100);
   }
