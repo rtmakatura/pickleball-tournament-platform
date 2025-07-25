@@ -31,7 +31,7 @@ const memberFormStyles = `
     background: white;
     border-radius: 12px;
     border: 1px solid #e5e7eb;
-    margin-bottom: 12px;
+    margin-bottom: 20px;
     overflow: visible;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
   }
@@ -60,7 +60,7 @@ const memberFormStyles = `
   
   /* MOBILE-OPTIMIZED: Section headers */
   .form-section-header {
-    padding: 12px 16px;
+    padding: 16px;
     border-bottom: 1px solid #e5e7eb;
     background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
     cursor: pointer;
@@ -73,13 +73,13 @@ const memberFormStyles = `
   
   /* MOBILE-OPTIMIZED: Content padding */
   .form-section-content {
-    padding: 16px;
+    padding: 20px 16px;
     overflow: visible;
   }
   
   /* MOBILE-OPTIMIZED: Input group spacing */
   .form-input-group {
-    margin-bottom: 16px;
+    margin-bottom: 20px;
   }
   
   .form-input-group:last-child {
@@ -135,7 +135,13 @@ const memberFormStyles = `
   .form-grid {
     display: grid;
     grid-template-columns: 1fr;
-    gap: 16px;
+    gap: 20px;
+    margin-bottom: 20px;
+  }
+  
+  /* Remove margin from grid children to prevent double spacing */
+  .form-grid .form-input-group {
+    margin-bottom: 0;
   }
   
   @media (min-width: 640px) {
@@ -173,6 +179,7 @@ const memberFormStyles = `
   @media (min-width: 768px) {
     .form-grid {
       gap: 24px;
+      margin-bottom: 24px;
     }
     
     .member-info-card {

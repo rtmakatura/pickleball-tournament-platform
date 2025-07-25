@@ -69,7 +69,7 @@ const tournamentFormStyles = `
   
   /* MOBILE-OPTIMIZED: Section content padding */
   .form-section-content {
-    padding: 16px;
+    padding: 20px 16px;
     position: relative;
     z-index: 15;
     overflow: visible;
@@ -77,7 +77,7 @@ const tournamentFormStyles = `
   
   /* MOBILE-OPTIMIZED: Section headers */
   .form-section-header {
-    padding: 12px 16px;
+    padding: 16px;
     border-bottom: 1px solid #e5e7eb;
     background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
     cursor: pointer;
@@ -88,13 +88,40 @@ const tournamentFormStyles = `
     background: linear-gradient(135deg, #e2e8f0 0%, #cbd5e1 100%);
   }
   
-  /* MOBILE-OPTIMIZED: Input group spacing */
+  /* MOBILE-OPTIMIZED: Consistent input group spacing with Input component override */
   .form-input-group {
-    margin-bottom: 16px;
+    margin-bottom: 20px;
   }
   
   .form-input-group:last-child {
     margin-bottom: 0;
+  }
+  
+  /* Override Input component internal spacing */
+  .form-input-group > * {
+    margin-bottom: 0 !important;
+    margin-top: 0 !important;
+  }
+  
+  /* Ensure helper text doesn't add extra spacing */
+  .form-input-group .helper-text,
+  .form-input-group [class*="helper"],
+  .form-input-group [class*="Helper"] {
+    margin-bottom: 0 !important;
+    margin-top: 4px !important;
+  }
+  
+  /* Override any Input component margin/padding */
+  .form-input-group input,
+  .form-input-group select,
+  .form-input-group textarea {
+    margin: 0 !important;
+  }
+  
+  /* Override label spacing */
+  .form-input-group label {
+    margin-bottom: 6px !important;
+    margin-top: 0 !important;
   }
   
   /* DESKTOP: Larger spacing for bigger screens */
@@ -135,13 +162,26 @@ const tournamentFormStyles = `
   .form-grid {
     display: grid;
     grid-template-columns: 1fr;
-    gap: 24px;
+    gap: 20px;
+    margin-bottom: 20px;
   }
   
   @media (min-width: 640px) {
     .form-grid-sm {
       grid-template-columns: repeat(2, 1fr);
     }
+  }
+  
+  @media (min-width: 768px) {
+    .form-grid {
+      gap: 24px;
+      margin-bottom: 24px;
+    }
+  }
+  
+  /* Remove margin from form-input-groups inside grids */
+  .form-grid .form-input-group {
+    margin-bottom: 0;
   }
   
   @media (min-width: 1024px) {
@@ -173,8 +213,8 @@ const tournamentFormStyles = `
     background: white;
     border: 1px solid #e5e7eb;
     border-radius: 12px;
-    padding: 12px;
-    margin-bottom: 12px;
+    padding: 16px;
+    margin-bottom: 20px;
     transition: all 0.2s ease;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
   }
@@ -204,8 +244,8 @@ const tournamentFormStyles = `
     background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
     color: white;
     border-radius: 12px;
-    padding: 12px;
-    margin-bottom: 16px;
+    padding: 16px;
+    margin-bottom: 20px;
   }
   
   .quick-stats {
@@ -283,8 +323,8 @@ const tournamentFormStyles = `
     background: linear-gradient(135deg, #059669 0%, #047857 100%);
     color: white;
     border-radius: 12px;
-    padding: 12px;
-    margin-bottom: 16px;
+    padding: 16px;
+    margin-bottom: 20px;
   }
   
   .tournament-features-grid {
@@ -318,7 +358,7 @@ const tournamentFormStyles = `
   
   /* MOBILE-OPTIMIZED: Division list spacing */
   .division-add-button {
-    margin-bottom: 16px;
+    margin-bottom: 20px;
   }
   
   /* DESKTOP: Larger features card */

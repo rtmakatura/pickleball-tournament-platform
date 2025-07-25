@@ -38,14 +38,13 @@ const mobileLeagueFormStyles = `
     padding: 0;
   }
   
-  /* MOBILE-FIRST: Responsive section spacing */
-  .mobile-league-section {
-    background: white;
-    border-radius: 12px;
-    border: 1px solid #e5e7eb;
-    margin-bottom: 12px;
-    overflow: hidden;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  /* MOBILE-OPTIMIZED: Section headers */
+  .mobile-league-header {
+    padding: 16px;
+    border-bottom: 1px solid #e5e7eb;
+    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+    cursor: pointer;
+    transition: background-color 0.2s ease;
   }
   
   .mobile-league-section:first-child {
@@ -71,7 +70,7 @@ const mobileLeagueFormStyles = `
   
   /* MOBILE-OPTIMIZED: Content padding */
   .mobile-league-content {
-    padding: 16px;
+    padding: 20px 16px;
   }
   
   .mobile-league-touch-button {
@@ -88,7 +87,7 @@ const mobileLeagueFormStyles = `
   
   /* MOBILE-OPTIMIZED: Input group spacing */
   .mobile-league-input-group {
-    margin-bottom: 16px;
+    margin-bottom: 20px;
   }
   
   .mobile-league-input-group:last-child {
@@ -98,7 +97,13 @@ const mobileLeagueFormStyles = `
   .mobile-league-grid {
     display: grid;
     grid-template-columns: 1fr;
-    gap: 16px;
+    gap: 20px;
+    margin-bottom: 20px;
+  }
+  
+  /* Remove margin from grid children to prevent double spacing */
+  .mobile-league-grid .mobile-league-input-group {
+    margin-bottom: 0;
   }
   
   /* DESKTOP: Larger spacing for bigger screens */
@@ -123,6 +128,7 @@ const mobileLeagueFormStyles = `
     
     .mobile-league-grid {
       gap: 24px;
+      margin-bottom: 24px;
     }
   }
   
@@ -242,10 +248,7 @@ const mobileLeagueFormStyles = `
     border: 2px dashed #cbd5e1;
   }
   
-  /* Form container with consistent padding */
-  .league-form-container {
-    padding: 24px;
-  }
+  /* Form container with consistent padding - removed, using p-6 class instead */
   
   /* MOBILE-OPTIMIZED: League features info card styling */
   .league-features-card {
@@ -908,7 +911,7 @@ const LeagueForm = ({
       {/* Plain form component without Modal wrapper */}
       <div className="mobile-league-form">
         {/* Consistent container with proper padding */}
-        <div className="league-form-container">
+        <div style={{ padding: '24px' }}>
           {/* Error alerts for submission issues */}
           {errors.submit && (
             <div className="mobile-league-alert">
