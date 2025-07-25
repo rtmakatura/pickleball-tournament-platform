@@ -62,7 +62,7 @@ export const Alert = ({
 
   return (
     <div className={`
-      rounded-md border p-4 ${config.bgColor} ${config.borderColor} ${className}
+      rounded-xl border-2 p-6 shadow-lg ${config.bgColor} ${config.borderColor} ${className} transition-all duration-300 hover:shadow-xl
     `}>
       <div className="flex">
         <div className="flex-shrink-0">

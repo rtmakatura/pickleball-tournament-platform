@@ -23,39 +23,26 @@ export const useSmoothNavigation = () => {
     { id: 'results', label: 'Results', ref: resultsRef }, // ADDED: Results nav item
   ];
   
-  // Enhanced smooth scroll with special handling for bottom sections
+  // Simple scroll that works
   const scrollToSection = useCallback((sectionId) => {
     const navItem = navItems.find(item => item.id === sectionId);
     if (navItem?.ref.current) {
       const element = navItem.ref.current;
-      const elementTop = element.offsetTop;
-      const windowHeight = window.innerHeight;
-      const documentHeight = document.documentElement.scrollHeight;
-      const maxScroll = documentHeight - windowHeight;
+      const isMobile = window.innerWidth < 768;
+      const offset = isMobile ? 80 : 120;
       
-      // Consistent offset for all sections
-      let offset = 120; // Slightly larger offset to account for sticky nav
+      const elementPosition = element.getBoundingClientRect().top + window.pageYOffset;
+      const offsetPosition = elementPosition - offset;
       
-      let targetScroll = Math.max(0, elementTop - offset);
-      
-      // Ensure we don't scroll past the maximum
-      if (targetScroll > maxScroll) {
-        targetScroll = maxScroll;
-      }
-      
-      // Set manual navigation flag to prevent immediate override
       setManualNavigation(true);
       setActiveSection(sectionId);
       
       window.scrollTo({
-        top: targetScroll,
+        top: offsetPosition,
         behavior: 'smooth'
       });
       
-      // Clear manual navigation flag after scroll completes
-      setTimeout(() => {
-        setManualNavigation(false);
-      }, 1000);
+      setTimeout(() => setManualNavigation(false), 500);
     }
   }, [navItems]);
   
@@ -68,9 +55,9 @@ export const useSmoothNavigation = () => {
       const scrollPosition = window.scrollY;
       const windowHeight = window.innerHeight;
       
-      // Mobile-friendly detection point - closer to top of viewport
+      // Better detection point
       const isMobile = window.innerWidth < 768;
-      const detectionPoint = scrollPosition + (isMobile ? 200 : 250);
+      const detectionPoint = scrollPosition + (isMobile ? 150 : 200);
       
       let currentSection = 'stats'; // Default fallback
       

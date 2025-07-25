@@ -290,19 +290,19 @@ const Modal = ({
         {/* Modal container */}
         <div 
           className={`
-            modal-content bg-white shadow-xl w-full ${sizeClasses[size]} 
-            max-h-[90vh] overflow-hidden flex flex-col
+            modal-content bg-white shadow-2xl w-full ${sizeClasses[size]} 
+            max-h-[90vh] overflow-hidden flex flex-col animate-fade-in-up
             ${variant === 'notification' 
-              ? 'rounded-xl shadow-2xl border border-gray-200' 
-              : 'rounded-lg'
+              ? 'rounded-2xl shadow-2xl border border-gray-200 ring-1 ring-gray-300' 
+              : 'rounded-2xl border border-gray-200 ring-1 ring-gray-300'
             }
           `}
         >
           {/* ENHANCED: Modal Header with better action support and mobile optimization */}
           <div className={`flex items-center justify-between border-b ${
             variant === 'notification' 
-              ? 'p-4 sm:p-6 bg-gray-50 border-gray-200' 
-              : 'p-3 sm:p-4 bg-white'
+              ? 'p-6 sm:p-8 bg-gradient-to-r from-gray-50 to-white border-gray-200' 
+              : 'p-4 sm:p-6 bg-gradient-to-r from-gray-50 to-white border-gray-200'
           }`}>
             <h2 className={`font-semibold text-gray-900 flex-1 min-w-0 mr-2 sm:mr-4 truncate ${
               variant === 'notification' 

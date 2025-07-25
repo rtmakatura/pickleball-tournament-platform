@@ -385,10 +385,10 @@ const TournamentCard = React.memo(({ tournament, onView, onEdit, onEnterResults,
           )}
         </div>
 
-        {/* Expected Revenue */}
+        {/* Expected Payment */}
         {totalExpected > 0 && (
           <div className="mt-2 sm:mt-3 flex items-center justify-between p-2 sm:p-3 bg-green-50 rounded-lg">
-            <span className="text-xs sm:text-sm text-green-700 font-medium">Expected Revenue</span>
+            <span className="text-xs sm:text-sm text-green-700 font-medium">Expected Payment</span>
             <span className="text-base sm:text-lg font-bold text-green-800">${totalExpected}</span>
           </div>
         )}
@@ -1452,6 +1452,78 @@ const ResultsDashboard = ({ results, tournaments, leagues, members, onViewTourna
   );
 };
 
+// Floating Action Menu Component
+const FloatingActionMenu = ({ onCreateMember, onCreateTournament, onCreateLeague, onViewPayments, onViewArchive }) => {
+  const [isOpen, setIsOpen] = useState(false);
+
+  const actions = [
+    { icon: Users, label: 'Add Member', onClick: onCreateMember, color: 'from-blue-500 to-blue-600' },
+    { icon: Trophy, label: 'New Tournament', onClick: onCreateTournament, color: 'from-emerald-500 to-emerald-600' },
+    { icon: Activity, label: 'New League', onClick: onCreateLeague, color: 'from-purple-500 to-purple-600' },
+    { icon: DollarSign, label: 'Payments', onClick: onViewPayments, color: 'from-orange-500 to-orange-600' },
+    { icon: Clock, label: 'Archive', onClick: onViewArchive, color: 'from-gray-500 to-gray-600' }
+  ];
+
+  const handleActionClick = (action) => {
+    action.onClick();
+    setIsOpen(false);
+  };
+
+  return (
+    <>
+      {/* Backdrop */}
+      {isOpen && (
+        <div 
+          className="fixed inset-0 bg-black/20 z-40"
+          onClick={() => setIsOpen(false)}
+        />
+      )}
+
+      {/* Floating Action Button */}
+      <div className="fixed bottom-6 right-6 z-50">
+        {/* Action Items - appear when open */}
+        {isOpen && (
+          <div className="absolute bottom-16 right-0 space-y-3">
+            {actions.map((action, index) => {
+              const Icon = action.icon;
+              return (
+                <div
+                  key={action.label}
+                  className="flex items-center space-x-3 animate-in slide-in-from-right-10 fade-in"
+                  style={{ animationDelay: `${index * 50}ms` }}
+                >
+                  {/* Label */}
+                  <span className="bg-black/80 text-white px-3 py-1.5 rounded-lg text-sm font-medium whitespace-nowrap">
+                    {action.label}
+                  </span>
+                  
+                  {/* Action Button */}
+                  <button
+                    onClick={() => handleActionClick(action)}
+                    className={`w-12 h-12 rounded-full bg-gradient-to-r ${action.color} shadow-lg hover:shadow-xl transform hover:scale-110 transition-all duration-200 flex items-center justify-center`}
+                  >
+                    <Icon className="h-6 w-6 text-white" />
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Main FAB */}
+        <button
+          onClick={() => setIsOpen(!isOpen)}
+          className={`w-14 h-14 rounded-full bg-gradient-to-r from-indigo-500 to-purple-600 shadow-lg hover:shadow-xl transform transition-all duration-300 flex items-center justify-center ${
+            isOpen ? 'rotate-45 scale-110' : 'hover:scale-110'
+          }`}
+        >
+          <Plus className="h-7 w-7 text-white" />
+        </button>
+      </div>
+    </>
+  );
+};
+
 const Dashboard = React.forwardRef((props, ref) => {
   const { user, signIn, signUpWithProfile, logout, isAuthenticated, loading: authLoading } = useAuth();
   const { members, loading: membersLoading, addMember, updateMember, deleteMember } = useMembers({ realTime: true });
@@ -1495,8 +1567,11 @@ const Dashboard = React.forwardRef((props, ref) => {
     return leagues.filter(league => league.status === 'archived');
   }, [leagues]);
 
-  // Smooth navigation hook
+  // Smooth navigation hook - remove Quick Actions section
   const { activeSection, scrollToSection, navItems, refs } = useSmoothNavigation();
+  
+  // Filter out Quick Actions from navigation since we removed the section
+  const filteredNavItems = navItems.filter(item => item.id !== 'actions');
 
   // FIXED: Consolidated modal state management
   const [activeModal, setActiveModal] = useState(null);
@@ -2714,15 +2789,21 @@ const closeModal = useCallback(() => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <DashboardStyles />
-      
-      {/* Sticky Navigation */}
-      <StickyNavigation 
+    <>
+      {/* Sticky Navigation - Outside container */}
+      <StickyNavigation
         activeSection={activeSection}
         onNavigate={scrollToSection}
-        navItems={navItems}
+        navItems={filteredNavItems}
       />
+      
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 relative">
+        {/* Background decoration */}
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_120%,rgba(120,119,198,0.1),rgba(255,255,255,0))] pointer-events-none"></div>
+        <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-br from-blue-400/20 to-purple-600/20 rounded-full blur-3xl transform translate-x-32 -translate-y-32 pointer-events-none"></div>
+        <div className="absolute bottom-0 left-0 w-96 h-96 bg-gradient-to-tr from-emerald-400/20 to-cyan-600/20 rounded-full blur-3xl transform -translate-x-32 translate-y-32 pointer-events-none"></div>
+        <div className="relative z-10">
+        <DashboardStyles />
       
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-4">
         {/* Alert notification */}
@@ -2745,95 +2826,62 @@ const closeModal = useCallback(() => {
           </p>
         </div>
 
-        {/* Stats Cards - Responsive Grid */}
-        <div ref={refs.statsRef} className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-8 sm:mb-8">
-          <div className="bg-white rounded-lg border shadow-sm p-4 sm:p-6 text-center">
-            <Trophy className="h-6 w-6 sm:h-8 sm:w-8 text-green-600 mx-auto mb-2" />
-            <div className="text-xl sm:text-3xl font-bold text-gray-900">
-              {tournaments.length}
+        {/* Stats Cards - Extra Compact Mobile */}
+        <div ref={refs.statsRef} className="grid grid-cols-2 lg:grid-cols-4 gap-1.5 lg:gap-6 mb-3 lg:mb-8">
+          <div className="group relative bg-gradient-to-br from-emerald-500 via-green-500 to-teal-600 rounded-md lg:rounded-2xl shadow-md lg:shadow-lg hover:shadow-emerald-500/25 p-1.5 lg:p-5 text-center transform hover:-translate-y-1 transition-all duration-300 overflow-hidden">
+            <div className="absolute inset-0 bg-gradient-to-r from-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+            <div className="relative z-10">
+              <div className="w-4 h-4 lg:w-12 lg:h-12 bg-white/20 backdrop-blur-sm rounded-sm lg:rounded-xl flex items-center justify-center mx-auto mb-0.5 lg:mb-3 group-hover:scale-110 transition-transform duration-300">
+                <Trophy className="h-2.5 w-2.5 lg:h-6 lg:w-6 text-white" />
+              </div>
+              <div className="text-base lg:text-3xl font-black text-white mb-0 lg:mb-1">
+                {tournaments.length}
+              </div>
+              <div className="text-xs lg:text-sm text-emerald-100 font-semibold">Tournaments</div>
             </div>
-            <div className="text-xs sm:text-sm text-gray-500">Tournaments</div>
           </div>
 
-          <div className="bg-white rounded-lg border shadow-sm p-4 sm:p-6 text-center">
-            <Layers className="h-6 w-6 sm:h-8 sm:w-8 text-blue-600 mx-auto mb-2" />
-            <div className="text-xl sm:text-3xl font-bold text-gray-900">
-              {tournaments.reduce((sum, t) => sum + (t.divisions?.length || 0), 0)}
+          <div className="group relative bg-gradient-to-br from-blue-500 via-indigo-500 to-purple-600 rounded-md lg:rounded-2xl shadow-md lg:shadow-lg hover:shadow-blue-500/25 p-1.5 lg:p-5 text-center transform hover:-translate-y-1 transition-all duration-300 overflow-hidden">
+            <div className="absolute inset-0 bg-gradient-to-r from-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+            <div className="relative z-10">
+              <div className="w-4 h-4 lg:w-12 lg:h-12 bg-white/20 backdrop-blur-sm rounded-sm lg:rounded-xl flex items-center justify-center mx-auto mb-0.5 lg:mb-3 group-hover:scale-110 transition-transform duration-300">
+                <Layers className="h-2.5 w-2.5 lg:h-6 lg:w-6 text-white" />
+              </div>
+              <div className="text-base lg:text-3xl font-black text-white mb-0 lg:mb-1">
+                {tournaments.reduce((sum, t) => sum + (t.divisions?.length || 0), 0)}
+              </div>
+              <div className="text-xs lg:text-sm text-blue-100 font-semibold">Divisions</div>
             </div>
-            <div className="text-xs sm:text-sm text-gray-500">Divisions</div>
           </div>
 
-          <div className="bg-white rounded-lg border shadow-sm p-4 sm:p-6 text-center">
-            <Activity className="h-6 w-6 sm:h-8 sm:w-8 text-purple-600 mx-auto mb-2" />
-            <div className="text-xl sm:text-3xl font-bold text-gray-900">
-              {leagues.filter(l => l.status === LEAGUE_STATUS.ACTIVE).length}
+          <div className="group relative bg-gradient-to-br from-purple-500 via-pink-500 to-rose-600 rounded-md lg:rounded-2xl shadow-md lg:shadow-lg hover:shadow-purple-500/25 p-1.5 lg:p-5 text-center transform hover:-translate-y-1 transition-all duration-300 overflow-hidden">
+            <div className="absolute inset-0 bg-gradient-to-r from-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+            <div className="relative z-10">
+              <div className="w-4 h-4 lg:w-12 lg:h-12 bg-white/20 backdrop-blur-sm rounded-sm lg:rounded-xl flex items-center justify-center mx-auto mb-0.5 lg:mb-3 group-hover:scale-110 transition-transform duration-300">
+                <Activity className="h-2.5 w-2.5 lg:h-6 lg:w-6 text-white" />
+              </div>
+              <div className="text-base lg:text-3xl font-black text-white mb-0 lg:mb-1">
+                {leagues.filter(l => l.status === LEAGUE_STATUS.ACTIVE).length}
+              </div>
+              <div className="text-xs lg:text-sm text-purple-100 font-semibold">Active Leagues</div>
             </div>
-            <div className="text-xs sm:text-sm text-gray-500">Active Leagues</div>
           </div>
 
-          <div className="bg-white rounded-lg border shadow-sm p-4 sm:p-6 text-center">
-            <Users className="h-6 w-6 sm:h-8 sm:w-8 text-indigo-600 mx-auto mb-2" />
-            <div className="text-xl sm:text-3xl font-bold text-gray-900">
-              {members.length}
+          <div className="group relative bg-gradient-to-br from-orange-500 via-amber-500 to-yellow-600 rounded-md lg:rounded-2xl shadow-md lg:shadow-lg hover:shadow-orange-500/25 p-1.5 lg:p-5 text-center transform hover:-translate-y-1 transition-all duration-300 overflow-hidden">
+            <div className="absolute inset-0 bg-gradient-to-r from-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+            <div className="relative z-10">
+              <div className="w-4 h-4 lg:w-12 lg:h-12 bg-white/20 backdrop-blur-sm rounded-sm lg:rounded-xl flex items-center justify-center mx-auto mb-0.5 lg:mb-3 group-hover:scale-110 transition-transform duration-300">
+                <Users className="h-2.5 w-2.5 lg:h-6 lg:w-6 text-white" />
+              </div>
+              <div className="text-base lg:text-3xl font-black text-white mb-0 lg:mb-1">
+                {members.length}
+              </div>
+              <div className="text-xs lg:text-sm text-orange-100 font-semibold">Members</div>
             </div>
-            <div className="text-xs sm:text-sm text-gray-500">Members</div>
           </div>
         </div>
 
-        {/* Quick Actions - Responsive */}
-        <Card ref={refs.actionsRef} title="Quick Actions" className="mb-8 sm:mb-8">
-          <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 sm:gap-4">
-            <Button 
-              variant="outline" 
-              onClick={() => setActiveModal(MODAL_TYPES.MEMBER_FORM)}
-              className={`h-16 flex-col gap-2 ${isMobile ? 'mobile-action-button' : ''}`}
-              size="md"
-            >
-              <Users className="h-5 w-5" />
-              <span className="text-xs sm:text-sm">Add Member</span>
-            </Button>
-            
-            <Button 
-              variant="outline" 
-              onClick={() => setActiveModal(MODAL_TYPES.TOURNAMENT_FORM)}
-              className={`h-16 flex-col gap-2 ${isMobile ? 'mobile-action-button' : ''}`}
-              size="md"
-            >
-              <Trophy className="h-5 w-5" />
-              <span className="text-xs sm:text-sm">New Tournament</span>
-            </Button>
-
-            <Button 
-              variant="outline" 
-              onClick={() => setActiveModal(MODAL_TYPES.LEAGUE_FORM)}
-              className={`h-16 flex-col gap-2 ${isMobile ? 'mobile-action-button' : ''}`}
-              size="md"
-            >
-              <Activity className="h-5 w-5" />
-              <span className="text-xs sm:text-sm">New League</span>
-            </Button>
-            
-            <Button 
-              variant="outline" 
-              onClick={() => setActiveModal(MODAL_TYPES.PAYMENT_TRACKER)}
-              className={`h-16 flex-col gap-2 ${isMobile ? 'mobile-action-button' : ''}`}
-              size="md"
-            >
-              <DollarSign className="h-5 w-5" />
-              <span className="text-xs sm:text-sm">Payment Tracker</span>
-            </Button>
-
-            <Button 
-              variant="outline" 
-              onClick={() => setActiveModal(MODAL_TYPES.ARCHIVED_ITEMS)}
-              className={`h-16 flex-col gap-2 ${isMobile ? 'mobile-action-button' : ''}`}
-              size="md"
-            >
-              <Clock className="h-5 w-5" />
-              <span className="text-xs sm:text-sm">View Archive</span>
-            </Button>
-          </div>
-        </Card>
+        
 
         {/* Tournaments Section - RESPONSIVE */}
         <Card 
@@ -3685,7 +3733,18 @@ const closeModal = useCallback(() => {
 
         
       </div>
-    </div>
+      </div>
+      
+      {/* Floating Action Menu */}
+      <FloatingActionMenu 
+        onCreateMember={() => setActiveModal(MODAL_TYPES.MEMBER_FORM)}
+        onCreateTournament={() => setActiveModal(MODAL_TYPES.TOURNAMENT_FORM)}
+        onCreateLeague={() => setActiveModal(MODAL_TYPES.LEAGUE_FORM)}
+        onViewPayments={() => setActiveModal(MODAL_TYPES.PAYMENT_TRACKER)}
+        onViewArchive={() => setActiveModal(MODAL_TYPES.ARCHIVED_ITEMS)}
+      />
+      </div>
+    </>
   );
 });
 
