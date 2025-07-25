@@ -10,6 +10,7 @@ export { default as Alert } from './Alert';
 export { default as ConfirmDialog } from './ConfirmDialog';
 export { default as Footer } from './Footer';
 export { default as ReportIssueModal } from './ReportIssueModal';
+export { default as UserMenu } from './UserMenu';
 
 // Usage Examples:
 // import { Button, Modal, Input, ConfirmDialog, Footer, ReportIssueModal } from '../ui';

@@ -4,6 +4,7 @@ import { Zap } from 'lucide-react';
 import { useState } from 'react';
 import Dashboard from './components/Dashboard';
 import Footer from './components/ui/Footer';
+import UserMenu from './components/ui/UserMenu';
 import { NotificationCenter } from './components/notifications';
 import { useAuth } from './hooks/useAuth';
 import { Bell } from 'lucide-react';
@@ -43,12 +44,15 @@ function App() {
               </div>
             </div>
             
-            {/* Notification Badge */}
+            {/* Right side actions */}
             {user?.uid && (
-              <NotificationBadge 
-                userId={user.uid}
-                onShowNotifications={() => setShowNotifications(true)}
-              />
+              <div className="flex items-center space-x-3">
+                <NotificationBadge 
+                  userId={user.uid}
+                  onShowNotifications={() => setShowNotifications(true)}
+                />
+                <UserMenu />
+              </div>
             )}
           </div>
         </div>
